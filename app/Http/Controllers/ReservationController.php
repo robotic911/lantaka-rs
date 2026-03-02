@@ -197,6 +197,14 @@ class ReservationController extends Controller
             $query->where('type', $request->accommodation_type);
         }
 
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+        if ($request->get('status') === 'cancelled') {
+            // This ensures any of these database statuses show up when "Cancelled" is clicked
+            $query->whereIn('status', ['cancelled', 'declined', 'rejected']);
+        }
+
         // 5. LOGIC: Client Type Filter (Assuming usertype is in your users table)
         if ($request->filled('client_type')) {
             $clientType = $request->client_type;
@@ -212,12 +220,30 @@ class ReservationController extends Controller
     }
     public function showGuests(\Illuminate\Http\Request $request) 
     {
-        // 1. Start the query and FILTER for active/confirmed guests only
-        // This ensures 'pending' or 'cancelled' bookings don't clutter the Guest list
-        $query = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods'])
-                    ->whereIn('status', ['confirmed', 'checked-in', 'completed']);
+        // 1. Define the base guest statuses you want to track
+        $validStatuses = ['confirmed', 'checked-in', 'checked-out', 'cancelled', 'declined', 'completed'];
 
-        // 2. SEARCH LOGIC (Names, Rooms, and Venues)
+        // 2. Start the query
+        $query = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods']);
+
+        // 3. LOGIC: Status Card Filtering
+        if ($request->filled('status')) {
+            $status = strtolower($request->status);
+            
+            // Handle grouped statuses for specific cards
+            if ($status === 'checked-in') {
+                $query->whereIn('status', ['checked-in', 'approved']);
+            } elseif ($status === 'cancelled') {
+                $query->whereIn('status', ['cancelled', 'declined']);
+            } else {
+                $query->where('status', $status);
+            }
+        } else {
+            // Default view: Show everything except 'pending' (which stays on the Reservations page)
+            $query->whereIn('status', $validStatuses);
+        }
+
+        // 4. SEARCH LOGIC (Existing)
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
@@ -233,7 +259,7 @@ class ReservationController extends Controller
             });
         }
 
-        // 3. DATE LOGIC
+        // 5. DATE LOGIC (Existing)
         if ($request->filled('date')) {
             $now = \Carbon\Carbon::now();
             if ($request->date === 'last_week') {
@@ -245,20 +271,18 @@ class ReservationController extends Controller
             }
         }
 
-        // 4. CLIENT TYPE LOGIC
+        // 6. CLIENT & ACCOMMODATION TYPE LOGIC (Existing)
         if ($request->filled('client_type')) {
-            $clientType = $request->client_type;
-            $query->whereHas('user', function($q) use ($clientType) {
-                $q->where('usertype', $clientType);
+            $query->whereHas('user', function($q) use ($request) {
+                $q->where('usertype', $request->client_type);
             });
         }
 
-        // 5. ACCOMMODATION TYPE LOGIC
         if ($request->filled('accommodation_type')) {
             $query->where('type', $request->accommodation_type);
         }
 
-        // 6. Execute and send to view
+        // 7. Execute and return
         $reservations = $query->orderBy('created_at', 'desc')->get();
 
         return view('employee.guest', compact('reservations'));

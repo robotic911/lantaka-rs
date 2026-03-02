@@ -16,29 +16,36 @@
             </div>
 
             <div class="status-cards">
-              <div class="status-card pending active">
-                <div class="status-label">Pending</div>
-                {{-- Change 'Pending' to 'pending' --}}
-                <div class="status-number">{{ $reservations->where('status', 'pending')->count() }}</div>
-              </div>
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'pending']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
+                  <div class="status-label">Pending</div>
+                  <div class="status-number">{{ $reservations->where('status', 'pending')->count() }}</div>
+                </div>
+              </a>
               
-              <div class="status-card confirmed">
-                <div class="status-label">Confirmed</div>
-                {{-- Change 'Confirmed' to 'confirmed' --}}
-                <div class="status-number">{{ $reservations->where('status', 'confirmed')->count() }}</div>
-              </div>
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'confirmed']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
+                  <div class="status-label">Confirmed</div>
+                  <div class="status-number">{{ $reservations->where('status', 'confirmed')->count() }}</div>
+                </div>
+              </a>
 
-              <div class="status-card completed">
-                <div class="status-label">Completed</div>
-                {{-- Change 'Completed' to 'completed' --}}
-                <div class="status-number">{{ $reservations->where('status', 'completed')->count() }}</div>
-              </div>
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'completed']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card completed {{ request('status') == 'completed' ? 'active' : '' }}">
+                  <div class="status-label">Completed</div>
+                  <div class="status-number">{{ $reservations->where('status', 'completed')->count() }}</div>
+                </div>
+              </a>
 
-              <div class="status-card cancelled">
-                <div class="status-label">Cancelled</div>
-                {{-- Change 'Cancelled' to 'cancelled' --}}
-                <div class="status-number">{{ $reservations->where('status', 'cancelled')->count() }}</div>
-              </div>
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'cancelled']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">
+                    <div class="status-label">Cancelled</div>
+                    <div class="status-number">
+                        {{-- Count cancelled, declined, and rejected together --}}
+                        {{ $reservations->whereIn('status', ['cancelled', 'declined', 'rejected'])->count() }}
+                    </div>
+                </div>
+              </a>
             </div>
 
             <div class="filter-section">
@@ -67,8 +74,8 @@
               </div>
 
               {{-- Clear Filters Button --}}
-              @if(request()->anyFilled(['search', 'date', 'client_type', 'accommodation_type']))
-                <a href="{{ route('employee.reservations') }}" style="text-decoration:none; color:#d9534f; margin-left:15px; font-weight:bold;">Clear Filters</a>
+              @if(request()->anyFilled(['search', 'date', 'client_type', 'accommodation_type', 'status']))
+                <a href="{{ route('employee.reservations') }}" style="text-decoration:none; color:#d9534f; margin-left:15px; font-weight:bold;">✕ Clear All Filters</a>
               @endif
             </div>
         </form>
