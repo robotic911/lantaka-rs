@@ -41,22 +41,12 @@ class Reservation extends Model
         return $this->belongsTo(Venue::class, 'accommodation_id');
     }
 
-    public function foods()
-    {
-        return $this->belongsToMany(
-            \App\Models\Food::class, 
-            'food_reservations', 
-            'venue_reservation_id', 
-            'food_id'
-        )
-        ->withPivot([
-            'food_reservation_id',
-            'client_id', 
-            'staff_id', 
-            'status', 
-            'serving_time', 
-            'total_price'
-        ])
-        ->withTimestamps();
-    }
+    public function foods() {
+    return $this->belongsToMany(
+        \App\Models\Food::class, 
+        'food_reservations', 
+        'venue_reservation_id', 
+        'food_id'
+    )->withPivot(['food_reservation_id', 'status', 'total_price']);
+}
 }
