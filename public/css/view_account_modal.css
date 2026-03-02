@@ -1,0 +1,171 @@
+
+
+.account-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.account-overlay.active {
+  display: flex;
+}
+
+.account-modal {
+  background-color: white;
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 700px;
+  width: 100%;
+  position: relative;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+}
+
+.account-close {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: #e74c3c;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.account-close:hover {
+  opacity: 0.8;
+}
+
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.account-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.account-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.account-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.account-field.full-width {
+  grid-column: 1 / -1;
+}
+
+label {
+  font-weight: 600;
+  font-size: 14px;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
+input,
+textarea {
+  padding: 12px 14px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background-color: #fff;
+  color: #333;
+  transition: border-color 0.3s ease;
+}
+
+input:focus,
+textarea:focus {
+  outline: none;
+  border-color: #2c3e7f;
+  box-shadow: 0 0 0 3px rgba(44, 62, 127, 0.1);
+}
+
+textarea {
+  min-height: 160px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.account-password {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.account-password input {
+  flex: 1;
+}
+
+.account-eye {
+  position: absolute;
+  right: 12px;
+  cursor: pointer;
+  font-size: 18px;
+}
+
+.account-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.account-btn {
+  flex: 1;
+  padding: 14px 24px;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.account-btn.deactivate {
+  border: 2px solid #e74c3c;
+  color: #e74c3c;
+  background-color: white;
+}
+
+.account-btn.deactivate:hover {
+  background-color: #ffe5e5;
+}
+
+.account-btn.save {
+  background-color: #ffc107;
+  color: #000;
+}
+
+.account-btn.save:hover {
+  background-color: #ffb300;
+}
+
+.account-trigger {
+  padding: 12px 24px;
+  background-color: #2c3e7f;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.account-trigger:hover {
+  background-color: #1f2a5a;
+}

@@ -2,7 +2,9 @@
 
   <title>Accounts - Lantaka Room and Venue Reservation System</title>
   <link rel="stylesheet" href="{{asset('css/employee_accounts.css')}}">
- 
+  @vite('resources/js/employee/approve_account.js')
+  @vite('resources/js/employee/view_account.js')
+
   @section('content')
       <div class="page-content">
         <h1 class="page-title">Accounts</h1>
@@ -63,9 +65,9 @@
                   <td>
 
                     @if($user->status == 'pending')
-                        <a href="#" class="action-btn" title="Review Account">👁️</a>
+                        <button class="action-btn-approve" title="Review Account">👁️</button>
                     @else
-                        <button class="action-btn-">✎</button>
+                        <button class="action-btn-view">✎</button>
                     @endif
 
                   </td>
@@ -79,6 +81,7 @@
           </table>
         </div>
       </div>
+      <x-approve_account_modal/>
+      <x-view_account_modal/>
 
-      <x-approval_accounts/>
     @endsection
