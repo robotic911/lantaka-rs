@@ -11,6 +11,11 @@ class FoodReservation extends Model
     protected $primaryKey = 'food_reservation_id';
     
     protected $fillable = [
-        'food_id', 'venue_reservation_id', 'client_id', 'staff_id', 'serving_time', 'total_price'
+        'food_id',
+        'venue_reservation_id',
+        'client_id',
+        'staff_id',
+        'serving_time',
+        'total_price'
     ];
 }

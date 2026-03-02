@@ -61,11 +61,13 @@
                     @endif
                   </td>
                   <td>
+
                     @if($user->status == 'pending')
                         <a href="#" class="action-btn" title="Review Account">👁️</a>
                     @else
-                        <button class="action-btn">✎</button>
+                        <button class="action-btn-">✎</button>
                     @endif
+
                   </td>
                 </tr>
               @empty
@@ -77,4 +79,6 @@
           </table>
         </div>
       </div>
+
+      <x-approval_accounts/>
     @endsection
