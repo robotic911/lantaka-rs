@@ -155,23 +155,111 @@ class ReservationController extends Controller
     }
 
     // 4. Admin Page
-    public function adminIndex()
+    // 4. Admin Page
+    public function adminIndex(Request $request)
     {
-        // Add 'foods' to this list right here!
-        $reservations = Reservation::with(['user', 'room', 'venue', 'foods'])
-                        ->orderBy('created_at', 'desc')
-                        ->get();
+        // 1. Start the query without getting the results yet
+        $query = Reservation::with(['user', 'room', 'venue', 'foods']);
+
+        // 2. LOGIC: Search Bar (Searches User Name, Room Number, or Venue Name)
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereHas('user', function($userQuery) use ($searchTerm) {
+                    $userQuery->where('name', 'LIKE', "%{$searchTerm}%");
+                })
+                ->orWhereHas('room', function($roomQuery) use ($searchTerm) {
+                    $roomQuery->where('room_number', 'LIKE', "%{$searchTerm}%");
+                })
+                ->orWhereHas('venue', function($venueQuery) use ($searchTerm) {
+                    // THE PROBLEM IS RIGHT HERE:
+                    $venueQuery->where('name', 'LIKE', "%{$searchTerm}%") 
+                            ->orWhere('name', 'LIKE', "%{$searchTerm}%");
+                });
+            });
+        }
+
+        // 3. LOGIC: Date Filter
+        if ($request->filled('date')) {
+            $now = \Carbon\Carbon::now();
+            if ($request->date === 'last_week') {
+                $query->where('created_at', '>=', $now->subWeek());
+            } elseif ($request->date === 'last_month') {
+                $query->where('created_at', '>=', $now->subMonth());
+            } elseif ($request->date === 'last_year') {
+                $query->where('created_at', '>=', $now->subYear());
+            }
+        }
+
+        // 4. LOGIC: Accommodation Type Filter
+        if ($request->filled('accommodation_type')) {
+            $query->where('type', $request->accommodation_type);
+        }
+
+        // 5. LOGIC: Client Type Filter (Assuming usertype is in your users table)
+        if ($request->filled('client_type')) {
+            $clientType = $request->client_type;
+            $query->whereHas('user', function($q) use ($clientType) {
+                $q->where('usertype', $clientType); 
+            });
+        }
+
+        // 6. Finally, execute the query and get the results
+        $reservations = $query->orderBy('created_at', 'desc')->get();
 
         return view('employee.reservations', compact('reservations'));
     }
-    public function showGuests() // (Or whatever your method is named)
+    public function showGuests(\Illuminate\Http\Request $request) 
     {
-        // 1. Fetch the reservations with their related data
-        $reservations = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods'])
-                        ->orderBy('created_at', 'desc')
-                        ->get();
+        // 1. Start the query (don't get() the data yet!)
+        $query = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods']);
 
-        // 2. Pass the $reservations variable to the view
+        // 2. SEARCH LOGIC (Names, Rooms, and Venues)
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function($q) use ($searchTerm) {
+                $q->whereHas('user', function($userQ) use ($searchTerm) {
+                    $userQ->where('name', 'LIKE', "%{$searchTerm}%");
+                })
+                ->orWhereHas('room', function($roomQ) use ($searchTerm) {
+                    $roomQ->where('room_number', 'LIKE', "%{$searchTerm}%");
+                })
+                ->orWhereHas('venue', function($venueQ) use ($searchTerm) {
+                    // Using the correctly spelled 'name' column here!
+                    $venueQ->where('name', 'LIKE', "%{$searchTerm}%"); 
+                });
+            });
+        }
+
+        // 3. DATE LOGIC
+        if ($request->filled('date')) {
+            $now = \Carbon\Carbon::now();
+            if ($request->date === 'last_week') {
+                $query->where('created_at', '>=', $now->subDays(7));
+            } elseif ($request->date === 'last_month') {
+                $query->where('created_at', '>=', $now->subDays(30));
+            } elseif ($request->date === 'last_year') {
+                $query->where('created_at', '>=', $now->startOfYear());
+            }
+        }
+
+        // 4. CLIENT TYPE LOGIC (Using your new usertype column)
+        if ($request->filled('client_type')) {
+            $clientType = $request->client_type;
+            $query->whereHas('user', function($q) use ($clientType) {
+                $q->where('usertype', $clientType);
+            });
+        }
+
+        // 5. ACCOMMODATION TYPE LOGIC
+        if ($request->filled('accommodation_type')) {
+            $query->where('type', $request->accommodation_type);
+        }
+
+        // 6. Finally, execute the query and send it to the view
+        $reservations = $query->orderBy('created_at', 'desc')->get();
+
         return view('employee.guest', compact('reservations'));
     }
 }
