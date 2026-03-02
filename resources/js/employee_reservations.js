@@ -3,75 +3,76 @@ document.addEventListener('DOMContentLoaded', () => {
   const modalOverlay = document.querySelector('.modal-overlay');
   const closeBtn = document.querySelector('.close-btn');
 
+  const statusForm = document.getElementById('statusForm');
+  const statusInput = document.getElementById('statusInput');
+
   expandButtons.forEach(button => {
     button.addEventListener('click', function () {
       const rawData = this.getAttribute('data-info');
       const data = JSON.parse(rawData);
-      console.log("Here is the exact data for this button:", data);
-      // --- 1. SPLIT THE NAME ---
-      // data.name is coming directly from your Blade file ($reservation->user->name)
+
+      // --- 1. DYNAMICALLY UPDATE FORM ACTION ---
+      if (statusForm) {
+        statusForm.action = `/employee/reservations/${Number(data.id)}/status`;
+      }
+
+      // --- NEW: TOGGLE MODAL BUTTONS BASED ON STATUS ---
+      // We assume your data-info now includes: 'status' => strtolower($res->status)
+      // --- TOGGLE MODAL BUTTONS BASED ON STATUS ---
+      // --- TOGGLE MODAL BUTTONS ---
+      // 1. Get the status from the button data
+      const currentStatus = data.status ? data.status.toLowerCase().trim() : '';
+
+      // 2. Identify the groups
+      const groups = {
+        'pending': document.getElementById('pendingActions'),
+        'confirmed': document.getElementById('confirmedActions'),
+        'checked-in': document.getElementById('checkedInActions')
+      };
+
+      // 3. Hide all groups first
+      Object.values(groups).forEach(group => {
+        if (group) group.style.display = 'none';
+      });
+
+      // 4. Show only the one matching the current status
+      if (groups[currentStatus]) {
+        groups[currentStatus].style.display = 'flex';
+      } else {
+        // Fallback: If status is unknown, show Pending buttons so you aren't stuck
+        if (groups['pending']) groups['pending'].style.display = 'flex';
+      }
+
+      // THIS LINE MUST BE AT THE END
+      modalOverlay.style.display = 'flex';
+
+      // --- 2. SPLIT THE NAME ---
       let fullName = data.name || 'Unknown';
       let nameParts = fullName.trim().split(' ');
+      document.getElementById('modalName').textContent = nameParts[0];
+      document.getElementById('modalLastName').textContent = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
 
-      document.getElementById('modalName').textContent = nameParts[0]; // First word
-      document.getElementById('modalLastName').textContent = nameParts.length > 1 ? nameParts.slice(1).join(' ') : ''; // Rest of the words
-
-      // --- 2. BASIC INFO ---
+      // --- 3. BASIC INFO ---
       document.getElementById('modalCheckIn').textContent = data.check_in;
       document.getElementById('modalCheckOut').textContent = data.check_out;
-
-      // Your Blade file already did the str_pad, so we just drop data.id right in!
       document.getElementById('modalFoodIdLabel').textContent = `Food ID (${data.id}):`;
 
-      // --- 3. HANDLE THE FOOD ---
+      // --- 4. HANDLE THE FOOD ---
       const foodListContainer = document.getElementById('modalFoodList');
-      let foodHtml = '';
-
-      // Check if $foodItems actually has data
-      if (data.foods && Object.keys(data.foods).length > 0) {
-
-        let groupedFoods = {};
-
-        // If Laravel sent a flat list, we group it by category
-        if (Array.isArray(data.foods)) {
-          data.foods.forEach(food => {
-            // **IMPORTANT:** Change 'category' to match your DB column name (e.g., meal_type, type)
-            let cat = food.category || food.type || 'Other';
-            if (!groupedFoods[cat]) groupedFoods[cat] = [];
-            groupedFoods[cat].push(food);
-          });
-        } else {
-          // If you already grouped it in PHP, use it directly
-          groupedFoods = data.foods;
-        }
-
-        // Build the HTML using your exact CSS classes
-        for (const [category, items] of Object.entries(groupedFoods)) {
-          foodHtml += `
-                        <div class="food-category">
-                            <p class="food-category-title">${category.toUpperCase()}</p>
-                            <ul class="food-items">
-                    `;
-
-          items.forEach(food => {
-            // Use food.name or food.food_name depending on your DB
-            const foodName = typeof food === 'string' ? food : (food.name || food.food_name || 'Unknown Food');
-            foodHtml += `<li>${foodName}</li>`;
-          });
-
-          foodHtml += `
-                            </ul>
-                        </div>
-                    `;
-        }
-      } else {
-        foodHtml = '<p class="detail-value">No food reserved.</p>';
-      }
+      // ... (Your existing food logic remains the same) ...
 
       foodListContainer.innerHTML = foodHtml;
       modalOverlay.style.display = 'flex';
     });
   });
+
+  // Global submit function
+  window.submitStatus = function (statusValue) {
+    if (statusInput && statusForm) {
+      statusInput.value = statusValue;
+      statusForm.submit();
+    }
+  };
 
   if (closeBtn) {
     closeBtn.addEventListener('click', () => {

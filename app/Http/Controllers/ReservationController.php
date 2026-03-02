@@ -212,8 +212,10 @@ class ReservationController extends Controller
     }
     public function showGuests(\Illuminate\Http\Request $request) 
     {
-        // 1. Start the query (don't get() the data yet!)
-        $query = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods']);
+        // 1. Start the query and FILTER for active/confirmed guests only
+        // This ensures 'pending' or 'cancelled' bookings don't clutter the Guest list
+        $query = \App\Models\Reservation::with(['user', 'room', 'venue', 'foods'])
+                    ->whereIn('status', ['confirmed', 'checked-in', 'completed']);
 
         // 2. SEARCH LOGIC (Names, Rooms, and Venues)
         if ($request->filled('search')) {
@@ -226,7 +228,6 @@ class ReservationController extends Controller
                     $roomQ->where('room_number', 'LIKE', "%{$searchTerm}%");
                 })
                 ->orWhereHas('venue', function($venueQ) use ($searchTerm) {
-                    // Using the correctly spelled 'name' column here!
                     $venueQ->where('name', 'LIKE', "%{$searchTerm}%"); 
                 });
             });
@@ -244,7 +245,7 @@ class ReservationController extends Controller
             }
         }
 
-        // 4. CLIENT TYPE LOGIC (Using your new usertype column)
+        // 4. CLIENT TYPE LOGIC
         if ($request->filled('client_type')) {
             $clientType = $request->client_type;
             $query->whereHas('user', function($q) use ($clientType) {
@@ -257,9 +258,22 @@ class ReservationController extends Controller
             $query->where('type', $request->accommodation_type);
         }
 
-        // 6. Finally, execute the query and send it to the view
+        // 6. Execute and send to view
         $reservations = $query->orderBy('created_at', 'desc')->get();
 
         return view('employee.guest', compact('reservations'));
+    }
+    public function updateStatus(Request $request, $id)
+    {
+        $reservation = Reservation::findOrFail($id);
+
+        // Force lowercase to ensure consistency with your Blade counts
+        $newStatus = strtolower($request->status); 
+
+        $reservation->update([
+            'status' => $newStatus
+        ]);
+
+        return redirect()->back()->with('success', 'Reservation ' . $newStatus);
     }
 }

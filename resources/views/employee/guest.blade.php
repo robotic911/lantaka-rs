@@ -129,17 +129,19 @@
                   @endphp
                   
                   <td class="action-cell">
-                    <button class="expand-btn" data-info="{{ json_encode([
-                        'id' => str_pad($res->id, 5, '0', STR_PAD_LEFT),
-                        'name' => $res->user->name ?? $res->user->first_name ?? 'Unknown',
-                        'accommodation' => $accName,
-                        'pax' => $res->pax,
-                        'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),
-                        'check_out' => \Carbon\Carbon::parse($res->check_out)->format('F d, Y'),
-                        'foods' => $res->foods 
-                    ]) }}">
-                        ⤢
-                    </button>
+                      {{-- We are removing the Check-in form/button from here --}}
+                      <button class="expand-btn" data-info="{{ json_encode([
+                          'id' => $res->id,
+                          'status' => strtolower($res->status),
+                          'name' => $res->user->name ?? $res->user->first_name ?? 'Unknown',
+                          'accommodation' => $accName,
+                          'pax' => $res->pax,
+                          'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),
+                          'check_out' => \Carbon\Carbon::parse($res->check_out)->format('F d, Y'),
+                          'foods' => $res->foods 
+                      ]) }}">
+                          ⤢
+                      </button>
                   </td>
                 </tr>
               @empty

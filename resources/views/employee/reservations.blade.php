@@ -18,19 +18,26 @@
             <div class="status-cards">
               <div class="status-card pending">
                 <div class="status-label">Pending</div>
-                <div class="status-number">{{ $reservations->where('status', 'Pending')->count() }}</div>
+                {{-- Change 'Pending' to 'pending' --}}
+                <div class="status-number">{{ $reservations->where('status', 'pending')->count() }}</div>
               </div>
+              
               <div class="status-card confirmed">
                 <div class="status-label">Confirmed</div>
-                <div class="status-number">{{ $reservations->where('status', 'Confirmed')->count() }}</div>
+                {{-- Change 'Confirmed' to 'confirmed' --}}
+                <div class="status-number">{{ $reservations->where('status', 'confirmed')->count() }}</div>
               </div>
+
               <div class="status-card completed">
                 <div class="status-label">Completed</div>
-                <div class="status-number">{{ $reservations->where('status', 'Completed')->count() }}</div>
+                {{-- Change 'Completed' to 'completed' --}}
+                <div class="status-number">{{ $reservations->where('status', 'completed')->count() }}</div>
               </div>
+
               <div class="status-card cancelled">
                 <div class="status-label">Cancelled</div>
-                <div class="status-number">{{ $reservations->where('status', 'Cancelled')->count() }}</div>
+                {{-- Change 'Cancelled' to 'cancelled' --}}
+                <div class="status-number">{{ $reservations->where('status', 'cancelled')->count() }}</div>
               </div>
             </div>
 
@@ -122,9 +129,10 @@
                         $foodItems = isset($reservation->foods) ? $reservation->foods->groupBy('food_category') : [];
                       @endphp
 
-                      <button class="expand-btn" 
+                      <button class="expand-btn"
                               data-info="{{ json_encode([
                                   'id' => str_pad($reservation->id, 5, '0', STR_PAD_LEFT),
+                                  'status' => strtolower($reservation->status), // Changed $res to $reservation
                                   'name' => $reservation->user->name ?? 'Unknown',
                                   'accommodation' => $accName,
                                   'pax' => $reservation->pax,
