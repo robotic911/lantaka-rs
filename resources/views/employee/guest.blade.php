@@ -18,7 +18,7 @@
             </div>
 
             <div class="status-cards">
-              <div class="status-card pending">
+              <div class="status-card pending active" >
                 <div class="status-label">Pending</div>
                 <div class="status-number">{{ $reservations->where('status', 'pending')->count() }}</div>
               </div>
