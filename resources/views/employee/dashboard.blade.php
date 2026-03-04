@@ -16,7 +16,7 @@
                         <h3>Total Reservations</h3>
                         <span class="stat-icon">📅</span>
                     </div>
-                    <div class="stat-value">1,234</div>
+                    <div class="stat-value">{{ $totalReservations }}</div>
                     <div class="stat-change">+20.1% from last month</div>
                 </div>
 
@@ -69,7 +69,6 @@
                         <button class="toggle-btn" id="btnWeekly">Weekly</button>
                     </div>
                 </div>
-
                 <div class="calendar">
                     <div class="calendar-grid-month">
                         <!-- Day headers -->
@@ -110,6 +109,8 @@
                         </div>
                     </div>
                 </div>
+                <br>
+                <div> 🟨 Pending 🟩 Confirmed</div>
             </div>
 
             <!-- Export Button -->

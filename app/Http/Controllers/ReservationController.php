@@ -10,6 +10,7 @@ use App\Models\Room;
 use App\Models\Venue;
 use Carbon\Carbon;
 
+
 class ReservationController extends Controller
 {
     // 1. Show Checkout Page (Calculates Price)
@@ -299,5 +300,10 @@ class ReservationController extends Controller
         ]);
 
         return redirect()->back()->with('success', 'Reservation ' . $newStatus);
+    }
+
+    public function displayStatistics(){
+        $totalReservations = Reservation::count();
+        return view('employee.dashboard', compact('totalReservations'));
     }
 }
