@@ -1,7 +1,7 @@
 @extends('layouts.employee')
 
     <link rel="stylesheet" href="{{asset('css/employee_dashboard.css')}}">
-
+    @vite('resources/js/employee/dashboard_calendar.js')
 @section('content')
     <!-- Main Content -->
         <!-- Header -->
@@ -51,67 +51,63 @@
             <!-- Calendar Section -->
             <div class="calendar-section">
                 <div class="calendar-header">
-                    <h2>January 2026</h2>
+                    <div class="calendar-left"></div>
+                    <div class="calendar-nav-month">
+                        <button class="prev-month btn">❮</button>
+                            <h2 id="calendar-month-header"></h2>
+                        <button class="next-month btn">❯</button>
+                    </div>
+                    <div class="calendar-nav-week hidden">
+                        <button class="prev-week btn">❮</button>
+                            <h2 id="calendar-week-header"></h2>
+                        <button class="next-week btn">❯</button>
+                    </div>
+
                     <div class="view-toggle">
-                        <button class="toggle-btn active">Monthly</button>
-                        <button class="toggle-btn">Weekly</button>
+                        <button class="toggle-btn" id="refresh">⟲</button>
+                        <button class="toggle-btn active" id="btnMonthly">Monthly</button>
+                        <button class="toggle-btn" id="btnWeekly">Weekly</button>
                     </div>
                 </div>
 
                 <div class="calendar">
-                    <div class="calendar-grid">
+                    <div class="calendar-grid-month">
                         <!-- Day headers -->
-                        <div class="day-header">Sun</div>
-                        <div class="day-header">Mon</div>
-                        <div class="day-header">Tue</div>
-                        <div class="day-header">Wed</div>
-                        <div class="day-header">Thu</div>
-                        <div class="day-header">Fri</div>
-                        <div class="day-header">Sat</div>
+                         <div class="day-header-container">
+                            <div class="day-header">Sun</div>
+                            <div class="day-header">Mon</div>
+                            <div class="day-header">Tue</div>
+                            <div class="day-header">Wed</div>
+                            <div class="day-header">Thu</div>
+                            <div class="day-header">Fri</div>
+                            <div class="day-header">Sat</div>
+                         </div>
+                        
 
                         <!-- Calendar dates -->
-                        <div class="date-cell empty">28</div>
-                        <div class="date-cell empty">29</div>
-                        <div class="date-cell empty">30</div>
-                        <div class="date-cell">Jan 1</div>
-                        <div class="date-cell">2</div>
-                        <div class="date-cell">3</div>
-                        <div class="date-cell">4</div>
+                         <div class="days-container-month">
+                             <!-- Days Display -->
 
-                        <div class="date-cell">5</div>
-                        <div class="date-cell">6</div>
-                        <div class="date-cell">7</div>
-                        <div class="date-cell">8</div>
-                        <div class="date-cell">9</div>
-                        <div class="date-cell">10</div>
-                        <div class="date-cell">1</div>
-
-                        <div class="date-cell">12</div>
-                        <div class="date-cell">13</div>
-                        <div class="date-cell">14</div>
-                        <div class="date-cell">15</div>
-                        <div class="date-cell">16</div>
-                        <div class="date-cell">17</div>
-                        <div class="date-cell">18</div>
-
-                        <div class="date-cell event">
-                            <div class="date-number">19</div>
-                            <div class="event-label">Hall A</div>
                         </div>
-                        <div class="date-cell">20</div>
-                        <div class="date-cell">21</div>
-                        <div class="date-cell">22</div>
-                        <div class="date-cell">23</div>
-                        <div class="date-cell">24</div>
-                        <div class="date-cell">25</div>
+                    </div>
+                    <div class="calendar-grid-week hide">
+                        <!-- Day headers -->
+                         <div class="day-header-container-week">
+                            <div class="day-header-week">Sun</div>
+                            <div class="day-header-week">Mon</div>
+                            <div class="day-header-week">Tue</div>
+                            <div class="day-header-week">Wed</div>
+                            <div class="day-header-week">Thu</div>
+                            <div class="day-header-week">Fri</div>
+                            <div class="day-header-week">Sat</div>
+                         </div>
+                        
 
-                        <div class="date-cell">26</div>
-                        <div class="date-cell">27</div>
-                        <div class="date-cell">28</div>
-                        <div class="date-cell">29</div>
-                        <div class="date-cell">30</div>
-                        <div class="date-cell empty">Feb 1</div>
-                        <div class="date-cell empty">2</div>
+                        <!-- Calendar dates -->
+                         <div class="days-container-week">
+                             <!-- Days Display -->
+
+                        </div>
                     </div>
                 </div>
             </div>
