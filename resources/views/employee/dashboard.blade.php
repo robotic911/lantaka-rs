@@ -111,7 +111,37 @@
                     </div>
                 </div>
                 <br>
-                <div> Blue = Pending // Green = Confirmed // Orange = Completed // Red = Completed // Sky Blue = Checked-In //</div>
+                <div class="calendar-legend">
+                <div class="legend-item">
+                    <span class="legend-dot pending"></span>
+                    Pending
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot confirmed"></span>
+                    Confirmed
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot completed"></span>
+                    Completed
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot cancelled"></span>
+                    Cancelled
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot checked-in"></span>
+                    Checked-In
+                </div>
+
+                <div class="legend-item">
+                    <span class="legend-dot checked-out"></span>
+                    Checked-Out
+                </div>
+            </div>
             </div>
            
             <!-- Export Button -->

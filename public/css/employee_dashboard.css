@@ -283,7 +283,7 @@
 }
 
 .event-label.checked-out {
-  background-color: #f1a559;
+  background-color: #9ca3af;
 }
 
 .event-label.completed {
@@ -464,4 +464,54 @@
   .date-cell {
       font-size: 12px;
   }
+}
+
+/* LEGEND */
+
+.calendar-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  margin-top: 14px;
+  font-size: 14px;
+  color: #444;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.legend-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+/* status colors */
+
+.legend-dot.pending {
+  background-color: #3b82f6;
+}
+
+.legend-dot.confirmed {
+  background-color: #22c55e;
+}
+
+.legend-dot.completed {
+  background-color: #f48f23;
+}
+
+.legend-dot.cancelled {
+  background-color: #ef4444;
+}
+
+.legend-dot.checked-in {
+  background-color: #14b8a6;
+}
+
+.legend-dot.checked-out {
+  background-color: #9ca3af;
 }
