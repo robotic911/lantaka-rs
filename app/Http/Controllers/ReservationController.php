@@ -174,11 +174,6 @@ class ReservationController extends Controller
 
         // 2. Apply Search and Dropdown Filters (Date, Type, etc.)
         // We apply these FIRST so the card numbers reflect your search results\
-        $searchTerm = $request->search;
-            $query->where(function($q) use ($searchTerm) {
-                $q->whereHas('user', fn($u) => $u->where('name', 'LIKE', "%{$searchTerm}%"))
-                ->orWhereHas('room', fn($r) => $r->where('room_number', 'LIKE', "%{$searchTerm}%"))
-                ->orWhereHas('venue', fn($v) => $v->where('name', 'LIKE', "%{$searchTerm}%"));
         
         if ($request->filled('search')) {
 
@@ -258,7 +253,7 @@ class ReservationController extends Controller
 
         return view('employee.reservations', compact('reservations', 'allForCounts'));
     }
-    public function showGuests(\Illuminate\Http\Request $request) 
+    public function showGuests(\Illuminate\Http\Request $request)
     {
         // 1. Define the base guest statuses
         $validStatuses = ['confirmed', 'checked-in', 'checked-out', 'cancelled', 'declined', 'completed', 'approved', 'rejected'];
