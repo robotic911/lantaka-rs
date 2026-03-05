@@ -33,6 +33,9 @@
           <div id="modalFoodList"></div>
           
         </div>
+        <div class="detail-section-cancel">
+          <button class="cancel-reservation">CANCEL RESERVATION</button>
+        </div>
       </div>
     </div>
   </div>

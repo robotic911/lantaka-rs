@@ -352,7 +352,7 @@
 
 /* Modal Body */
 .modal-body {
-  padding: 24px;
+  padding: 24px 24px 0px;
 }
 
 /* Detail Section */
@@ -430,6 +430,28 @@
   color: var(--accent-yellow);
   font-weight: 700;
 }
+
+.detail-section-cancel{
+  display: flex;
+  justify-content: end;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.cancel-reservation{
+  display: flex;
+  background-color: var(--accent-yellow);
+  border: none;
+  border-radius: 10px;
+  padding:14px 20px;
+  cursor: pointer;
+  transition: ease 0.3s;
+}
+.cancel-reservation:hover{
+  display: flex;
+  background-color: rgb(247, 229, 33);
+}
+
 
 /* Scrollbar Styling */
 .modal-content::-webkit-scrollbar {
