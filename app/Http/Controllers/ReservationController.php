@@ -164,20 +164,44 @@ class ReservationController extends Controller
 
         // 2. LOGIC: Search Bar (Searches User Name, Room Number, or Venue Name)
         if ($request->filled('search')) {
-            $searchTerm = $request->search;
-            
-            $query->where(function($q) use ($searchTerm) {
-                $q->whereHas('user', function($userQuery) use ($searchTerm) {
-                    $userQuery->where('name', 'LIKE', "%{$searchTerm}%");
-                })
-                ->orWhereHas('room', function($roomQuery) use ($searchTerm) {
-                    $roomQuery->where('room_number', 'LIKE', "%{$searchTerm}%");
-                })
-                ->orWhereHas('venue', function($venueQuery) use ($searchTerm) {
-                    // THE PROBLEM IS RIGHT HERE:
-                    $venueQuery->where('name', 'LIKE', "%{$searchTerm}%") 
-                            ->orWhere('name', 'LIKE', "%{$searchTerm}%");
-                });
+
+            $raw = trim($request->search);
+            $normalized = mb_strtolower($raw);
+        
+            // Replace separators like "-" with space
+            $normalized = preg_replace('/[-_]+/', ' ', $normalized);
+            $normalized = preg_replace('/\s+/', ' ', $normalized);
+        
+            $keywords = array_values(array_filter(explode(' ', $normalized)));
+        
+            $query->where(function ($q) use ($keywords) {
+        
+                foreach ($keywords as $word) {
+        
+                    $q->where(function ($sub) use ($word) {
+        
+                        // Search guest name
+                        $sub->whereHas('user', function ($userQ) use ($word) {
+                            $userQ->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"]);
+                        })
+        
+                        // Search room number
+                        ->orWhereHas('room', function ($roomQ) use ($word) {
+                            $roomQ->whereRaw('LOWER(room_number) LIKE ?', ["%{$word}%"]);
+                        })
+        
+                        // Search venue name
+                        ->orWhereHas('venue', function ($venueQ) use ($word) {
+                            $venueQ->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"]);
+                        })
+        
+                        // Search reservation status
+                        ->orWhereRaw('LOWER(status) LIKE ?', ["%{$word}%"]);
+        
+                    });
+        
+                }
+        
             });
         }
 
@@ -306,4 +330,16 @@ class ReservationController extends Controller
         $totalReservations = Reservation::count();
         return view('employee.dashboard', compact('totalReservations'));
     }
+
+    public function showReservationsCalendar(){
+        $reservations = Reservation::with(['room','venue','user'])->get();
+        $totalReservations = Reservation::count();
+
+        return view('employee.dashboard', [
+            'reservations' => $reservations,
+            'totalReservations' => $totalReservations
+        ]);
+    }
 }
+
+

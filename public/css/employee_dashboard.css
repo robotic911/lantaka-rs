@@ -130,9 +130,9 @@
   border: none;
   font-size: 20px;
   color: black;
+  border: 1px solid gainsboro;
 }
 #refresh:hover{
-  border: none;
   background-color: var(--primary-blue);
   color: white;
   font-size: 20px;
@@ -204,8 +204,8 @@
       flex-direction: column;
       align-items: start;
       justify-content: start;
-      background-color: #f5f5f5;
-      border-radius: 4px;
+      background-color: #f5f4f4;
+      border-radius: 2px;
       font-size: 14px;
       color: #000000;
       font-weight: 500;
@@ -217,7 +217,7 @@
     .day-number{
       display: flex;
       font-weight: 800;
-      margin-bottom: 5px;
+      margin-bottom: 10px;
       width: 100%;
       align-items: start;
       justify-content: start;
@@ -250,6 +250,13 @@
   gap:2px;
   width: 100%;
 }
+.event-label-week-container{
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap:2px;
+  width: 100%;
+}
 .event-label{
   display: flex;
   color: black;
@@ -264,11 +271,31 @@
   transition: ease 0.3s;
 }
 .event-label.pending {
-  background-color: var(--accent-yellow);
+  background-color: #6199f3;
 }
 
 .event-label.confirmed {
-  background-color: var(--confirm-green);
+  background-color: #53e087;
+}
+
+.event-label.checked-in {
+  background-color: #14b8a6;
+}
+
+.event-label.checked-out {
+  background-color: #f1a559;
+}
+
+.event-label.completed {
+  background-color: #6366f1;
+}
+
+.event-label.cancelled {
+  background-color: #ef6565;
+}
+
+.event-label {
+  color: white;
 }
 
 .event-label:hover{
@@ -318,10 +345,11 @@
   width: 100%;
   height: 500px;
   display: flex;
+  flex:1;
   flex-direction: column;
   align-items: center;
-  justify-content: space-between;
-  padding: 20px 20px;
+  justify-content: start;
+  padding: 20px 10px;
   background-color: #f5f5f5;
   border-radius: 4px;
   font-size: 30px;

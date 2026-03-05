@@ -84,10 +84,11 @@
                         
 
                         <!-- Calendar dates -->
-                         <div class="days-container-month">
-                             <!-- Days Display -->
+                            <div class="days-container-month">
 
-                        </div>
+                                <!-- Days Display -->
+
+                            </div>
                     </div>
                     <div class="calendar-grid-week hide">
                         <!-- Day headers -->
@@ -110,11 +111,15 @@
                     </div>
                 </div>
                 <br>
-                <div> 🟨 Pending 🟩 Confirmed</div>
+                <div> Blue = Pending // Green = Confirmed // Orange = Completed // Red = Completed // Sky Blue = Checked-In //</div>
             </div>
-
+           
             <!-- Export Button -->
             <button class="export-btn">Export</button>
         </div>
+        <script>
+            window.reservations = @json($reservations);
+            window.reservationPage = "{{ route('employee.reservations') }}"
+        </script>
 @endsection
     

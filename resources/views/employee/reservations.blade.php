@@ -12,8 +12,8 @@
         <form method="GET" action="{{ route('employee.reservations') }}">
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search by name, room, or venue..." value="{{ request('search') }}">
-              <button type="submit" class="search-icon" style="background:none; border:none; cursor:pointer;">🔍</button>
-            </div>
+              <button type="submit" class="search-icon" style="background:none; border:none;">🔍</button>
+              </div>
 
             <div class="status-cards">
               <a href="{{ request()->fullUrlWithQuery(['status' => 'pending']) }}" style="text-decoration: none; color: inherit;">
@@ -91,7 +91,9 @@
                 <th>Check-in</th>
                 <th>Check-out</th>
                 <th>No. of Pax</th>
-                <th>Status</th>
+                <th style="display: flex; width: 150px; justify-content: center;">
+                  Status
+                </th>
                 <th></th>
               </tr>
             </thead>

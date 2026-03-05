@@ -3,6 +3,78 @@ import dayjs from 'dayjs'
 
 let view = dayjs()
 
+function paintReservationsMonth() {
+  const reservations = window.reservations || [];
+  console.log(reservations)
+  document.querySelectorAll('.date-cell-month').forEach(cell => {
+
+    const date = cell.dataset.iso;
+    const container = cell.querySelector('.event-label-month-container');
+    var status = ' '
+
+    reservations.forEach(res => {
+      if(res.status === "pending"){
+        status = res.status
+      }else if(res.status === "confirmed"){
+        status = res.status
+      }else if(res.status === "completed"){
+        status = res.status
+      }else if(res.status === "cancelled"){
+        status = res.status
+      }else if(res.status === "checked-in"){
+      status = res.status
+      }else if(res.status === "checked-out"){
+        status = res.status
+      }else{
+        status = ""
+      }
+
+      if(date >= res.check_in && date <= res.check_out){
+        container.innerHTML += `
+        <a href="${window.reservationPage}?search=${encodeURIComponent(` ${res.user.name} -${res.room.room_number} - ${res.status}`)}" class="event-label ${status}">
+          ${res.room.room_number} - ${res.user.name}
+        </a>
+        `;
+      }
+    });
+  });
+}
+
+function paintReservationsWeek() {
+  const reservations = window.reservations || [];
+  console.log(reservations)
+  document.querySelectorAll('.date-cell-week').forEach(cell => {
+
+    const date = cell.dataset.iso;
+    const container = cell.querySelector('.event-label-week-container');
+    var status = ' '
+
+    reservations.forEach(res => {
+      if(res.status === "pending"){
+        status = res.status
+      }else if(res.status === "confirmed"){
+        status = res.status
+      }else if(res.status === "completed"){
+        status = res.status
+      }else if(res.status === "cancelled"){
+        status = res.status
+      }
+      else{
+        status = ""
+      }
+
+      if(date >= res.check_in && date <= res.check_out){
+        container.innerHTML += `
+           <a href="${window.reservationPage}?search=${encodeURIComponent(` ${res.user.name} -${res.room.room_number} - ${res.status}`)}" class="event-label ${status}">
+          ${res.room.room_number} - ${res.user.name}
+        </a>
+        `;
+      }
+    });
+  });
+}
+
+
 const calendar = document.querySelector('.calendar')
 const monthHeader = document.getElementById('calendar-month-header')
 const weekHeader = document.getElementById('calendar-week-header')
@@ -31,7 +103,7 @@ refresh.addEventListener('click', ()=>{
 
   navMonth.classList.remove('hidden')
   navWeek.classList.add('hidden')
-  
+
   calendarWeekRender.classList.add('hide')
   calendarMonthRender.classList.remove('hide')
 
@@ -84,20 +156,16 @@ function renderMonth(){
       }
     
     daysRender += 
-    `<div class="date-cell-month ${dateStatus}" data-iso="${displayDay.format('DD MM YYYY')}">
+    `<div class="date-cell-month ${dateStatus}" data-iso="${displayDay.format('YYYY-MM-DD')}">
         <span class="day-number" >${displayDay.format('D')}</span>
         <div class="event-label-month-container">
-          <a href="#" class="event-label confirmed">
-            Hall A - CMO
-          </a>
-          <a href="#" class="event-label pending">
-            Room 202 - Kenneth Patino
-          </a> 
+          
         </div>
     </div>`
     
   }
   displayDayContainerMonth.innerHTML= daysRender
+  paintReservationsMonth();
 }
 
 function renderWeek() {
@@ -125,16 +193,15 @@ function renderWeek() {
     daysRender += `
       <div class="date-cell-week ${dateStatus}" data-iso="${displayDay.format('YYYY-MM-DD')}">
         <span class="day-number">${displayDay.format('D')}</span>
-
-        <div class="event-label-month-container">
-          <a href="#" class="event-label confirmed">Hall A - CMO</a>
-          <a href="#" class="event-label pending">Room 202 - Kenneth Patino</a>
-        </div>
+          <div class="event-label-week-container">
+          </div>
       </div>
     `
   }
 
   displayDayContainerWeek.innerHTML = daysRender
+  paintReservationsWeek();
+
 }
 
 renderMonth()
@@ -190,4 +257,6 @@ btnMonthly.addEventListener('click', ()=>{
   renderMonth()
   console.log('month format')
 })
+
+
 
