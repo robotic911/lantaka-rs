@@ -12,9 +12,7 @@
             
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search names, rooms, or venues" value="{{ request('search') }}">
-              <button type="submit" style="background: none; border: none; cursor: pointer; padding: 0;">
-                <span class="search-icon">🔍</span>
-              </button>
+              <button type="submit" class="search-icon" style="background:none; border:none;">🔍</button>
             </div>
 
             <div class="status-cards">
@@ -90,7 +88,9 @@
                 <th>Check-in</th>
                 <th>Check-out</th>
                 <th>No. of Pax</th>
-                <th>Status</th>
+                <th style="display: flex; width: 150px; justify-content: center;">
+                  Status
+                </th>
                 <th></th>
               </tr>
             </thead>

@@ -76,9 +76,10 @@
                 Don't have an account? <a href="{{ route('signup') }}" class="signup-link">Sign up</a>
                 <br>  
                 <br>
-                <a class="signup-link"> Employee Dashboard Page Test</a>
+                <!-- <a class="signup-link"> Employee Dashboard Page Test</a>
                 <br>
                 <a href="{{ route('pages/index') }}" class="signup-link">Index Page Test</a>
+                -->
             </p>
         </div>
     </main>

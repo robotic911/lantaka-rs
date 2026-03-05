@@ -61,6 +61,7 @@
 
 .status-card {
   background: white;
+  width: 100%;
   padding: 20px;
   border-radius: 8px;
   border: 4px solid #dddddd00;
@@ -213,16 +214,39 @@
 }
 
 .badge {
-  display: inline-block;
+  display: flex;
+  width: 120px;
+  justify-content: center;
+  align-items: center;
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
+  color: rgba(0, 0, 0, 0.559);
 }
 
 .pending-badge {
   background: #d4e4ff;
-  color: #2563eb;
+}
+
+.confirmed-badge {
+  background-color: #53e087;
+}
+
+.checked-in-badge{
+  background-color: #14b8a6;
+}
+
+.checked-out-badge {
+  background-color: #f1a559;
+}
+
+.completed-badge{
+  background-color: #6366f1;
+}
+
+.cancelled-badge {
+  background-color: #f58c8c;
 }
 
 .action-cell {

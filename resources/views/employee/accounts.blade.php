@@ -12,6 +12,7 @@
         <div class="search-container">
           <form action="{{ route('employee.accounts') }}" method="GET">
             <input type="text" name="search" class="search-input" placeholder="Search by name or email" value="{{ request('search') }}">
+            <button type="submit" class="search-icon" style="background:none; border:none;">🔍</button>
           </form>
         </div>
 
@@ -35,7 +36,9 @@
                 <th>Role</th>
                 <th>Email</th>
                 <th>Phone no.</th>
-                <th>Status/Last Online</th>
+                <th style="display: flex; width: 150px; justify-content: center;">
+                  Status/Last Online
+                </th>
                 <th>Action</th>
               </tr>
             </thead>
@@ -53,7 +56,7 @@
                   <td>{{ $user->phone ?? 'N/A' }}</td>
                   <td>
                     @if($user->status == 'pending')
-                        <span class="status-badge pending" style="background: #ffd700; color: #000; padding: 4px 8px; border-radius: 4px;">Pending</span>
+                        <span class="status-badge pending">Pending</span>
                     @elseif($user->status == 'approved')
                         <span class="status-badge online">Approved</span>
                     @elseif($user->status == 'declined')
@@ -72,7 +75,9 @@
 
                   </td>
                 </tr>
-              @empty
+              @empty<th style="display: flex; width: 150px; justify-content: center;">
+                  Status
+                </th>
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 20px;">No accounts found.</td>
                 </tr>

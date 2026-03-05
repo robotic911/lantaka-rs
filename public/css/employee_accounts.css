@@ -142,11 +142,19 @@
 
 /* Status Badges */
 .status-badge {
-  display: inline-block;
+  display: flex;
+  width: 120px;
+  justify-content: center;
+  align-items: center;
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.status-badge.pending {
+  background-color: #ffd700;
+  color: var(--status-online);
 }
 
 .status-badge.online {
