@@ -30,19 +30,19 @@
                 </div>
               </a>
 
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'completed']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card completed {{ request('status') == 'completed' ? 'active' : '' }}">
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-in']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
                   <div class="status-label">Completed</div>
-                  <div class="status-number">{{ $allForCounts->where('status', 'completed')->count() }}</div>
+                  <div class="status-number">{{ $allForCounts->where('status', 'checked-in')->count() }}</div>
                 </div>
               </a>
 
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'cancelled']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">
-                    <div class="status-label">Cancelled</div>
+              <a href="{{ request()->fullUrlWithQuery(['status' => 'rejected']) }}" style="text-decoration: none; color: inherit;">
+                <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
+                    <div class="status-label">Rejected</div>
                     <div class="status-number">
                         {{-- Count cancelled, declined, and rejected together --}}
-                        {{ $allForCounts->whereIn('status', ['cancelled', 'declined', 'rejected'])->count() }}
+                        {{ $allForCounts->whereIn('status', ['rejected'])->count() }}
                     </div>
                 </div>
               </a>
@@ -98,53 +98,59 @@
               </tr>
             </thead>
             <tbody>
-              
               {{-- DYNAMIC LOOP STARTS HERE --}}
               @forelse($reservations as $reservation)
-                  <tr>
-                    <td class="name-cell">
+
+              @if(in_array($reservation->status, ['pending','confirmed','checked-in','rejected']))
+
+              <tr>
+                  <td class="name-cell">
                       <span class="user-icon">👤</span>
                       <span>{{ $reservation->user->name ?? 'Unknown User' }}</span>
-                    </td>
-                    
-                    <td>{{ $reservation->user->usertype ?? 'External' }}</td> 
+                  </td>
 
-                    <td>
-                        @if($reservation->type == 'room' && $reservation->room)
-                            Room: <strong>{{ $reservation->room->room_number }}</strong>
-                        @elseif($reservation->type == 'venue' && $reservation->venue)
-                            Venue: <strong>{{ $reservation->venue->Venue_Name ?? $reservation->venue->name }}</strong>
+                  <td>{{ $reservation->user->usertype ?? 'External' }}</td> 
+
+                  <td>
+                      @if($reservation->type == 'room' && $reservation->room)
+                          Room: <strong>{{ $reservation->room->room_number }}</strong>
+                      @elseif($reservation->type == 'venue' && $reservation->venue)
+                          Venue: <strong>{{ $reservation->venue->Venue_Name ?? $reservation->venue->name }}</strong>
+                      @else
+                          <span style="color: #d9534f;">Item Missing</span>
+                      @endif
+                  </td>
+
+                  <td>{{ \Carbon\Carbon::parse($reservation->check_in)->format('m/d/Y') }}</td>
+                  <td>{{ \Carbon\Carbon::parse($reservation->check_out)->format('m/d/Y') }}</td>
+                  <td>{{ $reservation->pax }}</td>
+
+                  <td>
+                        @if($reservation->status == 'checked-in')
+                          <span class="badge completed-badge">
+                          {{ 'Completed'}}
+                          </span>
                         @else
-                            <span style="color: #d9534f;">Item Missing</span>
+                          <span class="badge {{ strtolower($reservation->status) }}-badge">
+                          {{ ucfirst($reservation->status) }}
+                          </span>
                         @endif
-                    </td>
-                    
-                    <td>{{ \Carbon\Carbon::parse($reservation->check_in)->format('m/d/Y') }}</td>
-                    <td>{{ \Carbon\Carbon::parse($reservation->check_out)->format('m/d/Y') }}</td>
-                    <td>{{ $reservation->pax }}</td>
-                    
-                    <td>
-                        <span class="badge {{ strtolower($reservation->status) }}-badge">
-                            {{ ucfirst($reservation->status) }}
-                        </span>
-                    </td>
-                    
-                    <td class="action-cell">
+                  </td>
+
+                  <td class="action-cell">
                       @php
-                        $accName = $reservation->type == 'room' 
-                            ? 'Room: ' . ($reservation->room->room_number ?? 'N/A') 
-                            : 'Venue: ' . ($reservation->venue->Venue_Name ?? $reservation->venue->name ?? 'N/A');
+                          $accName = $reservation->type == 'room' 
+                              ? 'Room: ' . ($reservation->room->room_number ?? 'N/A') 
+                              : 'Venue: ' . ($reservation->venue->Venue_Name ?? $reservation->venue->name ?? 'N/A');
 
-                        $price = $reservation->total_amount;
-
-                        $foodItems = isset($reservation->foods) ? $reservation->foods->groupBy('food_category') : [];
+                          $price = $reservation->total_amount;
 
                       @endphp
 
                       <button class="expand-btn"
                               data-info="{{ json_encode([
                                   'id' => str_pad($reservation->id, 5, '0', STR_PAD_LEFT),
-                                  'status' => ucfirst($reservation->status), // Changed $res to $reservation
+                                  'status' => strtolower($reservation->status),
                                   'name' => $reservation->user->name ?? 'Unknown',
                                   'accommodation' => $accName,
                                   'price' => $price,
@@ -152,18 +158,20 @@
                                   'check_in' => \Carbon\Carbon::parse($reservation->check_in)->format('F d, Y'),
                                   'check_out' => \Carbon\Carbon::parse($reservation->check_out)->format('F d, Y'),
                                   'foods' => $reservation->foods
-
                               ]) }}">
-                        ⤢
+                          ⤢
                       </button>
-                    </td>
-                  </tr>
+                  </td>
+              </tr>
+
+              @endif
+
               @empty
-                  <tr>
-                      <td colspan="8" style="text-align: center; padding: 20px;">
-                          No reservations found matching your filters.
-                      </td>
-                  </tr>
+              <tr>
+              <td colspan="8" style="text-align: center; padding: 20px;">
+                  No reservations found matching your filters.
+              </td>
+              </tr>
               @endforelse
               {{-- DYNAMIC LOOP ENDS HERE --}}
 

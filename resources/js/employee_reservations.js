@@ -23,10 +23,16 @@ document.addEventListener('DOMContentLoaded', () => {
       
       const statusGroups = {
         'pending': document.getElementById('pendingActions'),
+        /* checked in guest is also a confirmed reservation */
+        'rejected': document.getElementById('pendingActions'),
+
         'confirmed': document.getElementById('confirmedActions'),
+        'cancelled': document.getElementById('confirmedActions'),
+
         'checked-in': document.getElementById('checkedInActions'),
-        'checked-out': document.getElementById('cancelledActions'),
-        'cancelled': document.getElementById('cancelledActions')
+        'cancelled': document.getElementById('checkedInActions'),
+
+        'checked-out': document.getElementById('checkedInActions'),
       };
 
       // Hide all action groups, then show only the one matching current status
@@ -43,7 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // 3. Populate form and summary fields
       let fullName = data.name || 'Unknown';
       let nameParts = fullName.trim().split(' ');
-      document.getElementById('modalTitle').textContent = data.status + " Reservation";
+
+      let status = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+      document.getElementById('modalTitle').textContent = status + " Reservation";
       document.getElementById('firstName').value = nameParts[0] || '';
       document.getElementById('lastName').value = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
       document.getElementById('modalName').textContent = data.accommodation || 'N/A';

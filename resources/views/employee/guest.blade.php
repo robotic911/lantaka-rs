@@ -24,10 +24,10 @@
                   </a>
 
                   <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-in']) }}" style="text-decoration: none; color: inherit;">
-                      <div class="status-card confirmed {{ request('status') == 'checked-in' ? 'active' : '' }}">
-                          <div class="status-label">Checked-in</div>
-                          <div class="status-number">{{ $allForCounts->where('status', ['checked-in', 'approved'])->count() }}</div>
-                      </div>
+                    <div class="status-card confirmed {{ request('status') == 'checked-in' ? 'active' : '' }}">
+                      <div class="status-label">Checked-in</div>
+                      <div class="status-number">{{ $allForCounts->where('status', 'checked-in')->count() }}</div>
+                    </div>
                   </a>
 
                   <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-out']) }}" style="text-decoration: none; color: inherit;">
@@ -40,7 +40,7 @@
                   <a href="{{ request()->fullUrlWithQuery(['status' => 'cancelled']) }}" style="text-decoration: none; color: inherit;">
                       <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">
                           <div class="status-label">Cancelled</div>
-                          <div class="status-number">{{ $allForCounts->whereIn('status', ['cancelled', 'declined'])->count() }}</div>
+                          <div class="status-number">{{ $allForCounts->whereIn('status', ['cancelled'])->count() }}</div>
                       </div>
                   </a>
               </div>
@@ -96,6 +96,8 @@
             </thead>
             <tbody>
               @forelse($reservations as $res)
+              @if(in_array($res->status, ['confirmed','checked-in','checked-out','cancelled']))
+
                 <tr>
                   <td class="name-cell">
                     <span class="user-icon">👤</span>
@@ -104,7 +106,7 @@
 
                   <td>
                     @if($res->user && $res->user->usertype)
-                        {{ ucfirst($res->user->usertype) }}
+                        {{ $res->user->usertype ?? 'External' }}
                     @else
                         <span style="color: gray;">Not Set</span>
                     @endif
@@ -150,7 +152,7 @@
                       <button class="expand-btn" data-info="{{
                       json_encode([
                           'id' => $res->id,
-                          'status' => ucfirst($res->status),
+                          'status' => strtolower($res->status),
                           'name' => $res->user->name ?? $res->user->first_name ?? 'Unknown',
                           'accommodation' => $accName,
                           'price' => $price,
@@ -163,6 +165,7 @@
                       </button>
                   </td>
                 </tr>
+                @endif
               @empty
                 <tr>
                     <td colspan="8" style="text-align: center; padding: 30px; color: #7f8c8d;">

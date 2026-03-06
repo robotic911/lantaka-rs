@@ -162,6 +162,7 @@
 .reservation-table {
   width: 100%;
   border-collapse: collapse;
+  
 }
 
 .reservation-table thead {
@@ -177,6 +178,10 @@
   color: #333;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+}
+
+.reservation-table tbody {
+  overflow-y: auto;
 }
 
 .reservation-table tbody tr {
@@ -242,10 +247,14 @@
 }
 
 .completed-badge{
-  background-color: #6366f1;
+  background-color: #efb070;
 }
 
 .cancelled-badge {
+  background-color: #f58c8c;
+}
+
+.rejected-badge {
   background-color: #f58c8c;
 }
 
@@ -916,10 +925,9 @@
 }
 
 .checked-in-badge {
-  background-color: #e0f2fe;
-  /* Light Blue/Cyan */
-  color: #0369a1;
-  /* Dark Blue */
+  background-color: #dcfce7;
+  /* Light Green */
+  color: #15803d;
 }
 
 .checked-out-badge {

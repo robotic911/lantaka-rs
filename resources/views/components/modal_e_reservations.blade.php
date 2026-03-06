@@ -117,12 +117,12 @@
               <input type="hidden" name="status" id="statusInput" value="">
               
               <div id="pendingActions" class="modal-actions" style="display: none; gap: 10px;">
-                <button type="button" onclick="submitStatus('cancelled')" class="reject-btn">Reject</button>
+                <button type="button" onclick="submitStatus('rejected')" class="reject-btn">Reject</button>
                 <button type="button" onclick="submitStatus('confirmed')" class="accept-btn">Accept Reservation</button>
               </div>
 
               <div id="confirmedActions" class="modal-actions" style="display: none; gap: 10px;">
-                <button type="button" onclick="submitStatus('cancelled')" class="reject-btn">REJECT</button>
+                <button type="button" onclick="submitStatus('cancelled')" class="reject-btn">Cancel Reservation</button>
                 <button type="button" onclick="submitStatus('checked-in')" class="check-in-btn">CHECK-IN</button>
               </div>
 
@@ -130,8 +130,6 @@
                 <button type="button" class="cancel-btn">CANCEL</button>
                 <button type="button" onclick="submitStatus('checked-out')" class="check-out-btn">CHECK-OUT</button>
               </div>
-              <div id="cancelledActions" class="modal-actions">
-              <div id="cancelledActions" class="modal-actions">
               </div>
             </form>
           </div>
