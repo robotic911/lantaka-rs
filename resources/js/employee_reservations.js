@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         'confirmed': document.getElementById('confirmedActions'),
         'cancelled': document.getElementById('confirmedActions'),
-
+        
         'checked-in': document.getElementById('checkedInActions'),
         'cancelled': document.getElementById('checkedInActions'),
 

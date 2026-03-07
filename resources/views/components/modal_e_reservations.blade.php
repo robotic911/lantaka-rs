@@ -126,6 +126,9 @@
                 <button type="button" onclick="submitStatus('checked-in')" class="check-in-btn">CHECK-IN</button>
               </div>
 
+              <div id="completedActions" class="modal-actions" style="display: none; gap: 10px;">
+              </div>
+
               <div id="checkedInActions" class="modal-actions" style="display: none; gap: 10px;">
                 <button type="button" class="cancel-btn">CANCEL</button>
                 <button type="button" onclick="submitStatus('checked-out')" class="check-out-btn">CHECK-OUT</button>
