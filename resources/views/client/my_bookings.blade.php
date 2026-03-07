@@ -14,16 +14,17 @@
             <section class="cart-items">
                 @forelse($processedItems as $item)
                     <div class="cart-item" 
-                        onclick="selectItem(
-                            '{{ $item['name'] }}', 
-                            '{{ $item['total'] }}', 
-                            '{{ $item['id'] }}', 
-                            '{{ $item['type'] }}', 
-                            '{{ $item['check_in_raw'] }}', 
-                            '{{ $item['check_out_raw'] }}', 
-                            '{{ $item['pax'] }}'
-                        )" 
-                        style="cursor: pointer; margin-bottom: 15px;"> 
+                    onclick="selectItem(
+                        '{{ $item['name'] }}', 
+                        '{{ $item['total'] }}', 
+                        '{{ $item['id'] }}', 
+                        '{{ $item['type'] }}', 
+                        '{{ $item['check_in_raw'] }}', 
+                        '{{ $item['check_out_raw'] }}', 
+                        '{{ $item['pax'] }}',
+                        '{{ json_encode($item['selected_foods'] ?? []) }}' {{-- ADD THIS LINE --}}
+                    )" 
+                    style="cursor: pointer; margin-bottom: 15px;">
                         
                         <div class="item-image">                    
                             <img src="{{ $item['img'] ? asset('storage/' . $item['img']) : asset('images/adzu_logo.png') }}" alt="Item">
@@ -40,6 +41,14 @@
                                 <br>
                                 <small>({{ $item['days'] }} Nights)</small>
                             </p>
+                             @if(!empty($item['selected_foods']) && count($item['selected_foods']) > 0)
+                                <div class="item-food-list" style="margin-top: 8px; font-size: 0.85em; color: #555;">
+                                    <strong style="display: block; margin-bottom: 2px;">Selected Foods:</strong>
+                                    @foreach($item['selected_foods'] as $food)
+                                        <span style="display: block; padding-left: 5px;">• {{ $food['food_name'] }}</span>
+                                    @endforeach
+                                </div>
+                            @endif
                         </div>
                     </div>
                 @empty
@@ -76,6 +85,9 @@
                                 <span class="item-amount" id="summary-total"></span>
                             </div>
                         </div>
+                        <div id="summary-foods" style="margin-top: 10px; border-top: 1px dashed #ddd; padding-top: 10px;">
+                {{-- JavaScript will inject food rows here --}}
+            </div>
                         <div class="summary-divider"></div>
                         <div class="total-section">
                             <span class="total-label">Total Payable</span>
@@ -87,25 +99,5 @@
             </aside>
         </div>
     </main>
-    <script>
-    function selectItem(name, total, id, type, checkIn, checkOut, pax) {
-        // 1. Show the summary div
-        document.getElementById('empty-msg').style.display = 'none';
-        document.getElementById('summary-details').style.display = 'block';
-
-        // 2. Update the Text Labels for the user to see
-        document.getElementById('summary-name').innerText = name;
-        let formattedTotal = '₱ ' + parseFloat(total).toLocaleString(undefined, {minimumFractionDigits: 2});
-        document.getElementById('summary-total').innerText = formattedTotal;
-        document.getElementById('summary-grand-total').innerText = formattedTotal;
-
-        // 3. FILL THE HIDDEN INPUTS (This fixes the SQL error)
-        document.getElementById('form-id').value = id;
-        document.getElementById('form-type').value = type;
-        document.getElementById('form-check-in').value = checkIn;
-        document.getElementById('form-check-out').value = checkOut;
-        document.getElementById('form-pax').value = pax;
-        document.getElementById('form-total-amount').value = total;
-    }
-    </script>
+    
 @endsection

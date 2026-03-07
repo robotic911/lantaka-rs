@@ -18,17 +18,12 @@ class ReservationController extends Controller
     // 1. Show Checkout Page (Calculates Price)
     public function checkout(Request $request)
     {
-        // 1. Get the current list of bookings from session (or an empty array if none exist)
         $allBookings = session('pending_bookings', []);
 
-        // 2. If coming from the "Proceed" button, add the new selection to the list
         if ($request->has('accommodation_id')) {
             $newEntry = $request->all();
-            
-            // Use the ID and Type as a unique key to prevent duplicate entries of the SAME room
             $uniqueKey = $newEntry['type'] . '_' . $newEntry['accommodation_id'];
             $allBookings[$uniqueKey] = $newEntry;
-            
             session(['pending_bookings' => $allBookings]);
         }
 
@@ -40,22 +35,31 @@ class ReservationController extends Controller
             $checkOut = \Carbon\Carbon::parse($item['check_out']);
             $days = $checkIn->diffInDays($checkOut) ?: 1;
 
-            if ($item['type'] === 'room') {
-                $model = \App\Models\Room::find($item['accommodation_id']);
-                $name = $model->room_number;
-                $price = $model->price;
-                $img = $model->image;
-            } else {
-                $model = \App\Models\Venue::find($item['accommodation_id']);
-                $name = $model->Venue_Name ?? $model->name;
-                $price = $model->Venue_Pricing ?? $model->price;
-                $img = $model->Venue_Image ?? $model->image;
-            }
+            // Determine Model
+            $model = ($item['type'] === 'room') 
+                ? \App\Models\Room::find($item['accommodation_id']) 
+                : \App\Models\Venue::find($item['accommodation_id']);
 
             if ($model) {
-                $total = $price * $days;
-                $grandTotal += $total;
-                
+                $price = ($item['type'] === 'room') ? $model->price : ($model->Venue_Pricing ?? $model->price);
+                $img = ($item['type'] === 'room') ? $model->image : ($model->Venue_Image ?? $model->image);
+                $name = ($item['type'] === 'room') ? $model->room_number : ($model->Venue_Name ?? $model->name);
+
+                // Calculate Base Total
+                $accommodationTotal = $price * $days;
+
+                // NEW: Handle Food Data for the Summary
+                $selectedFoods = [];
+                $foodTotal = 0;
+                if (!empty($item['selected_foods'])) {
+                    $selectedFoods = \App\Models\Food::whereIn('food_id', $item['selected_foods'])->get();
+                    // Food price is usually per person (pax)
+                    $foodTotal = $selectedFoods->sum('food_price') * $item['pax'];
+                }
+
+                $itemTotal = $accommodationTotal + $foodTotal;
+                $grandTotal += $itemTotal;
+
                 $processedItems[] = [
                     'key' => $key,
                     'id' => $model->id,
@@ -63,19 +67,22 @@ class ReservationController extends Controller
                     'type' => $item['type'],
                     'price' => $price,
                     'img' => $img,
-                    'check_in' => $checkIn->format('F d, Y'), // For display
-                    'check_out' => $checkOut->format('F d, Y'), // For display
-                    'check_in_raw' => $checkIn->format('Y-m-d'), // For JavaScript/Database
-                    'check_out_raw' => $checkOut->format('Y-m-d'), // For JavaScript/Database
+                    'check_in' => $checkIn->format('F d, Y'),
+                    'check_out' => $checkOut->format('F d, Y'),
+                    'check_in_raw' => $checkIn->format('Y-m-d'),
+                    'check_out_raw' => $checkOut->format('Y-m-d'),
                     'days' => $days,
                     'pax' => $item['pax'],
-                    'total' => $total
+                    'selected_foods' => $selectedFoods, // Passed to Blade
+                    'total' => $itemTotal
                 ];
             }
         }
 
         return view('client.my_bookings', compact('processedItems', 'grandTotal'));
     }
+
+    
 
     // 2. Store the Reservation (Confirm Button)
     public function store(Request $request)
@@ -173,8 +180,7 @@ class ReservationController extends Controller
         $query = Reservation::with(['user', 'room', 'venue', 'foods']);
 
         // 2. Apply Search and Dropdown Filters (Date, Type, etc.)
-        // We apply these FIRST so the card numbers reflect your search results\
-        
+        // We apply these FIRST so the card numbers reflect your search results\      
         if ($request->filled('search')) {
 
             $raw = trim($request->search);
@@ -356,6 +362,23 @@ class ReservationController extends Controller
             'totalReservations' => $totalReservations
         ]);
     }
+    public function cancel($id)
+    {
+        try {
+            // Find reservation and ensure it belongs to the current user
+            // We cast $id to (int) in case it comes in as "00030"
+            $reservation = \App\Models\Reservation::where('user_id', auth()->id())
+                            ->findOrFail((int)$id);
+
+            $reservation->update(['status' => 'cancelled']);
+
+            return response()->json(['message' => 'Reservation cancelled successfully.']);
+        } catch (\Exception $e) {
+            // This will tell us the EXACT error in the Network Tab
+            return response()->json(['message' => $e->getMessage()], 500);
+        }
+    }
+    
 }
 
 

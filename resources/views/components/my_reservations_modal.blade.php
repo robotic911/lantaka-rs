@@ -31,10 +31,10 @@
           <p class="detail-label" id="modalFoodIdLabel">Food ID:</p>
           
           <div id="modalFoodList"></div>
-          
+          <input type="hidden" id="cancelReservationId">
         </div>
         <div class="detail-section-cancel">
-          <button class="cancel-reservation">CANCEL RESERVATION</button>
+          <button class="cancel-reservation" onclick="confirmCancellation()">CANCEL RESERVATION</button>
         </div>
       </div>
     </div>

@@ -139,4 +139,5 @@ class RoomVenueController extends Controller
             return view('client.food_option', compact('bookingData', 'foods'));
         }
     }
+    
 }

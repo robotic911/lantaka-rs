@@ -67,17 +67,17 @@
           </p>
         </div>
       </div>
-
-      <div class="right-section">
-        <div class="calendar-container">
-          <x-booking_calendar :occupiedDates="json_encode($occupiedDates)" />
-
-          {{--
+{{--
           <h3>Select Dates</h3>
           <input type="text" id="calendar-input" placeholder="Check-in  →  Check-out" 
                  style="width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 8px; margin-top: 10px;">
           --}}
-        </div> <div class="booking-section">
+      <div class="right-section">
+        <div class="calendar-container">
+          <x-booking_calendar :occupiedDates="json_encode($occupiedDates)" />
+
+        </div> 
+        <div class="booking-section">
           <form action="{{ route('booking.prepare') }}" method="GET" class="booking-form" id="bookingForm">
               
               <input type="hidden" name="accommodation_id" value="{{ $data->id }}">
