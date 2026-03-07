@@ -128,11 +128,6 @@
                 </div>
 
                 <div class="legend-item">
-                    <span class="legend-dot cancelled"></span>
-                    Cancelled
-                </div>
-
-                <div class="legend-item">
                     <span class="legend-dot checked-in"></span>
                     Checked-In
                 </div>

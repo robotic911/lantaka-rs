@@ -19,10 +19,8 @@ function paintReservationsMonth() {
         status = res.status
       }else if(res.status === "completed"){
         status = res.status
-      }else if(res.status === "cancelled"){
-        status = res.status
       }else if(res.status === "checked-in"){
-      status = res.status
+        status = res.status
       }else if(res.status === "checked-out"){
         status = res.status
       }else{
