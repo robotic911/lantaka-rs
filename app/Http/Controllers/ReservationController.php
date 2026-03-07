@@ -198,8 +198,13 @@ class ReservationController extends Controller
         
                     $q->where(function ($sub) use ($word) {
         
+                        // Search reservation ID only if numeric
+                        if (is_numeric($word)) {
+                            $sub->orWhere('id', (int) $word);
+                        }
+        
                         // Search guest name
-                        $sub->whereHas('user', function ($userQ) use ($word) {
+                        $sub->orWhereHas('user', function ($userQ) use ($word) {
                             $userQ->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"]);
                         })
         
@@ -215,11 +220,8 @@ class ReservationController extends Controller
         
                         // Search reservation status
                         ->orWhereRaw('LOWER(status) LIKE ?', ["%{$word}%"]);
-        
                     });
-        
                 }
-        
             });
         }
 
@@ -241,7 +243,7 @@ class ReservationController extends Controller
         // --- STEP 3: SNAPSHOT FOR COUNTS ---
         // This variable contains all items matching your filters above.
         // Use this in your Blade file for the card numbers.
-        $allForCounts = $query->get();
+        $allForCounts = Reservation::get();
 
         // --- STEP 4: APPLY TABLE-SPECIFIC STATUS FILTER ---
         if ($request->filled('status')) {
@@ -273,9 +275,11 @@ class ReservationController extends Controller
         if ($request->filled('search')) {
             $searchTerm = $request->search;
             $query->where(function($q) use ($searchTerm) {
+                
                 $q->whereHas('user', fn($u) => $u->where('name', 'LIKE', "%{$searchTerm}%"))
                 ->orWhereHas('room', fn($r) => $r->where('room_number', 'LIKE', "%{$searchTerm}%"))
-                ->orWhereHas('venue', fn($v) => $v->where('name', 'LIKE', "%{$searchTerm}%"));
+                ->orWhereHas('venue', fn($v) => $v->where('name', 'LIKE', "%{$searchTerm}%"))
+                ->orWhere('id', $searchTerm);
             });
         }
 
@@ -298,7 +302,7 @@ class ReservationController extends Controller
 
         // --- CRITICAL SNAPSHOT: GET ALL MATCHING GUESTS FOR COUNTS ---
         // We filter by $validStatuses here so 'pending' items never show up on the Guest page
-        $allForCounts = (clone $query)->whereIn('status', $validStatuses)->get();
+        $allForCounts = Reservation::get();
 
         // 4. APPLY STATUS CARD FILTERING (Affects ONLY the Table)
         if ($request->filled('status')) {

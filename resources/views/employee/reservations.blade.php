@@ -15,38 +15,43 @@
               <button type="submit" class="search-icon" style="background:none; border:none;">🔍</button>
               </div>
 
-            <div class="status-cards">
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'pending']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
-                  <div class="status-label">Pending</div>
-                  <div class="status-number">{{ $allForCounts->where('status', 'pending')->count() }}</div>
-                </div>
-              </a>
-              
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'confirmed']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
-                  <div class="status-label">Confirmed</div>
-                  <div class="status-number">{{ $allForCounts->where('status', 'confirmed')->count() }}</div>
-                </div>
-              </a>
+              <div class="status-cards">
 
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-in']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
-                  <div class="status-label">Completed</div>
-                  <div class="status-number">{{ $allForCounts->where('status', 'checked-in')->count() }}</div>
-                </div>
-              </a>
-
-              <a href="{{ request()->fullUrlWithQuery(['status' => 'rejected']) }}" style="text-decoration: none; color: inherit;">
-                <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
-                    <div class="status-label">Rejected</div>
-                    <div class="status-number">
-                        {{-- Count cancelled, declined, and rejected together --}}
-                        {{ $allForCounts->whereIn('status', ['rejected'])->count() }}
-                    </div>
-                </div>
-              </a>
+          <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'pending']) }}"
+            style="text-decoration:none;color:inherit;">
+            <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
+              <div class="status-label">Pending</div>
+              <div class="status-number">{{ $allForCounts->where('status','pending')->count() }}</div>
             </div>
+          </a>
+
+
+          <a href="{{ request('status') == 'confirmed' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
+            style="text-decoration:none;color:inherit;">
+            <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
+              <div class="status-label">Confirmed</div>
+              <div class="status-number">{{ $allForCounts->where('status','confirmed')->count() }}</div>
+            </div>
+          </a>
+
+
+          <a href="{{ request('status') == 'checked-in' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
+            style="text-decoration:none;color:inherit;">
+            <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
+              <div class="status-label">Completed</div>
+              <div class="status-number">{{ $allForCounts->where('status','checked-in')->count() }}</div>
+            </div>
+          </a>
+
+
+          <a href="{{ request('status') == 'rejected' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'rejected']) }}"
+            style="text-decoration:none;color:inherit;">
+            <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
+              <div class="status-label">Rejected</div>
+              <div class="status-number">{{ $allForCounts->where('status','rejected')->count() }}</div>
+            </div>
+          </a>
+          </div>
 
             <div class="filter-section">
               <div class="filter-group">
@@ -151,6 +156,7 @@
                               data-info="{{ json_encode([
                                   'id' => str_pad($reservation->id, 5, '0', STR_PAD_LEFT),
                                   'status' => strtolower($reservation->status),
+                                  'type' => $reservation->user->usertype,
                                   'name' => $reservation->user->name ?? 'Unknown',
                                   'accommodation' => $accName,
                                   'price' => $price,

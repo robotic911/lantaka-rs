@@ -8,7 +8,7 @@
       <div class="page-content">
         <h1 class="page-title">Guest</h1>
 
-        <form method="GET" action="{{ url()->current() }}">
+        <form method="GET"action="{{ route('employee.reservations') }}">
             
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search names, rooms, or venues" value="{{ request('search') }}">
@@ -16,33 +16,50 @@
             </div>
 
             <div class="status-cards">
-                  <a href="{{ request()->fullUrlWithQuery(['status' => 'confirmed']) }}" style="text-decoration: none; color: inherit;">
-                      <div class="status-card pending {{ request('status') == 'confirmed' ? 'active' : '' }}">
-                          <div class="status-label">Pending</div>
-                          <div class="status-number">{{ $allForCounts->where('status', 'confirmed')->count() }}</div>
-                      </div>
-                  </a>
 
-                  <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-in']) }}" style="text-decoration: none; color: inherit;">
-                    <div class="status-card confirmed {{ request('status') == 'checked-in' ? 'active' : '' }}">
-                      <div class="status-label">Checked-in</div>
-                      <div class="status-number">{{ $allForCounts->where('status', 'checked-in')->count() }}</div>
-                    </div>
-                  </a>
+              <a href="{{ request('status') == 'confirmed'
+                      ? route('employee.reservations', request()->except('status'))
+                      : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card pending {{ request('status') == 'confirmed' ? 'active' : '' }}">
+                    <div class="status-label">Pending</div>
+                    <div class="status-number">{{ $allForCounts->where('status','confirmed')->count() }}</div>
+                </div>
+              </a>
 
-                  <a href="{{ request()->fullUrlWithQuery(['status' => 'checked-out']) }}" style="text-decoration: none; color: inherit;">
-                      <div class="status-card completed {{ request('status') == 'checked-out' ? 'active' : '' }}">
-                          <div class="status-label">Checked-out</div>
-                          <div class="status-number">{{ $allForCounts->where('status', 'checked-out')->count() }}</div>
-                      </div>
-                  </a>
 
-                  <a href="{{ request()->fullUrlWithQuery(['status' => 'cancelled']) }}" style="text-decoration: none; color: inherit;">
-                      <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">
-                          <div class="status-label">Cancelled</div>
-                          <div class="status-number">{{ $allForCounts->whereIn('status', ['cancelled'])->count() }}</div>
-                      </div>
-                  </a>
+              <a href="{{ request('status') == 'checked-in'
+                      ? route('employee.reservations', request()->except('status'))
+                      : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card confirmed {{ request('status') == 'checked-in' ? 'active' : '' }}">
+                    <div class="status-label">Checked-in</div>
+                    <div class="status-number">{{ $allForCounts->where('status','checked-in')->count() }}</div>
+                </div>
+              </a>
+
+
+              <a href="{{ request('status') == 'checked-out'
+                      ? route('employee.reservations', request()->except('status'))
+                      : request()->fullUrlWithQuery(['status' => 'checked-out']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card completed {{ request('status') == 'checked-out' ? 'active' : '' }}">
+                    <div class="status-label">Checked-out</div>
+                    <div class="status-number">{{ $allForCounts->where('status','checked-out')->count() }}</div>
+                </div>
+              </a>
+
+
+              <a href="{{ request('status') == 'cancelled'
+                      ? route('employee.reservations', request()->except('status'))
+                      : request()->fullUrlWithQuery(['status' => 'cancelled']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">
+                    <div class="status-label">Cancelled</div>
+                    <div class="status-number">{{ $allForCounts->where('status','cancelled')->count() }}</div>
+                </div>
+              </a>
+
               </div>
 
             <div class="filter-section" style="display: flex; align-items: center; gap: 15px;">
@@ -104,13 +121,7 @@
                     <span>{{ $res->user->name ?? $res->user->first_name ?? 'Unknown' }}</span>
                   </td>
 
-                  <td>
-                    @if($res->user && $res->user->usertype)
-                        {{ $res->user->usertype ?? 'External' }}
-                    @else
-                        <span style="color: gray;">Not Set</span>
-                    @endif
-                  </td>
+                  <td>{{ $res->user->usertype ?? 'External' }}</td>
 
                   <td>
                     @if($res->type === 'room' && $res->room)

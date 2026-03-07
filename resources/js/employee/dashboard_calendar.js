@@ -10,29 +10,36 @@ function paintReservationsMonth() {
 
     const date = cell.dataset.iso;
     const container = cell.querySelector('.event-label-month-container');
-    var status = ' '
-
+    var status = ""
+    var redirect = ""
     reservations.forEach(res => {
       if(res.status === "pending"){
         status = res.status
+        redirect = window.reservationPage
       }else if(res.status === "confirmed"){
         status = res.status
+        redirect = window.reservationPage
       }else if(res.status === "completed"){
         status = res.status
+        redirect = window.guestPage
       }else if(res.status === "checked-in"){
         status = res.status
+        redirect = window.guestPage
       }else if(res.status === "checked-out"){
         status = res.status
+        redirect = window.guestPage
       }else{
         status = ""
       }
 
       if(date >= res.check_in && date <= res.check_out){
-        container.innerHTML += `
-        <a href="${window.reservationPage}?search=${encodeURIComponent(` ${res.user.name} -${res.room.room_number} - ${res.status}`)}" class="event-label ${status}">
-          ${res.room.room_number} - ${res.user.name}
-        </a>
-        `;
+        if(status !== ""){
+          container.innerHTML += `
+          <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
+            ${res.room.room_number} - ${res.user.name}
+          </a>
+          `;
+        }
       }
     });
   });
@@ -40,33 +47,40 @@ function paintReservationsMonth() {
 
 function paintReservationsWeek() {
   const reservations = window.reservations || [];
-  console.log(reservations)
+  console.log("reservations:" + reservations)
   document.querySelectorAll('.date-cell-week').forEach(cell => {
 
     const date = cell.dataset.iso;
     const container = cell.querySelector('.event-label-week-container');
-    var status = ' '
-
+    var status = ""
+    var redirect = ""
     reservations.forEach(res => {
       if(res.status === "pending"){
         status = res.status
+        redirect = window.reservationPage
       }else if(res.status === "confirmed"){
         status = res.status
+        redirect = window.guestPage
       }else if(res.status === "completed"){
         status = res.status
-      }else if(res.status === "cancelled"){
+      }else if(res.status === "checked-in"){
         status = res.status
-      }
-      else{
+        redirect = window.guestPage
+      }else if(res.status === "checked-out"){
+        status = res.status
+        redirect = window.guestPage
+      }else{
         status = ""
       }
-
+      console.log(status)
       if(date >= res.check_in && date <= res.check_out){
+        if(status !== ""){
         container.innerHTML += `
-           <a href="${window.reservationPage}?search=${encodeURIComponent(` ${res.user.name} -${res.room.room_number} - ${res.status}`)}" class="event-label ${status}">
+           <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
           ${res.room.room_number} - ${res.user.name}
         </a>
         `;
+        }
       }
     });
   });

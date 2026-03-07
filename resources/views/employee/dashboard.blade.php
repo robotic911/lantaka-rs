@@ -114,17 +114,12 @@
                 <div class="calendar-legend">
                 <div class="legend-item">
                     <span class="legend-dot pending"></span>
-                    Pending
+                    Pending (Initial Reservation)
                 </div>
 
                 <div class="legend-item">
                     <span class="legend-dot confirmed"></span>
-                    Confirmed
-                </div>
-
-                <div class="legend-item">
-                    <span class="legend-dot completed"></span>
-                    Completed
+                    Confirmed (Final Reservation)
                 </div>
 
                 <div class="legend-item">
@@ -145,6 +140,7 @@
         <script>
             window.reservations = @json($reservations);
             window.reservationPage = "{{ route('employee.reservations') }}"
+            window.guestPage = "{{ route('employee.guest') }}"
         </script>
 @endsection
     

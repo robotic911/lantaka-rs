@@ -51,6 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
       let nameParts = fullName.trim().split(' ');
 
       let status = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+      console.log("test user type:" + data.type)
+      console.log("accomodation :" + data.accommodation)
+
       document.getElementById('modalTitle').textContent = status + " Reservation";
       document.getElementById('firstName').value = nameParts[0] || '';
       document.getElementById('lastName').value = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
