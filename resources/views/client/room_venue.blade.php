@@ -10,26 +10,34 @@
     </section>
 
     <section class="filters-section">
-      <div class="filter-tabs">
-        <button class="tab-btn active">All</button>
-        <button class="tab-btn">Rooms</button>
-        <button class="tab-btn">Venue</button>
-      </div>
+      <form action="{{ route('client.index') }}" method="GET" id="filterForm">
+        <div class="filter-tabs">
+            <input type="hidden" name="type" id="typeInput" value="{{ request('type', 'All') }}">
+            
+            <button type="button" class="tab-btn {{ request('type', 'All') == 'All' ? 'active' : '' }}" onclick="filterTab('All')">All</button>
+            <button type="button" class="tab-btn {{ request('type') == 'Rooms' ? 'active' : '' }}" onclick="filterTab('Rooms')">Rooms</button>
+            <button type="button" class="tab-btn {{ request('type') == 'Venue' ? 'active' : '' }}" onclick="filterTab('Venue')">Venue</button>
+        </div>
 
-      <div class="filter-dropdowns">
-        <select class="dropdown">
-          <option>Capacity</option>
-          <option>2 Guests</option>
-          <option>4 Guests</option>
-          <option>50+ Guests</option>
-        </select>
-        <select class="dropdown">
-          <option>Availability</option>
-          <option>Available Now</option>
-          <option>Coming Soon</option>
-        </select>
-      </div>
+        <div class="filter-dropdowns">
+          <select name="capacity" class="dropdown" onchange="this.form.submit()">
+            <option value="">Capacity</option>
+            <option value="2" {{ request('capacity') == '2' ? 'selected' : '' }}>2 Guests</option>
+            <option value="4" {{ request('capacity') == '4' ? 'selected' : '' }}>4 Guests</option>
+            <option value="50+" {{ request('capacity') == '50+' ? 'selected' : '' }}>50+ Guests</option>
+          </select>
+          
+          
+        </div>
+      </form>
     </section>
+
+    <script>
+      function filterTab(type) {
+          document.getElementById('typeInput').value = type;
+          document.getElementById('filterForm').submit();
+      }
+    </script>
 
     <section class="accommodations">
       

@@ -52,16 +52,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     meal.querySelectorAll('.food-item').forEach(item => {
-      item.classList.toggle('unavailable', !enabled)
+      item.classList.toggle('unavailable', !enabled);
       if (!enabled) {
-        item.classList.remove('selected') // clear selections when disabled
-        // CRITICAL: Uncheck the hidden checkbox so it doesn't submit!
-        const checkbox = item.querySelector('.food-checkbox')
+        item.classList.remove('selected'); // This is good!
+        const checkbox = item.querySelector('.food-checkbox');
         if (checkbox) checkbox.checked = false;
       }
-    })
-
-    // Recalculate the price in case we just disabled a section with selected food
+    });
     calculateTotal();
   }
 

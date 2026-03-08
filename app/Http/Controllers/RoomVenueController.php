@@ -48,26 +48,50 @@ class RoomVenueController extends Controller
         return redirect()->back()->with('success', $request->category . ' added successfully!');
     }
 
-    public function index()
+    public function index(Request $request)
     {
-        // 1. Get Rooms
-        $rooms = Room::all()->map(function($room) {
-            $room->category = 'Room';
-            $room->display_name = "Room " . $room->room_number . " (" . $room->room_type . ")";
-            return $room;
-        });
+        // 1. Get filtered Rooms
+        $rooms = Room::query()
+            ->when($request->capacity, function ($query, $capacity) {
+                if ($capacity == '50+') return $query->where('capacity', '>=', 50);
+                return $query->where('capacity', '>=', (int)$capacity);
+            })
+            ->when($request->availability == 'Available Now', function ($query) {
+                return $query->where('status', 'Available');
+            })
+            ->get()
+            ->map(function($room) {
+                $room->category = 'Room';
+                $room->display_name = "Room " . $room->room_number . " (" . $room->room_type . ")";
+                return $room;
+            });
 
-        // 2. Get Venues
-        $venues = Venue::all()->map(function($venue) {
-            $venue->category = 'Venue';
-            $venue->display_name = $venue->name;
-            return $venue;
-        });
+        // 2. Get filtered Venues
+        $venues = Venue::query()
+            ->when($request->capacity, function ($query, $capacity) {
+                if ($capacity == '50+') return $query->where('capacity', '>=', 50);
+                return $query->where('capacity', '>=', (int)$capacity);
+            })
+            ->when($request->availability == 'Available Now', function ($query) {
+                return $query->where('status', 'Available');
+            })
+            ->get()
+            ->map(function($venue) {
+                $venue->category = 'Venue';
+                $venue->display_name = $venue->name;
+                return $venue;
+            });
 
-        // 3. Merge them
-        $all_accommodations = $rooms->concat($venues);
+        // 3. Filter by Category Tab (All, Rooms, or Venue)
+        $type = $request->type ?? 'All';
+        if ($type === 'Rooms') {
+            $all_accommodations = $rooms;
+        } elseif ($type === 'Venue') {
+            $all_accommodations = $venues;
+        } else {
+            $all_accommodations = $rooms->concat($venues);
+        }
 
-        // 4. Send to View 
         return view('client.room_venue', compact('all_accommodations'));
     }
      public function adminIndex()

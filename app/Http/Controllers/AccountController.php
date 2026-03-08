@@ -47,4 +47,40 @@ class AccountController extends Controller
             'message' => 'Account has been ' . $status . ' and the client has been notified.'
         ]);
     }
+    public function update(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        // Handle Deactivation
+        if ($request->action === 'deactivate') {
+            $user->update(['status' => 'declined']); 
+            return redirect()->back()->with('success', 'Account deactivated.');
+        }
+
+        // Validation
+        $request->validate([
+            'username'   => 'required|string|max:255',
+            'first_name' => 'required|string|max:255',
+            'last_name'  => 'required|string|max:255',
+            'email'      => 'required|email|unique:users,email,' . $id,
+            'phone_no'   => 'nullable|string',
+        ]);
+
+        // MAP THE DATA CORRECTLY
+        $user->name = $request->first_name . ' ' . $request->last_name; // Combine for 'name' column
+        $user->username = $request->username;
+        $user->email = $request->email;
+        $user->phone = $request->phone_no; // Maps 'phone_no' input to 'phone' column
+        
+        // Only save id_info if you have actually added that column to your DB
+        // $user->id_info = $request->id_info; 
+
+        if ($request->filled('password')) {
+            $user->password = bcrypt($request->password);
+        }
+
+        $user->save();
+
+        return redirect()->back()->with('success', 'Account updated successfully.');
+    }
 }

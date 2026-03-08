@@ -110,6 +110,13 @@
   transition: all 0.3s ease;
 }
 
+.fooddate-chip.active {
+  background-color: #ffc107;
+  color: #000;
+  border-color: #000;
+  font-weight: bold;
+}
+
 .toggle-btn.active {
   background-color: var(--primary-blue);
   color: var(--white);
@@ -333,121 +340,124 @@
 
 
 /* ===== overlay ===== */
-.fooddate-overlay{
+.fooddate-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.55);
+  background: rgba(0, 0, 0, 0.55);
   display: none;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   padding: 20px;
 }
-.fooddate-overlay.show{ display:flex; }
+
+.fooddate-overlay.show {
+  display: flex;
+}
 
 /* ===== modal card ===== */
-.fooddate-modal{
+.fooddate-modal {
   width: 100%;
   max-width: 640px;
   min-height: 330px;
   background: #fff;
   border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
   padding: 18px 18px 16px;
   position: relative;
 }
 
 /* ===== header ===== */
-.fooddate-header{
-  display:flex;
+.fooddate-header {
+  display: flex;
   justify-content: space-between;
-  align-items:center;
+  align-items: center;
   gap: 16px;
 }
-.fooddate-header h3{
-  margin:0;
+
+.fooddate-header h3 {
+  margin: 0;
   font-size: 16px;
   font-weight: 800;
-  color:#111;
+  color: #111;
 }
 
-.fooddate-close{
-  border:none;
-  background:transparent;
+.fooddate-close {
+  border: none;
+  background: transparent;
   font-size: 28px;
   line-height: 1;
-  cursor:pointer;
-  color:#e53935; /* red X */
+  cursor: pointer;
+  color: #e53935;
+  /* red X */
   padding: 2px 8px;
 }
 
 /* ===== body ===== */
-.fooddate-body{
-  display:flex;
+.fooddate-body {
+  display: flex;
   flex-direction: column;
-  justify-content:center;
-  align-items:center;
+  justify-content: center;
+  align-items: center;
   min-height: 210px;
 }
 
-.fooddate-dates{
-  display:flex;
+.fooddate-dates {
+  display: flex;
   gap: 18px;
   margin-top: 30px;
 }
 
 /* date boxes */
-.fooddate-chip{
+.fooddate-chip {
   width: 82px;
   height: 70px;
   border-radius: 12px;
   border: 2px solid transparent;
   background: #d9d9d9;
-  color:#111;
+  color: #111;
   font-weight: 800;
   font-size: 18px;
-  cursor:pointer;
-  display:grid;
-  place-items:center;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
-.fooddate-chip:hover{
+.fooddate-chip:hover {
   filter: brightness(0.98);
 }
 
 /* selected state (subtle outline like your screenshot) */
-.fooddate-chip.selected{
+.fooddate-chip.selected {
   border-color: #2f5bea;
-  box-shadow: 0 0 0 4px rgba(47,91,234,0.12);
+  box-shadow: 0 0 0 4px rgba(47, 91, 234, 0.12);
 }
 
 /* error */
-.fooddate-error{
+.fooddate-error {
   margin-top: 14px;
-  color:#d32f2f;
+  color: #d32f2f;
   font-size: 13px;
 }
 
 /* ===== footer ===== */
-.fooddate-footer{
-  display:flex;
-  justify-content:flex-end;
+.fooddate-footer {
+  display: flex;
+  justify-content: flex-end;
   margin-top: 10px;
 }
 
-.fooddate-confirm{
+.fooddate-confirm {
   background: #f6c000;
-  color:#111;
-  border:none;
+  color: #111;
+  border: none;
   border-radius: 12px;
   padding: 16px 56px;
   font-weight: 900;
   font-size: 16px;
-  cursor:pointer;
+  cursor: pointer;
 }
 
-.fooddate-confirm:hover{
+.fooddate-confirm:hover {
   filter: brightness(0.97);
 }
-
-

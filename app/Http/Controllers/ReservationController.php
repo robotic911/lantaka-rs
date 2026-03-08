@@ -161,13 +161,34 @@ class ReservationController extends Controller
     }
 
     // 3. Client: My Reservations Page
-    public function index()
+    public function index(Request $request)
     {
-        // Added 'foods' here!
-        $reservations = Reservation::where('user_id', Auth::id())
-                        ->with(['room', 'venue', 'foods']) 
-                        ->orderBy('created_at', 'desc')
-                        ->get();
+        // 1. Start query for the logged-in user
+        $query = Reservation::where('user_id', Auth::id())
+                            ->with(['room', 'venue', 'foods']);
+
+        // 2. Search Box Logic (IDs or Room/Venue Names)
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function($q) use ($search) {
+                $q->where('id', 'LIKE', "%{$search}%")
+                ->orWhereHas('room', fn($r) => $r->where('room_number', 'LIKE', "%{$search}%"))
+                ->orWhereHas('venue', fn($v) => $v->where('name', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        // 3. Filter by Reservation Type (Room vs Venue)
+        if ($request->filled('type') && $request->type !== 'Reservation Type') {
+            $query->where('type', strtolower($request->type));
+        }
+
+        // 4. Filter by Status
+        if ($request->filled('status') && $request->status !== 'Status') {
+            $query->where('status', strtolower($request->status));
+        }
+
+        // 5. Get results
+        $reservations = $query->orderBy('created_at', 'desc')->get();
 
         return view('client.my_reservations', compact('reservations'));
     }

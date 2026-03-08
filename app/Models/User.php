@@ -28,6 +28,7 @@ class User extends Authenticatable
         'status',
         'affiliation',
         'usertype',
+        'id_info', // Add this if you want to save the textarea data
     ];
 
     /**

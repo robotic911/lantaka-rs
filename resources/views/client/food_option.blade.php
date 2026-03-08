@@ -142,22 +142,35 @@
     </form>
     
     <div class="fooddate-overlay" id="foodDateOverlay" aria-hidden="true">
-      <div class="fooddate-modal" role="dialog" aria-modal="true" aria-labelledby="foodDateTitle">
-        <div class="fooddate-header">
-          <h3 id="foodDateTitle">Select Date for Hall A for Food Reservation</h3>
-          <button type="button" class="fooddate-close" id="foodDateClose" aria-label="Close">×</button>
+    
+        <div class="fooddate-modal" role="dialog" aria-modal="true" aria-labelledby="foodDateTitle">
+            
+            <div class="fooddate-header">
+                <h3 id="foodDateTitle">Select Date for Food Reservation</h3>
+                <button type="button" class="fooddate-close" id="foodDateClose">×</button>
+            </div>
+
+            <div class="fooddate-body">
+                <div class="fooddate-dates" id="foodDateList">
+                    @php
+                        $startDate = \Carbon\Carbon::parse(request('check_in'));
+                        $endDate = \Carbon\Carbon::parse(request('check_out'));
+                        $period = \Carbon\CarbonPeriod::create($startDate, $endDate);
+                    @endphp
+
+                    @foreach($period as $date)
+                        <button type="button" class="fooddate-chip" data-date="{{ $date->format('Y-m-d') }}">
+                            <span class="chip-day">{{ $date->format('d') }}</span>
+                            <span class="chip-month">{{ $date->format('M') }}</span>
+                        </button>
+                    @endforeach
+                </div>
+                <p class="fooddate-error" id="foodDateError" style="display:none;"></p>
+            </div>
+
+            <div class="fooddate-footer">
+                <button type="button" class="fooddate-confirm" id="foodDateConfirm">CONFIRM</button>
+            </div>
         </div>
-        <div class="fooddate-body">
-          <div class="fooddate-dates" id="foodDateList">
-            <button type="button" class="fooddate-chip" data-date="2026-02-18">18</button>
-            <button type="button" class="fooddate-chip" data-date="2026-02-19">19</button>
-            <button type="button" class="fooddate-chip" data-date="2026-02-20">20</button>
-          </div>
-          <p class="fooddate-error" id="foodDateError" style="display:none;"></p>
-        </div>
-        <div class="fooddate-footer">
-          <button type="button" class="fooddate-confirm" id="foodDateConfirm">CONFIRM</button>
-        </div>
-      </div>
     </div>
 @endsection
