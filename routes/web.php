@@ -49,6 +49,8 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::post('/accounts/{id}/update-status', [AccountController::class, 'updateStatus'])->name('accounts.updateStatus');
             Route::post('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
             Route::get('/SOA', action: fn() => view('employee.SOA'))->name('SOA');
+            Route::post('/room_venue', action: fn() => view('employee.SOA'))->name('SOA');
+
         });
         Route::prefix('client')
         ->name('client.')
@@ -61,7 +63,6 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::get('/food_option', function () {
                 return view('food_option');
             })->name('food_option');
-            
         });
 Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('client.index');
 
@@ -92,9 +93,8 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/employee_room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
 
     Route::post('/employee/food/store', [FoodController::class, 'store'])->name('admin.food.store');
-
-});
-  
+    Route::put('/employee/room_venue/{id}', [FoodController::class, 'update'])->name('admin.food.update');});
+    Route::get('/employee/room_venue/{id}/delete', [FoodController::class, 'destroy']);  
 // TEST ONLY DO NOT TOUCH (CALENDAR)
 Route::get('/test_client_room_venue_viewing', function () {
     return view('test_client_room_venue_viewing');

@@ -48,4 +48,33 @@ class FoodController extends Controller
             'foods' => $foods,
         ]);
     }
+    public function update(Request $request, $id)
+    {   
+        $request->validate([
+            'food_name' => 'required|string|max:255',
+            'status' => 'required|in:available,unavailable',
+            'type' => 'required|in:breakfast,snack,lunch,dinner',
+            'food_price' => 'required|numeric|min:0',
+        ]);
+
+        $food = Food::findOrFail($id);
+
+        $food->update([
+            'food_name' => $request->food_name,
+            'food_category' => $request->type,
+            'food_price' => $request->food_price,
+            'status' => $request->status,
+        ]);
+
+        return back()->with('success', 'Food updated successfully.');
+    }
+
+    public function destroy($id)
+    {
+        $food = Food::findOrFail($id);
+
+        $food->delete();
+
+        return back()->with('success','Food deleted successfully');
+    }
 }

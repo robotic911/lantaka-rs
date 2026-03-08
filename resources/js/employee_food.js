@@ -7,8 +7,12 @@ document.addEventListener('DOMContentLoaded', () => {
   const foodOverlay = document.getElementById('foodModalOverlay')
   const foodModal = document.getElementById('foodModal')
   const foodCloseBtn = document.getElementById('foodModalClose')
-  const foodOpenBtn = document.getElementById('food_button') // make sure ID matches HTML
+  const foodOpenBtn = document.getElementById('food_button')
   const addFoodBtn = document.getElementById('add_food_button')
+
+  const updateFoodOverlay = document.getElementById('updateFoodOverlay')
+  const updateFoodModal = document.getElementById('updateFoodModal')
+  const updateFoodCloseBtn = document.getElementById('updateFoodClose')
 
   const openFoodModal = () => {
     foodOverlay?.classList.add('show')
@@ -26,6 +30,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   foodOverlay?.addEventListener('click', (e) => {
     if (e.target === foodOverlay) closeFoodModal()
+  })
+
+
+  /* =========================
+     UPDATE FOOD MODAL
+  ========================== */
+
+  function openUpdateModal() {
+    updateFoodOverlay?.classList.add('active')
+    updateFoodModal?.classList.add('active')
+  }
+
+  function closeUpdateModal() {
+    updateFoodOverlay?.classList.remove('active')
+    updateFoodModal?.classList.remove('active')
+  }
+
+  function showUpdateFoodModal() {
+    closeFoodModal()
+    openUpdateModal()
+  }
+
+  updateFoodCloseBtn?.addEventListener('click', closeUpdateModal)
+
+  updateFoodOverlay?.addEventListener('click', (e) => {
+    if (e.target === updateFoodOverlay) {
+      closeUpdateModal()
+    }
+  })
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (dateOverlay?.classList.contains('show')) closeDateModal()
+      if (updateFoodOverlay?.classList.contains('active')) closeUpdateModal()
+    }
   })
 
 
@@ -59,23 +98,18 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target === dateOverlay) closeDateModal()
   })
 
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && dateOverlay?.classList.contains('show')) {
-      closeDateModal()
-    }
-  })
-
   dateList?.addEventListener('click', (e) => {
     const chip = e.target.closest('.fooddate-chip')
     if (!chip) return
 
-    dateList.querySelectorAll('.fooddate-chip')
-      .forEach(c => c.classList.remove('selected'))
+    dateList.querySelectorAll('.fooddate-chip').forEach(c => {
+      c.classList.remove('selected')
+    })
 
     chip.classList.add('selected')
     selectedDate = chip.dataset.date || ''
 
-    errorEl && (errorEl.style.display = 'none')
+    if (errorEl) errorEl.style.display = 'none'
     console.log('Picked food date:', selectedDate)
   })
 
@@ -105,8 +139,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const mealSections = document.querySelectorAll('.meal-section')
 
   const setActiveBtn = (btn, wrap) => {
-    wrap?.querySelectorAll('.toggle-btn')
-      .forEach(b => b.classList.remove('active'))
+    wrap?.querySelectorAll('.toggle-btn').forEach(b => {
+      b.classList.remove('active')
+    })
     btn.classList.add('active')
   }
 
@@ -134,10 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
     mealSections.forEach(meal => setMealEnabled(meal, enabled))
   }
 
-  // default state
   if (masterWrap && masterBtns.length) {
-    const yesBtn = [...masterBtns]
-      .find(b => b.textContent.trim().toLowerCase() === 'yes')
+    const yesBtn = [...masterBtns].find(b =>
+      b.textContent.trim().toLowerCase() === 'yes'
+    )
     if (yesBtn) setActiveBtn(yesBtn, masterWrap)
   }
 
@@ -146,13 +181,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.food-item').forEach(item => {
     item.classList.remove('selected')
     item.classList.remove('unavailable')
-  })
 
-  document.querySelectorAll('.food-items').forEach(row => {
-    row.addEventListener('click', (e) => {
-      const item = e.target.closest('.food-item')
-      if (!item || item.classList.contains('unavailable')) return
-      item.classList.toggle('selected')
+    item.addEventListener('click', () => {
+      showUpdateFoodModal()
     })
   })
 
@@ -162,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     pill.addEventListener('click', () => {
       if (!isMasterYes()) return
+
       const enabled = meal.dataset.enabled === '1'
       setMealEnabled(meal, !enabled)
     })
