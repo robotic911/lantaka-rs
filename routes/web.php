@@ -49,7 +49,6 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::post('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
             Route::get('/SOA', action: fn() => view('employee.SOA'))->name('SOA');
         });
-    
         Route::prefix('client')
         ->name('client.')
         ->middleware(['auth'])

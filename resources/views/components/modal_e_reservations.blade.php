@@ -30,36 +30,40 @@
               <input type="text" id="email">
             </div>
 
-            <div class="form-group">
-              <label for="affiliation">Affiliation</label>
-              <select id="affiliation">
-                <option>External</option>
-                <option>Internal</option>
-              </select>
+            <div class="form-group" id="affiliationAndDiscount">
+              <div class="form-group-mini">
+                <label for="affiliation">Affiliation</label>
+                <select id="affiliation">
+                  <option>External</option>
+                  <option>Internal</option>
+                </select>
+              </div>
+              <div class="form-group-mini">
+                <label for="discount">Discount</label>
+                <input type="text" id="discount" placeholder="Enter Discount">
+              </div>
             </div>
 
-            <!-- Additional checkout-only fields -->
-            <div class="form-group" id="discountGroup" style="display: none;">
-              <label for="discount">Discount</label>
-              <input type="text" id="discount" placeholder="Enter Discount">
-            </div>
-
-            <div id="additionalChargesSection" style="display: none;">
+            <div id="additionalChargesSection">
               <div class="additional-charges-header">
                 <label>Additional Charges:</label>
-                <button type="button" class="add-btn">+</button>
+                <button type="button" class="add-btn" id="addAdditionalCharges">+</button>
               </div>
-              <div id="chargesContainer" class="charges-container">
-                <input type="text" placeholder="" class="charge-input">
-                <input type="text" placeholder="" class="charge-input">
-                <input type="text" placeholder="" class="charge-input">
+                <div id="chargesContainer" class="charges-container">
+                  <div class="charges-container-sub">
+                    <input id="addChargesDes" type="text" placeholder="Description" class="charge-input">
+                    <input id="addChargesQty" type="number" placeholder="Qty" class="charge-input">
+                    <input id="addChargesAmount" type="number" placeholder="₱" class="charge-input">
+                  </div>
               </div>
             </div>
 
-            <div id="exportSection" style="display: none;">
+            <div id="exportSection">
               <label>Generate Statement of Accounts:</label>
-              <button type="button" class="export-btn">EXPORT</button>
-            </div>
+              <a href="{{ route('employee.SOA') }}" class="export-btn">
+                ADD TO SOA
+              </a>            
+              </div>
           </form>
         </div>
 
@@ -101,6 +105,14 @@
                 <span>Food</span>
                 <span>₱ 0</span>
               </div>
+              <div class="price-item">
+                <span>Discount</span>
+                <span>₱ 0</span>
+              </div>
+              <div class="price-item">
+                <span>Additional Fees</span>
+                <span>₱ 0</span>
+              </div>
             </div>
 
             <div class="summary-divider"></div>
@@ -124,10 +136,10 @@
               <div id="confirmedActions" class="modal-actions" style="display: none; gap: 10px;">
                 <button type="button" onclick="submitStatus('cancelled')" class="reject-btn">Cancel Reservation</button>
                 <button type="button" onclick="submitStatus('checked-in')" class="check-in-btn">CHECK-IN</button>
-              </div>
-
+              </div>              
+              
               <div id="checkedInActions" class="modal-actions" style="display: none; gap: 10px;">
-                <button type="button" class="cancel-btn">CANCEL</button>
+                <button type="button" class="check-in-btn">SAVE MODIFICATIONS</button>
                 <button type="button" onclick="submitStatus('checked-out')" class="check-out-btn">CHECK-OUT</button>
               </div>
               </div>

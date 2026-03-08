@@ -28,7 +28,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         'confirmed': document.getElementById('confirmedActions'),
         'cancelled': document.getElementById('confirmedActions'),
-
+        
         'checked-in': document.getElementById('checkedInActions'),
         'cancelled': document.getElementById('checkedInActions'),
 
@@ -45,6 +45,33 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (statusGroups['pending']) {
         statusGroups['pending'].style.display = 'flex';
       }
+      
+      const blockCheckin = document.getElementById('confirmedActions')
+      const blockCheckout = document.getElementById('checkedInActions') // correct id
+      const blockAccept = document.getElementById('pendingActions')
+      const showSOA = document.getElementById('exportSection')
+
+      const showAddChSection = document.getElementById('additionalChargesSection')
+      const row = this.closest('tr')
+      const badge = row.querySelector('.badge')
+
+      const badgeStatus = badge ? badge.textContent.trim() : ''
+
+      if (badgeStatus === "Completed" || badgeStatus === "Checked-out" || badgeStatus === "Cancelled") {
+        blockCheckout.style.display = 'none'
+      }
+
+      if (badgeStatus === "Rejected") {
+        blockAccept.style.display = 'none'
+      }
+
+      if (badgeStatus === "Cancelled" || badgeStatus === "Completed") {
+        blockCheckin.style.display = 'none'
+      }
+      if(badgeStatus !== "Checked-in"){
+        showSOA.style.display = 'none'
+        showAddChSection.style.display = 'none'
+      }
 
       // 3. Populate form and summary fields
       let fullName = data.name || 'Unknown';
@@ -54,7 +81,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("test user type:" + data.type)
       console.log("accomodation :" + data.accommodation)
 
-      document.getElementById('modalTitle').textContent = status + " Reservation";
+      document.getElementById('modalTitle').textContent =  badge.textContent.trim();
       document.getElementById('firstName').value = nameParts[0] || '';
       document.getElementById('lastName').value = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
       document.getElementById('modalName').textContent = data.accommodation || 'N/A';
@@ -117,3 +144,20 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+
+const addChargesBtn = document.getElementById('addAdditionalCharges')
+const chargesContainer = document.getElementById('chargesContainer')
+
+function addAditionalCharges(){
+
+  const html = `
+    <div class="charges-container-sub">
+      <input id="addChargesDes" type="text" placeholder="Description" class="charge-input">
+      <input id="addChargesQty" type="number" placeholder="Qty" class="charge-input">
+      <input id="addChargesAmount" type="number" placeholder="₱" class="charge-input">
+    </div>
+  `
+  chargesContainer.innerHTML += html
+}
+
+addChargesBtn.addEventListener('click', addAditionalCharges)
