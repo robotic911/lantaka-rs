@@ -13,7 +13,9 @@ return new class extends Migration
             $table->id('food_reservation_id'); 
             
             // This links to the reservations table
-            $table->foreignId('venue_reservation_id')->constrained('reservations')->onDelete('cascade');
+            $table->foreignId('venue_reservation_id')
+            ->constrained('venue_reservations', 'Venue_Reservation_ID') 
+            ->onDelete('cascade');
             
             // This links to the food table
             $table->foreignId('food_id')->constrained('food', 'food_id')->onDelete('cascade');

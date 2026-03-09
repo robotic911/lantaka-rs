@@ -18,7 +18,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const idInput = document.getElementById('cancelReservationId');
       if (idInput) {
         // We use Number(data.id) because your data-info pads it with zeros (00001)
-        idInput.value = Number(data.id);
+        idInput.value = data.real_id;
+        console.log("Captured ID for cancellation:", idInput.value);
       }
 
       // --- 2. Handle the food logic (PRESERVED) ---

@@ -13,31 +13,31 @@ function paintReservationsMonth() {
     var status = ""
     var redirect = ""
     reservations.forEach(res => {
-      if(res.status === "pending"){
+      if (res.status === "pending") {
         status = res.status
         redirect = window.reservationPage
-      }else if(res.status === "confirmed"){
+      } else if (res.status === "confirmed") {
         status = res.status
         redirect = window.reservationPage
-      }else if(res.status === "completed"){
+      } else if (res.status === "completed") {
         status = res.status
         redirect = window.guestPage
-      }else if(res.status === "checked-in"){
+      } else if (res.status === "checked-in") {
         status = res.status
         redirect = window.guestPage
-      }else if(res.status === "checked-out"){
+      } else if (res.status === "checked-out") {
         status = res.status
         redirect = window.guestPage
-      }else{
+      } else {
         status = ""
       }
 
-      if(date >= res.check_in && date <= res.check_out){
-        if(status !== ""){
+      if (date >= res.check_in && date <= res.check_out) {
+        if (status !== "") {
           container.innerHTML += `
-          <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
-            ${res.room.room_number} - ${res.user.name}
-          </a>
+              <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
+                  ${label} - ${res.user ? res.user.name : 'Unknown'}
+              </a>
           `;
         }
       }
@@ -55,27 +55,27 @@ function paintReservationsWeek() {
     var status = ""
     var redirect = ""
     reservations.forEach(res => {
-      if(res.status === "pending"){
+      if (res.status === "pending") {
         status = res.status
         redirect = window.reservationPage
-      }else if(res.status === "confirmed"){
+      } else if (res.status === "confirmed") {
         status = res.status
         redirect = window.guestPage
-      }else if(res.status === "completed"){
+      } else if (res.status === "completed") {
         status = res.status
-      }else if(res.status === "checked-in"){
-        status = res.status
-        redirect = window.guestPage
-      }else if(res.status === "checked-out"){
+      } else if (res.status === "checked-in") {
         status = res.status
         redirect = window.guestPage
-      }else{
+      } else if (res.status === "checked-out") {
+        status = res.status
+        redirect = window.guestPage
+      } else {
         status = ""
       }
       console.log(status)
-      if(date >= res.check_in && date <= res.check_out){
-        if(status !== ""){
-        container.innerHTML += `
+      if (date >= res.check_in && date <= res.check_out) {
+        if (status !== "") {
+          container.innerHTML += `
            <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
           ${res.room.room_number} - ${res.user.name}
         </a>
@@ -109,7 +109,7 @@ const btnMonthly = document.getElementById('btnMonthly')
 const btnWeekly = document.getElementById('btnWeekly')
 const refresh = document.getElementById('refresh')
 
-refresh.addEventListener('click', ()=>{
+refresh.addEventListener('click', () => {
   btnWeekly.classList.remove('active')
   btnMonthly.classList.add('active')
 
@@ -123,7 +123,7 @@ refresh.addEventListener('click', ()=>{
   renderMonth()
 })
 
-function updateMonth(){
+function updateMonth() {
   monthHeader.textContent = view.format('MMMM YYYY')
 }
 
@@ -143,40 +143,40 @@ function updateWeekHeader(weekStart) {
 }
 
 
-function renderMonth(){
+function renderMonth() {
   let daysRender = ''
-    updateMonth()
+  updateMonth()
   const firstDayMonth = view.startOf('month')
 
   const startDay = firstDayMonth.day()
-  const displayStartday = firstDayMonth.subtract(startDay,'day')
+  const displayStartday = firstDayMonth.subtract(startDay, 'day')
   const currentDate = view.format('day')
-  
-  for(let i = 0; i < 35; i++){
-    const displayDay = displayStartday.add(i,'day')
+
+  for (let i = 0; i < 35; i++) {
+    const displayDay = displayStartday.add(i, 'day')
     const dayAnotherMonth = displayDay.month() !== view.month()
     const dateOfToday = displayDay.isSame(dayjs(), 'day')
 
     let dateStatus = ``
 
-    if(dayAnotherMonth) {
+    if (dayAnotherMonth) {
       dateStatus = 'empty'
-      }else if(dateOfToday && !dayAnotherMonth){
-        dateStatus += 'event'
-      }else{
-        dateStatus = ''
-      }
-    
-    daysRender += 
-    `<div class="date-cell-month ${dateStatus}" data-iso="${displayDay.format('YYYY-MM-DD')}">
+    } else if (dateOfToday && !dayAnotherMonth) {
+      dateStatus += 'event'
+    } else {
+      dateStatus = ''
+    }
+
+    daysRender +=
+      `<div class="date-cell-month ${dateStatus}" data-iso="${displayDay.format('YYYY-MM-DD')}">
         <span class="day-number" >${displayDay.format('D')}</span>
         <div class="event-label-month-container">
           
         </div>
     </div>`
-    
+
   }
-  displayDayContainerMonth.innerHTML= daysRender
+  displayDayContainerMonth.innerHTML = daysRender
   paintReservationsMonth();
 }
 
@@ -194,11 +194,11 @@ function renderWeek() {
     const dateOfToday = displayDay.isSame(dayjs(), 'day')
 
     let dateStatus = ''
-    if (dayAnotherMonth){
+    if (dayAnotherMonth) {
       dateStatus = 'empty'
-    }else if (dateOfToday && !dayAnotherMonth){
-      dateStatus = 'event' 
-    }else{
+    } else if (dateOfToday && !dayAnotherMonth) {
+      dateStatus = 'event'
+    } else {
       dateStatus = ''
     }
 
@@ -218,31 +218,31 @@ function renderWeek() {
 
 renderMonth()
 
-nextMonth.addEventListener('click', ()=>{
-  view = view.add(1,'month')
+nextMonth.addEventListener('click', () => {
+  view = view.add(1, 'month')
   renderMonth()
   console.log('next')
 })
 
-prevMonth.addEventListener('click', ()=>{
-  view = view.subtract(1,'month')
+prevMonth.addEventListener('click', () => {
+  view = view.subtract(1, 'month')
   renderMonth()
   console.log('prev')
-}) 
+})
 
-nextWeek.addEventListener('click', ()=>{
-  view = view.add(1,'week')
+nextWeek.addEventListener('click', () => {
+  view = view.add(1, 'week')
   renderWeek()
   console.log('next')
 })
 
-prevWeek.addEventListener('click', ()=>{
-  view = view.subtract(1,'week')
+prevWeek.addEventListener('click', () => {
+  view = view.subtract(1, 'week')
   renderWeek()
   console.log('prev')
-}) 
+})
 
-btnWeekly.addEventListener('click', ()=>{
+btnWeekly.addEventListener('click', () => {
   btnMonthly.classList.remove('active')
   btnWeekly.classList.add('active')
 
@@ -256,13 +256,13 @@ btnWeekly.addEventListener('click', ()=>{
   console.log('week format')
 })
 
-btnMonthly.addEventListener('click', ()=>{
+btnMonthly.addEventListener('click', () => {
   btnWeekly.classList.remove('active')
   btnMonthly.classList.add('active')
 
   navMonth.classList.remove('hidden')
   navWeek.classList.add('hidden')
-  
+
   calendarWeekRender.classList.add('hide')
   calendarMonthRender.classList.remove('hide')
 

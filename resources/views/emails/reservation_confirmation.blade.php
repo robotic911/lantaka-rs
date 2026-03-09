@@ -19,8 +19,8 @@
             <strong>Reservation Information</strong><br>
             Room/Venue: {{ $reservation->type === 'room' ? $reservation->room->room_number : ($reservation->venue->Venue_Name ?? $reservation->venue->name) }}<br>
             Date of Reservation: {{ now()->format('F j, Y') }}<br>
-            Check-in Date: {{ \Carbon\Carbon::parse($reservation->check_in)->format('F j, Y') }}<br>
-            Check-out Date: {{ \Carbon\Carbon::parse($reservation->check_out)->format('F j, Y') }}<br>
+            Check-in Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_In_Time ?? $reservation->Venue_Reservation_Check_In_Time)->format('F j, Y') }}<br>
+            Check-out Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_Out_Time ?? $reservation->Venue_Reservation_Check_Out_Time)->format('F j, Y') }}<br>
             Number of Guests: {{ $reservation->pax }}<br>
             
             @if($reservation->foods->isNotEmpty())

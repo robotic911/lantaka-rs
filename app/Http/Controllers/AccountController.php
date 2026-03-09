@@ -23,7 +23,7 @@ class AccountController extends Controller
         }
 
         $users = $query->orderBy('created_at', 'desc')->get();
-
+        $allForCounts = $users;
         return view('employee.accounts', compact('users'));
     }
     public function updateStatus(Request $request, $id)

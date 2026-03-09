@@ -60,12 +60,9 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::get('/food_option', function () {
                 return view('food_option');
             })->name('food_option');
-            
+            Route::post('/reservations/{id}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
         });
 Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('client.index');
-
-Route::post('/client/reservations/{id}/cancel', [ReservationController::class, 'cancel'])
-    ->name('client.reservations.cancel');
 
 Route::get('/booking/prepare', [RoomVenueController::class, 'prepareBooking'])->name('booking.prepare');
 

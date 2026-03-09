@@ -33,9 +33,9 @@ class ReservationConfirmationMail extends Mailable
      */
     public function build()
     {
-        // Get the name of the room or venue for the email subject
-        $name = ($this->reservation->type === 'room') 
-                ? $this->reservation->room->room_number 
+        // Use our cross-model check for the name
+        $name = ($this->reservation->room) 
+                ? ($this->reservation->room->Room_Number ?? $this->reservation->room->room_number) 
                 : ($this->reservation->venue->Venue_Name ?? $this->reservation->venue->name);
 
         return $this->subject("Lantaka Online Reservation – Status Update for $name")

@@ -4,23 +4,28 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeBtn = document.querySelector('.close-btn');
   const statusForm = document.getElementById('statusForm');
   const statusInput = document.getElementById('statusInput');
-  
+
   console.log("employee_reservations.js connection working");
 
   // --- OPEN MODAL AND POPULATE DATA ---
   expandButtons.forEach(button => {
     button.addEventListener('click', function () {
       const rawData = this.getAttribute('data-info');
-      const data = JSON.parse(rawData);
+      const data = JSON.parse(this.getAttribute('data-info'));
+      console.log("ID found:", data.id); // If this says 'undefined', the Blade key is wrong
+      console.log("Type found:", data.res_type);
 
       // 1. Update form action dynamically
-      if (statusForm) {
-        statusForm.action = `/employee/reservations/${Number(data.id)}/status`;
+      if (statusForm && data.id) {
+        // Construct the URL using backticks
+        statusForm.action = `/employee/reservations/${data.id}/status?type=${data.res_type}`;
+      } else {
+        console.error("Form action not set: ID or Form missing", data.id);
       }
 
       // 2. Get current status and toggle appropriate action buttons
       const currentStatus = data.status ? data.status.toLowerCase().trim() : '';
-      
+
       const statusGroups = {
         'pending': document.getElementById('pendingActions'),
         /* checked in guest is also a confirmed reservation */
@@ -28,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         'confirmed': document.getElementById('confirmedActions'),
         'cancelled': document.getElementById('confirmedActions'),
-        
+
         'checked-in': document.getElementById('checkedInActions'),
         'cancelled': document.getElementById('checkedInActions'),
 
@@ -45,7 +50,7 @@ document.addEventListener('DOMContentLoaded', () => {
       } else if (statusGroups['pending']) {
         statusGroups['pending'].style.display = 'flex';
       }
-      
+
       const blockCheckin = document.getElementById('confirmedActions')
       const blockCheckout = document.getElementById('checkedInActions') // correct id
       const blockAccept = document.getElementById('pendingActions')
@@ -68,7 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (badgeStatus === "Cancelled" || badgeStatus === "Completed") {
         blockCheckin.style.display = 'none'
       }
-      if(badgeStatus !== "Checked-in"){
+      if (badgeStatus !== "Checked-in") {
         showSOA.style.display = 'none'
         showAddChSection.style.display = 'none'
       }
@@ -81,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log("test user type:" + data.type)
       console.log("accomodation :" + data.accommodation)
 
-      document.getElementById('modalTitle').textContent =  badge.textContent.trim();
+      document.getElementById('modalTitle').textContent = badge.textContent.trim();
       document.getElementById('firstName').value = nameParts[0] || '';
       document.getElementById('lastName').value = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
       document.getElementById('modalName').textContent = data.accommodation || 'N/A';
@@ -89,8 +94,8 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('modalCheckIn').textContent = data.check_in || '';
       document.getElementById('modalCheckOut').textContent = data.check_out || '';
       document.getElementById('accomodation-type').textContent = data.accommodation || '';
-      document.getElementById('unit-price').textContent = `₱` +  data.price || '';
-      document.getElementById('totalAmount').textContent = `₱` +  data.price|| '';
+      document.getElementById('unit-price').textContent = `₱` + data.price || '';
+      document.getElementById('totalAmount').textContent = `₱` + data.price || '';
 
 
       // 4. Populate food list if available
@@ -148,7 +153,7 @@ document.addEventListener('DOMContentLoaded', () => {
 const addChargesBtn = document.getElementById('addAdditionalCharges')
 const chargesContainer = document.getElementById('chargesContainer')
 
-function addAditionalCharges(){
+function addAditionalCharges() {
 
   const html = `
     <div class="charges-container-sub">

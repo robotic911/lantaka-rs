@@ -8,7 +8,7 @@
       <div class="page-content">
         <h1 class="page-title">Guest</h1>
 
-        <form method="GET"action="{{ route('employee.reservations') }}">
+        <form method="GET"action="{{ route('employee.guest') }}">
             
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search names, rooms, or venues" value="{{ request('search') }}">
@@ -18,7 +18,7 @@
             <div class="status-cards">
 
               <a href="{{ request('status') == 'confirmed'
-                      ? route('employee.reservations', request()->except('status'))
+                      ? route('employee.guest', request()->except('status'))
                       : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card pending {{ request('status') == 'confirmed' ? 'active' : '' }}">
@@ -29,7 +29,7 @@
 
 
               <a href="{{ request('status') == 'checked-in'
-                      ? route('employee.reservations', request()->except('status'))
+                      ? route('employee.guest', request()->except('status'))
                       : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card confirmed {{ request('status') == 'checked-in' ? 'active' : '' }}">
@@ -40,7 +40,7 @@
 
 
               <a href="{{ request('status') == 'checked-out'
-                      ? route('employee.reservations', request()->except('status'))
+                      ? route('employee.guest', request()->except('status'))
                       : request()->fullUrlWithQuery(['status' => 'checked-out']) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card completed {{ request('status') == 'checked-out' ? 'active' : '' }}">
@@ -51,7 +51,7 @@
 
 
               <a href="{{ request('status') == 'cancelled'
-                      ? route('employee.reservations', request()->except('status'))
+                      ? route('employee.guest', request()->except('status'))
                       : request()->fullUrlWithQuery(['status' => 'cancelled']) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card cancelled {{ request('status') == 'cancelled' ? 'active' : '' }}">

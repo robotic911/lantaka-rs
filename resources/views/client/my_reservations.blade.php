@@ -71,11 +71,31 @@
               </td>
               
               {{-- Date Formatting --}}
-              <td>{{ \Carbon\Carbon::parse($res->check_in)->format('m/d/Y') }}</td>
-              <td>{{ \Carbon\Carbon::parse($res->check_out)->format('m/d/Y') }}</td>
+                <td>
+                    {{ \Carbon\Carbon::parse(
+                        $res->Room_Reservation_Check_In_Time ?? 
+                        $res->Venue_Reservation_Check_In_Time ?? 
+                        now()
+                    )->format('m/d/Y') }}
+                </td>
+
+                {{-- Check-out Date --}}
+                <td>
+                    {{ \Carbon\Carbon::parse(
+                        $res->Room_Reservation_Check_Out_Time ?? 
+                        $res->Venue_Reservation_Check_Out_Time ?? 
+                        now()
+                    )->format('m/d/Y') }}
+                </td>
               
-              <td>{{ $res->pax }}</td>
-              <td class="amount">₱ {{ number_format($res->total_amount, 2) }}</td>
+                <td>{{ $res->pax }}</td>
+                <td class="amount">
+                    ₱ {{ number_format(
+                        $res->Room_Reservation_Total_Price ?? 
+                        $res->Venue_Reservation_Total_Price ?? 
+                        0, 2) 
+                    }}
+                </td>
               
               <td>
                   {{-- Dynamic Class for Status Color (pending, confirmed, cancelled) --}}
@@ -93,11 +113,15 @@
 
                 <button class="expand-button"
                     data-info="{{ json_encode([
-                        'id' => str_pad($res->id, 5, '0', STR_PAD_LEFT),
+                        // Use the actual primary key names defined in your Models
+                        'real_id' => $res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID,
+                        'display_id' => str_pad($res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID, 5, '0', STR_PAD_LEFT),
+                        'type' => $res->type, 
                         'accommodation' => $accName,
                         'pax' => $res->pax,
-                        'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),
-                        'check_out' => \Carbon\Carbon::parse($res->check_out)->format('F d, Y'),
+                        'check_in' => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
+                        'check_out' => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
+                        'total' => number_format($res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0, 2),
                         'foods' => $res->foods 
                     ]) }}">
                     ⤡

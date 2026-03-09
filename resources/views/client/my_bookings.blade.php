@@ -39,7 +39,7 @@
                             <p class="item-dates">
                                 {{ $item['check_in'] }} • {{ $item['check_out'] }}
                                 <br>
-                                <small>({{ $item['days'] }} Nights)</small>
+                                <small>({{ $item['days'] ?? 0 }} Nights)</small>
                             </p>
                              @if(!empty($item['selected_foods']) && count($item['selected_foods']) > 0)
                                 <div class="item-food-list" style="margin-top: 8px; font-size: 0.85em; color: #555;">
@@ -77,6 +77,7 @@
                         <input type="hidden" name="check_in" id="form-check-in">
                         <input type="hidden" name="check_out" id="form-check-out">
                         <input type="hidden" name="pax" id="form-pax">
+                        <input type="hidden" name="total_price" id="form-total-price">
                         <input type="hidden" name="total_amount" id="form-total-amount">
 
                         <div class="summary-items">
