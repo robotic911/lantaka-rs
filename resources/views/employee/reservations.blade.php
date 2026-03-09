@@ -148,17 +148,30 @@
                           @endif
                       </td>
 
-                      <td class="action-cell">
-                          <button class="expand-btn"
+                  <td class="action-cell">
+                      @php
+                          $accName = $reservation->type == 'room' 
+                              ? 'Room: ' . ($reservation->room->room_number ?? 'N/A') 
+                              : 'Venue: ' . ($reservation->venue->Venue_Name ?? $reservation->venue->name ?? 'N/A');
+
+                          $price = $reservation->total_amount;
+                          $reservationType = $reservation->type == 'room' 
+                              ? 'Room': 'Venue'
+
+                      @endphp
+
+                      <button class="expand-btn"
                               data-info="{{ json_encode([
                                   'id' => $dbId, // Use raw ID for database searching
                                   'db_id_display' => str_pad($dbId, 5, '0', STR_PAD_LEFT),
                                   'status' => strtolower($reservation->status),
-                                  'res_type' => $reservation->display_type,
-                                  'user_type' => $reservation->user->usertype ?? 'External',
-                                  'name' => $reservation->user->name ?? 'Unknown',
+                                  'type' => $reservation->user->usertype,
+                                  'phone' => $reservation->user->phone ?? 'Error phone',
+                                  'email' => $reservation->user->email ?? 'Error email',
+                                  'name' => $reservation->user->name ?? 'Error name',
                                   'accommodation' => $accName,
-                                  'price' => $dbTotal,
+                                  'accommodationType' => $reservationType ?? 'Error accomodation type',
+                                  'price' => $price,
                                   'pax' => $reservation->pax,
                                   'check_in' => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
                                   'check_out' => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),

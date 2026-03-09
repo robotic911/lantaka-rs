@@ -54,6 +54,8 @@
   transform: translateY(-50%);
   font-size: 16px;
   color: var(--text-light);
+  border: none;
+  background-color: white;
 }
 
 .filters-actions {
@@ -146,11 +148,15 @@
 
 .rooms-grid {
   display: grid;
+  
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   gap: 12px;
 }
 
 .room-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: var(--bg-white);
   border: 1px solid var(--border-color);
   border-radius: 6px;
@@ -160,6 +166,10 @@
   font-size: 15px;
   cursor: pointer;
   transition: all 0.3s ease;
+}
+.room-card.unavailable{
+  background-color: rgb(214, 214, 214);
+  color: rgb(160, 160, 160);
 }
 
 .room-card:hover {
@@ -227,9 +237,8 @@
 }
 
 .venue-card.unavailable {
-  background-color: gray;
-  border-color: gray;
-  color: var(--text-dark);
+  background-color: rgb(214, 214, 214);
+  color: rgb(160, 160, 160);
   font-weight: 600;
 }
 
@@ -509,6 +518,7 @@ body {
 /* Form Group */
 .form-group {
   height: 100%;
+  width: 100%;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -547,6 +557,7 @@ body {
 /* Textarea */
 .form-textarea {
   min-height: 140px;
+  width: 100%;
   resize: vertical;
 }
 

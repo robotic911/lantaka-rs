@@ -156,6 +156,8 @@
                           $accName = 'Venue: ' . $res->venue->name;
                       }
 
+                      $reservationType = $res->type == 'room' 
+                              ? 'Room': 'Venue';
                   @endphp
                   
                   <td class="action-cell">
@@ -166,6 +168,10 @@
                           'status' => strtolower($res->status),
                           'name' => $res->user->name ?? $res->user->first_name ?? 'Unknown',
                           'accommodation' => $accName,
+                          'phone' => $res->user->phone ?? 'Error phone',
+                          'email' => $res->user->email ?? 'Error email',
+                          'type' => $res->user->usertype,
+                          'accommodationType' => $reservationType ?? 'Error accomodation type',
                           'price' => $price,
                           'pax' => $res->pax,
                           'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),

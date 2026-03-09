@@ -94,13 +94,33 @@ class RoomVenueController extends Controller
 
         return view('client.room_venue', compact('all_accommodations'));
     }
-     public function adminIndex()
+    public function adminIndex(Request $request)
     {
-        $rooms = Room::all();
-        $venues = Venue::all();
-        $foods = \App\Models\Food::all()->groupBy('food_category');
-
-        return view('employee.room_venue', compact('rooms', 'venues', 'foods'));
+        $search = $request->search;
+        $status = $request->status;
+    
+        $rooms = Room::query()
+            ->when($search, function ($query) use ($search) {
+                $query->where('room_number', 'ilike', "%{$search}%")
+                      ->orWhere('room_type', 'ilike', "%{$search}%");
+            })
+            ->when($status, function ($query) use ($status) {
+                $query->where('status', $status);
+            })
+            ->get();
+    
+        $venues = Venue::query()
+            ->when($search, function ($query) use ($search) {
+                $query->where('name', 'ilike', "%{$search}%");
+            })
+            ->when($status, function ($query) use ($status) {
+                $query->where('status', $status);
+            })
+            ->get();
+    
+        $foods = Food::all();
+    
+        return view('employee.room_venue', compact('rooms','venues','foods'));
     }
         public function show($category, $id)
     {
@@ -156,5 +176,45 @@ class RoomVenueController extends Controller
             return view('client.food_option', compact('bookingData', 'foods'));
         }
     }
+    public function update(Request $request)
+    {
+        $validated = $request->validate([
+            'id'             => 'required|integer',
+            'category'       => 'required|in:Room,Venue',
+            'name'           => 'required|string',
+            'internal_price' => 'required|numeric',
+            'external_price' => 'required|numeric',
+            'capacity'       => 'required|integer',
+            'status'         => 'required|in:Available,Unavailable',
+            'type'           => 'nullable|string',
+            'description'    => 'nullable|string',
+        ]);
     
-}
+        if ($request->category === 'Room') {
+            $room = Room::findOrFail($request->id);
+    
+            $room->update([
+                'room_number'    => $request->name,
+                'room_type'      => $request->type ?? 'Standard',
+                'capacity'       => $request->capacity,
+                'price'          => $request->internal_price,
+                'external_price' => $request->external_price,
+                'status'         => $request->status,
+                'description'    => $request->description,
+            ]);
+        } else {
+            $venue = Venue::findOrFail($request->id);
+    
+            $venue->update([
+                'name'           => $request->name,
+                'capacity'       => $request->capacity,
+                'price'          => $request->internal_price,
+                'external_price' => $request->external_price,
+                'status'         => $request->status,
+                'description'    => $request->description,
+            ]);
+        }
+    
+        return back()->with('success', $request->category . ' updated successfully!');
+    }
+    }

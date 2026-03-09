@@ -1,7 +1,7 @@
-/* ===== RV (Room/Venue) Modal - namespaced so it won't affect other CSS ===== */
+/* ===== RV Modal ===== */
 
-/* Modal Overlay */
-.rv-modal-overlay{
+/* Overlay */
+.rv-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -12,12 +12,12 @@
   z-index: 998;
 }
 
-.rv-modal-overlay.active{
+.rv-modal-overlay.active {
   display: block;
 }
 
 /* Modal */
-.rv-modal{
+.rv-modal {
   position: fixed;
   top: 50%;
   left: 50%;
@@ -30,19 +30,19 @@
   max-width: 900px;
   width: 90%;
   max-height: 90vh;
-  overflow-y: hidden;
+  overflow-y: auto;
   opacity: 0;
   transition: all 0.3s ease;
 }
 
-.rv-modal.active{
+.rv-modal.active {
   display: block;
   opacity: 1;
   transform: translate(-50%, -50%) scale(1);
 }
 
-/* Modal Header */
-.rv-modal-header{
+/* Header */
+.rv-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -50,127 +50,100 @@
   border-bottom: 1px solid var(--border-color);
 }
 
-.rv-modal-header h2{
+.rv-modal-header h2 {
   font-size: 24px;
   font-weight: 700;
   color: var(--text-primary);
+  margin: 0;
 }
 
-.rv-close-btn{
+.rv-close-btn {
   background: none;
   border: none;
   font-size: 28px;
   cursor: pointer;
   color: #ff4444;
   font-weight: bold;
-  padding: 0;
   width: 32px;
   height: 32px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: color 0.2s ease;
 }
 
-.rv-close-btn:hover{
+.rv-close-btn:hover {
   color: #cc0000;
 }
 
-/* Modal Form */
-.rv-modal-form{
+/* Form */
+.rv-modal-form {
   padding: 30px;
 }
 
-.rv-middle-content{
-  display: flex;
-  flex-direction: row;
-  gap:10px;
-  width: 100%;
-  height: 100%;
-  justify-content: center;
-}
-.rv-middle-left{
-  display: flex;
-  flex-direction: column;
-  flex:1;
+/* Hide/show room and venue forms */
+.form-grid-rv {
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
 }
 
-.rv-middle-right{
+.form-grid-rv.active {
+  display: grid;
+}
+
+/* Columns */
+.form-column {
   display: flex;
   flex-direction: column;
-  flex:1;
-
+  gap: 16px;
 }
-/* Form Group */
-.rv-form-group{
+
+/* Groups */
+.form-group {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.rv-form-group.rv-description-group{
-  grid-column: 1 / -1;
-}
-
-.rv-form-group label{
+.form-group label {
   font-size: 14px;
   font-weight: 600;
   color: var(--text-primary);
 }
 
-.rv-form-group input,
-.rv-form-group textarea,
-.rv-form-group select{
+/* Inputs */
+.form-input,
+.form-textarea {
+  width: 100%;
   padding: 12px 16px;
   border: 1px solid var(--border-color);
   border-radius: 6px;
   font-size: 14px;
   font-family: inherit;
-  transition: border-color 0.2s ease;
+  box-sizing: border-box;
 }
 
-.rv-form-group input:focus,
-.rv-form-group textarea:focus,
-.rv-form-group select:focus{
+.form-input:focus,
+.form-textarea:focus {
   outline: none;
   border-color: var(--primary-blue);
   box-shadow: 0 0 0 3px rgba(44, 62, 143, 0.1);
 }
 
-.rv-form-group textarea{
+.form-textarea {
   resize: vertical;
   min-height: 150px;
 }
 
-/* Price Input */
-.rv-price-input{
-  display: flex;
-  align-items: center;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  overflow: hidden;
+/* Row for status + capacity */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }
 
-.rv-price-input .rv-currency{
-  padding: 0 5px;
-  font-weight: 600;
-  color: var(--text-light);
-  background-color: var(--light-gray);
-}
-
-.rv-price-input input{
-  flex: 1;
-  border: none;
-  padding: 12px 12px;
-}
-
-.rv-price-input input:focus{
-  outline: none;
-  box-shadow: none;
-}
-
-/* Form Actions */
-.rv-form-actions{
+/* Buttons */
+.rv-form-actions {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
   gap: 16px;
@@ -179,8 +152,7 @@
   border-top: 1px solid var(--border-color);
 }
 
-/* Buttons */
-.rv-btn{
+.rv-btn {
   padding: 12px 24px;
   border: none;
   border-radius: 6px;
@@ -192,66 +164,62 @@
   letter-spacing: 0.5px;
 }
 
-/* If you want a base background for primary like before,
-   define it here or in your global variables. */
-
-.rv-btn-primary{
+.rv-btn-primary {
   background-color: #889fe9;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(44, 62, 143, 0.2);
-}   
+  color: white;
+}
 
-.rv-btn-primary:hover{
+.rv-btn-primary:hover {
   background-color: #5c7ce3;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(44, 62, 143, 0.2);
 }
 
-.rv-btn-secondary{
+.rv-btn-secondary {
   background-color: var(--white);
   color: var(--text-primary);
   border: 2px solid var(--border-color);
 }
 
-.rv-btn-secondary:hover{
+.rv-btn-secondary:hover {
   background-color: var(--light-gray);
   border-color: var(--text-primary);
 }
 
-.rv-btn-success{
+.rv-btn-success {
   background-color: #ffb300;
   color: var(--text-primary);
 }
 
-.rv-btn-success:hover{
+.rv-btn-success:hover {
   background-color: #e7ae2a;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(255, 193, 7, 0.2);
 }
 
 /* Responsive */
-@media (max-width: 768px){
-  .rv-modal{
+@media (max-width: 768px) {
+  .rv-modal {
     width: 95%;
   }
 
-  .rv-form-row{
-    grid-template-columns: 1fr;
-  }
-
-  .rv-form-row:nth-child(4){
-    grid-template-columns: 1fr;
-  }
-
-  .rv-form-actions{
-    grid-template-columns: 1fr;
-  }
-
-  .rv-modal-header{
+  .rv-modal-header {
     padding: 20px;
   }
 
-  .rv-modal-form{
+  .rv-modal-form {
     padding: 20px;
+  }
+
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .rv-form-actions {
+    grid-template-columns: 1fr;
   }
 }

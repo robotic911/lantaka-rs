@@ -21,12 +21,6 @@
         </div>
       @endif
 
-      @if (session('success'))
-        <div style="background-color: #e6ffe6; color: green; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-          {{ session('success') }}
-        </div>
-      @endif
-
       <form action="{{ route('admin.food.store') }}" method="POST" class="addfood-form">
         @csrf 
 

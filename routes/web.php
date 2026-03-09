@@ -41,13 +41,16 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             })->name('employee.dashboard');
             Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations');
             Route::get('/guest', [ReservationController::class, 'showGuests'])->name('guest');
+            Route::post('/guest', [ReservationController::class, 'updateGuests'])->name('updateGuests');
             Route::get('/accounts', [AccountController::class, 'index'])->name('accounts');
-            Route::get('/room_venue', [RoomVenueController::class, 'adminIndex'])->name('room_venue');
+            Route::get('/room_venue', action: [RoomVenueController::class, 'adminIndex'])->name('room_venue');
             Route::get('/eventlogs', action: fn() => view('employee.eventlogs'))->name('eventlogs');
             Route::post('/reservations/{id}/status', [ReservationController::class, 'updateStatus'])->name('reservations.updateStatus');
             Route::post('/accounts/{id}/update-status', [AccountController::class, 'updateStatus'])->name('accounts.updateStatus');
             Route::post('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
             Route::get('/SOA', action: fn() => view('employee.SOA'))->name('SOA');
+            Route::post('/room_venue', action: fn() => view('employee.SOA'))->name('SOA');
+
         });
         Route::prefix('client')
         ->name('client.')
@@ -60,7 +63,10 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::get('/food_option', function () {
                 return view('food_option');
             })->name('food_option');
+<<<<<<< HEAD
             Route::post('/reservations/{id}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
+=======
+>>>>>>> 28d97fdabb8c44802a55f948f1ca0b6b44c75693
         });
 Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('client.index');
 
@@ -84,13 +90,12 @@ Route::middleware(['auth'])->group(function () {
     // 3. My Reservations (Shows database data instead of static view)
     //Route::get('/client_my_reservations', [ReservationController::class, 'index'])->name('client_my_reservations');
 
-  
-    Route::post('/employee_room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
+    Route::put('/employee/room-venue/update', [RoomVenueController::class, 'update'])->name('room_venue.update');
+    Route::post('/employee/room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
 
     Route::post('/employee/food/store', [FoodController::class, 'store'])->name('admin.food.store');
-
-});
-  
+    Route::put('/employee/room_venue/{id}', [FoodController::class, 'update'])->name('admin.food.update');});
+    Route::get('/employee/room_venue/{id}/delete', [FoodController::class, 'destroy']);  
 // TEST ONLY DO NOT TOUCH (CALENDAR)
 Route::get('/test_client_room_venue_viewing', function () {
     return view('test_client_room_venue_viewing');

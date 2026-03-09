@@ -9,70 +9,79 @@ document.addEventListener('DOMContentLoaded', () => {
   const roomForm = document.getElementById('room-form');
   const venueForm = document.getElementById('venue-form');
 
-  const createWhatTitle = document.querySelector('.modal-title');
-  const createWhat = document.getElementById('create-reservation');
-  const saveWhat = document.getElementById('save-what');
+  const categoryInput = document.getElementById('category_input');
+  const titleCategory = document.getElementById('title-category');
 
-  if (!modal) return;
+  if (!modal || !roomForm || !venueForm) return;
 
-  const openModal = () => {
+  function activate(type) {
+    const roomInputs = roomForm.querySelectorAll('input, select, textarea');
+    const venueInputs = venueForm.querySelectorAll('input, select, textarea');
+
+    if (type === 'room') {
+      roomOption?.classList.add('tab-active');
+      venueOption?.classList.remove('tab-active');
+
+      roomForm.style.display = 'grid';
+      venueForm.style.display = 'none';
+
+      roomInputs.forEach(input => {
+        input.disabled = false;
+      });
+
+      venueInputs.forEach(input => {
+        input.disabled = true;
+      });
+
+      if (categoryInput) categoryInput.value = 'Room';
+      if (titleCategory) titleCategory.textContent = 'Room';
+    } else {
+      venueOption?.classList.add('tab-active');
+      roomOption?.classList.remove('tab-active');
+
+      venueForm.style.display = 'grid';
+      roomForm.style.display = 'none';
+
+      venueInputs.forEach(input => {
+        input.disabled = false;
+      });
+
+      roomInputs.forEach(input => {
+        input.disabled = true;
+      });
+
+      if (categoryInput) categoryInput.value = 'Venue';
+      if (titleCategory) titleCategory.textContent = 'Venue';
+    }
+  }
+
+  function openModal() {
     modal.classList.add('show');
     activate('room');
-  };
+  }
 
-  const closeModal = () => {
+  function closeModal() {
     modal.classList.remove('show');
-  };
+  }
 
   addButton?.addEventListener('click', openModal);
   cancelButton?.addEventListener('click', closeModal);
   closeButton?.addEventListener('click', closeModal);
 
   modal.addEventListener('click', (e) => {
-    if (e.target === modal) closeModal();
-  });
-
-  // close on ESC
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeModal();
-  });
-
-  function activate(type) {
-    if (!roomOption || !venueOption || !roomForm || !venueForm) return;
-
-    const roomInputs = roomForm.querySelectorAll('input, select, textarea');
-    const venueInputs = venueForm.querySelectorAll('input, select, textarea');
-    const categoryInput = document.getElementById('category_input');
-
-    if (type === 'room') {
-      // 1. Visual Tabs
-      roomOption.classList.add('tab-active');
-      venueOption.classList.remove('tab-active');
-      roomForm.style.display = 'flex'; // Ensure it shows
-      venueForm.style.display = 'none';
-
-      // 2. Data Integrity: Enable Room, Disable Venue
-      roomInputs.forEach(i => i.disabled = false);
-      venueInputs.forEach(i => i.disabled = true);
-      if (categoryInput) categoryInput.value = 'Room';
-
-      if (createWhatTitle) createWhatTitle.textContent = 'Create Room';
-    } else {
-      // 1. Visual Tabs
-      venueOption.classList.add('tab-active');
-      roomOption.classList.remove('tab-active');
-      venueForm.style.display = 'flex';
-      roomForm.style.display = 'none';
-
-      // 2. Data Integrity: Enable Venue, Disable Room
-      venueInputs.forEach(i => i.disabled = false);
-      roomInputs.forEach(i => i.disabled = true);
-      if (categoryInput) categoryInput.value = 'Venue';
-
-      if (createWhatTitle) createWhatTitle.textContent = 'Create Venue';
+    if (e.target === modal) {
+      closeModal();
     }
-  }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.classList.contains('show')) {
+      closeModal();
+    }
+  });
 
   roomOption?.addEventListener('click', () => activate('room'));
   venueOption?.addEventListener('click', () => activate('venue'));
+
+  activate('room');
 });

@@ -324,6 +324,12 @@ class ReservationController extends Controller
 
         return view('employee.guest', compact('reservations', 'allForCounts'));
     }
+
+    public function updateGuests(){
+
+        return view('employee.guest');
+    }
+
     public function updateStatus(Request $request, $id)
     {
         // 1. Capture type from query string (sent via JS) and status from form body

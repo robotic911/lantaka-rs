@@ -90,9 +90,10 @@
 
                   </td>
                 </tr>
-              @empty<th style="display: flex; width: 150px; justify-content: center;">
-                  Status
-                </th>
+                @empty
+                  <th style="display: flex; width: 150px; justify-content: center;">
+                    Status
+                  </th>
                 <tr>
                     <td colspan="6" style="text-align: center; padding: 20px;">No accounts found.</td>
                 </tr>

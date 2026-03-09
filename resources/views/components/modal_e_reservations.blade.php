@@ -9,38 +9,37 @@
       <div class="modal-body modal-body-grid">
         <!-- LEFT COLUMN: FORM FIELDS -->
         <div class="modal-left-column">
-          <form class="modal-form">
+          <form class="modal-form" method="POST" action="{{ route('employee.updateGuests') }}">
+            @csrf
+            @method('PUT')
             <div class="form-group">
               <label for="firstName">First Name</label>
-              <input type="text" id="firstName">
+              <input type="text" id="firstName" name="firstName" readonly>
             </div>
 
             <div class="form-group">
               <label for="lastName">Last Name</label>
-              <input type="text" id="lastName">
+              <input type="text" id="lastName" name="lastName" readonly>
             </div>
 
             <div class="form-group">
-              <label for="phoneNumber">Phone Number</label>
-              <input type="text" id="phoneNumber">
+              <label for="phoneNumber" >Phone Number</label>
+              <input type="text" id="phoneNumber" name="phone" readonly>
             </div>
 
             <div class="form-group">
               <label for="email">Email</label>
-              <input type="text" id="email">
+              <input type="text" id="email" name="email" readonly>
             </div>
 
-            <div class="form-group" id="affiliationAndDiscount">
+            <div class="form-group" id="affiliationAndDiscount" >
               <div class="form-group-mini">
                 <label for="affiliation">Affiliation</label>
-                <select id="affiliation">
-                  <option>External</option>
-                  <option>Internal</option>
-                </select>
+                <input type="text" id="affiliation" name="affiliation" readonly>
               </div>
-              <div class="form-group-mini">
+              <div class="form-group-mini none" id="discountSection">
                 <label for="discount">Discount</label>
-                <input type="text" id="discount" placeholder="Enter Discount">
+                <input type="text" id="discount" placeholder="Enter Discount"  name="discount">
               </div>
             </div>
 
@@ -51,9 +50,9 @@
               </div>
                 <div id="chargesContainer" class="charges-container">
                   <div class="charges-container-sub">
-                    <input id="addChargesDes" type="text" placeholder="Description" class="charge-input">
+                    <input id="addChargesDes" type="text" placeholder="Description" class="charge-input" name="additionalFeesDesc">
                     <input id="addChargesQty" type="number" placeholder="Qty" class="charge-input">
-                    <input id="addChargesAmount" type="number" placeholder="₱" class="charge-input">
+                    <input id="addChargesAmount" type="number" placeholder="₱" class="charge-input" name="additionalFees">
                   </div>
               </div>
             </div>
@@ -97,7 +96,7 @@
             <h4 class="total-label">Total</h4>
 
             <div id="modalFoodList" class="price-breakdown">
-              <div class="price-item">
+              <div class="price-item">  
                 <span id="accomodation-type"></span>
                 <span id="unit-price"></span>
               </div>
