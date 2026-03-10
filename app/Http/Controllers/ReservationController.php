@@ -470,48 +470,48 @@ class ReservationController extends Controller
 
         return redirect()->back()->with('success', 'Status updated to ' . ucfirst($newStatus) . ' successfully.');
     }
-   public function displayStatistics()
-{
-    $roomCount = RoomReservation::count();
-    $venueCount = VenueReservation::count();
-    $totalReservations = $roomCount + $venueCount;
+    public function displayStatistics()
+    {
+        $roomCount = RoomReservation::count();
+        $venueCount = VenueReservation::count();
+        $totalReservations = $roomCount + $venueCount;
 
-    return view('employee.dashboard', compact('totalReservations'));
-}
+        return view('employee.dashboard', compact('totalReservations'));
+    }
 
     public function showReservationsCalendar()
     {
+        // Load with relationships
         $roomRes = RoomReservation::with(['room', 'user'])->get()->map(function($item) {
             return [
-            'id' => $item->Room_Reservation_ID,
-            'status' => $item->status, // must match "pending", "confirmed", etc.
-            'check_in' => $item->Room_Reservation_Check_In_Time, 
-            'check_out' => $item->Room_Reservation_Check_Out_Time,
-            'user' => $item->user, // The JS needs res.user.name
-            'room' => $item->room, // The JS needs res.room.room_number
-            'type' => 'room'
+                'id' => $item->Room_Reservation_ID,
+                'status' => strtolower($item->status),
+                'check_in' => \Carbon\Carbon::parse($item->Room_Reservation_Check_In_Time)->format('Y-m-d'), 
+                'check_out' => \Carbon\Carbon::parse($item->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
+                'user' => $item->user,
+                'room' => $item->room, // Ensure this isn't null
+                'label' => $item->room ? "Room " . $item->room->Room_Number : "Room N/A",
+                'type' => 'room'
             ];
         });
+
         $venueRes = VenueReservation::with(['venue', 'user'])->get()->map(function($item) {
             return [
                 'id' => $item->Venue_Reservation_ID,
-                'status' => $item->status,
-                'check_in' => $item->Venue_Reservation_Check_In_Time,
-                'check_out' => $item->Venue_Reservation_Check_Out_Time,
+                'status' => strtolower($item->status),
+                'check_in' => \Carbon\Carbon::parse($item->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
+                'check_out' => \Carbon\Carbon::parse($item->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
                 'user' => $item->user,
                 'venue' => $item->venue,
+                'label' => $item->venue ? $item->venue->Venue_Name : "Venue N/A",
                 'type' => 'venue'
             ];
         });
 
-        // Merge for the calendar view
         $reservations = $roomRes->concat($venueRes);
         $totalReservations = $reservations->count();
 
-        return view('employee.dashboard', [
-            'reservations' => $reservations,
-            'totalReservations' => $totalReservations
-        ]);
+        return view('employee.dashboard', compact('reservations', 'totalReservations'));
     }
     public function cancel(Request $request, $id)
     {
@@ -595,7 +595,6 @@ class ReservationController extends Controller
                 'Venue_Reservation_Check_In_Time' => $request->check_in,
                 'Venue_Reservation_Check_Out_Time' => $request->check_out,
                 'pax' => $request->pax,
-                'total_price' => $totalAmount,
                 'Venue_Reservation_Total_Price' => $totalAmount,
                 'status' => 'pending',
             ]);
