@@ -20,7 +20,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (typeInput) typeInput.value = getType.value;
 
     if (crTitle) {
-      crTitle.textContent = "Create Reservation in " + getType.value + " " + getId.value;
+      crTitle.textContent = "Create Reservation";
     }
   }
 

@@ -44,7 +44,7 @@
 
       <div class="cr-button-group">
         <button type="button" class="cr-btn cr-btn-cancel">CANCEL</button>
-        <button type="submit" class="cr-btn cr-btn-primary">Proceed</button>
+        <button type="submit" class="cr-btn cr-btn-proceed">Proceed</button>
       </div>
 
     </form>

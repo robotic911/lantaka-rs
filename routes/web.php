@@ -48,8 +48,8 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::post('/reservations/{id}/status', [ReservationController::class, 'updateStatus'])->name('reservations.updateStatus');
             Route::post('/accounts/{id}/update-status', [AccountController::class, 'updateStatus'])->name('accounts.updateStatus');
             Route::post('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
-            Route::get('/SOA', action: fn() => view('employee.SOA'))->name('SOA');
-            Route::post('/room_venue', action: fn() => view('employee.SOA'))->name('SOA');
+            Route::get('/SOA/{clientId}', [ReservationController::class, 'showSOA'])->name('SOA');
+            // Route::post('/room_venue', action: fn() => view('employee.SOA'))->name('SOA');
             Route::post('/reservations/store', [ReservationController::class, 'storeReservation'])->name('reservations.store');
         });
         Route::prefix('client')

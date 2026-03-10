@@ -59,11 +59,13 @@
 
             <div id="exportSection">
               <label>Generate Statement of Accounts:</label>
-              <a href="{{ route('employee.SOA') }}" class="export-btn">
+              <a href="#" id="soaLink" class="export-btn">
                 ADD TO SOA
-              </a>            
-              </div>
-          </form>
+              </a>
+            </div>
+            <input type="hidden" id="userId" value="">
+
+          </form> 
         </div>
 
         <!-- RIGHT COLUMN: RESERVATION SUMMARY -->
@@ -114,6 +116,7 @@
               </div>
             </div>
 
+
             <div class="summary-divider"></div>
 
             <div class="price-total">
@@ -126,7 +129,7 @@
             <form id="statusForm" action="" method="POST">
               @csrf
               <input type="hidden" name="status" id="statusInput" value="">
-              
+
               <div id="pendingActions" class="modal-actions" style="display: none; gap: 10px;">
                 <button type="button" onclick="submitStatus('rejected')" class="reject-btn">Reject</button>
                 <button type="button" onclick="submitStatus('confirmed')" class="accept-btn">Accept Reservation</button>
@@ -149,3 +152,16 @@
     </div>
   </div>
 </div>
+<script>
+  function updateSoaLink(clientId) {
+    const soaLink = document.getElementById('soaLink');
+    const userIdInput = document.getElementById('userId');
+
+    if (!soaLink || !userIdInput) return;
+
+    userIdInput.value = clientId;
+    soaLink.href = `/employee/SOA/${clientId}`;
+
+    console.log('SOA LINK SET TO:', soaLink.href);
+  }
+</script>

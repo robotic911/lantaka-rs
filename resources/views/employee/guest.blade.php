@@ -66,7 +66,7 @@
               <div class="filter-group">
                 <select name="date" class="filter-select" onchange="this.form.submit()">
                   <option value="">Date ▼</option>
-                  <option value="last_week" {{ request('date') == 'last_week' ? 'selected' : '' }}>Last 7 Days</option>
+                  <option value="last_week " {{ request('date') == 'last_week' ? 'selected' : '' }}>Last 7 Days</option>
                   <option value="last_month" {{ request('date') == 'last_month' ? 'selected' : '' }}>Last 30 Days</option>
                   <option value="last_year" {{ request('date') == 'last_year' ? 'selected' : '' }}>This Year</option>
                 </select>
@@ -155,7 +155,7 @@
                       } elseif($res->type === 'venue' && $res->venue) {
                           $accName = 'Venue: ' . $res->venue->name;
                       }
-
+                      $userId = $res->Client_ID;
                       $reservationType = $res->type == 'room' 
                               ? 'Room': 'Venue';
                   @endphp
@@ -176,7 +176,8 @@
                           'pax' => $res->pax,
                           'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),
                           'check_out' => \Carbon\Carbon::parse($res->check_out)->format('F d, Y'),
-                          'foods' => $res->foods 
+                          'foods' => $res->foods,
+                          'userId' => $userId
                       ]) }}">
                           ⤢
                       </button>
@@ -196,6 +197,5 @@
       </div>
       
       <x-modal_e_reservations/>
-      
 </main>
 @endsection

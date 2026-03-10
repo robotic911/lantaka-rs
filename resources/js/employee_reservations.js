@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeBtn = document.querySelector('.close-btn');
   const statusForm = document.getElementById('statusForm');
   const statusInput = document.getElementById('statusInput');
+  
 
   console.log("employee_reservations.js connection working");
 
@@ -108,15 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('accomodation-type').textContent = data.accommodationType || '';
       document.getElementById('unit-price').textContent = `₱` + data.price || '';
       document.getElementById('totalAmount').textContent = `₱` + data.price || '';
-
+      document.getElementById('userId').textContent = `₱` + data.userId || '';
 
       // 4. Populate food list if available
       const foodListContainer = document.getElementById('modalFoodList');
       if (foodListContainer && data.food_items) {
         foodListContainer.innerHTML = data.food_items;
       }
-
-
       // 5. Open modal
       modalOverlay.style.display = 'flex';
     });
@@ -183,3 +182,4 @@ function addAditionalCharges() {
 }
 
 addChargesBtn.addEventListener('click', addAditionalCharges)
+

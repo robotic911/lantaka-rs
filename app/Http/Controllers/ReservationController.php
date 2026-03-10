@@ -8,6 +8,7 @@ use App\Models\VenueReservation;
 use App\Models\Room;
 use App\Models\Venue;
 use App\Models\Food;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
@@ -689,6 +690,57 @@ class ReservationController extends Controller
 
             return view('employee.create_food_reservation', compact('bookingData', 'foods'));
         }
+
+        public function showSOA($clientId)
+            {
+                $client = User::findOrFail($clientId);
+
+                $roomReservations = RoomReservation::with('room')
+                    ->where('Client_ID', $clientId)
+                    ->where('status', 'checked-in')
+                    ->get();
+
+                $venueReservations = VenueReservation::with('venue')
+                    ->where('Client_ID', $clientId)
+                    ->where('status', 'checked-in')
+                    ->get();
+
+                $reservations = collect();
+
+                foreach ($roomReservations as $r) {
+
+                    $checkIn = \Carbon\Carbon::parse($r->Room_Reservation_Check_In_Time);
+                    $checkOut = \Carbon\Carbon::parse($r->Room_Reservation_Check_Out_Time);
+                    $days = $checkIn->diffInDays($checkOut) ?: 1;
+
+                    $reservations->push([
+                        'name' => 'Room: ' . ($r->room->Room_Number ?? 'Room'),
+                        'check_in' => $checkIn->format('m/d/Y'),
+                        'check_out' => $checkOut->format('m/d/Y'),
+                        'pax' => $r->pax,
+                        'days' => $days,
+                        'price' => $r->Room_Reservation_Total_Price ?? 0
+                    ]);
+                }
+
+                foreach ($venueReservations as $v) {
+
+                    $checkIn = \Carbon\Carbon::parse($v->Venue_Reservation_Check_In_Time);
+                    $checkOut = \Carbon\Carbon::parse($v->Venue_Reservation_Check_Out_Time);
+                    $days = $checkIn->diffInDays($checkOut) ?: 1;
+
+                    $reservations->push([
+                        'name' => 'Venue: ' . ($v->venue->Venue_Name ?? 'Venue'),
+                        'check_in' => $checkIn->format('m/d/Y'),
+                        'check_out' => $checkOut->format('m/d/Y'),
+                        'pax' => $v->pax,
+                        'days' => $days,
+                        'price' => $v->Venue_Reservation_Total_Price ?? 0
+                    ]);
+                }
+
+                return view('employee.SOA', compact('client', 'reservations'));
+            }
 
 }
 

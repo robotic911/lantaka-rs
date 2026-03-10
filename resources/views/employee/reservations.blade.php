@@ -102,6 +102,7 @@
             <tbody>
               {{-- DYNAMIC LOOP STARTS HERE --}}
               @forelse($reservations as $reservation)
+
                   @if(in_array($reservation->status, ['pending','confirmed','checked-in','rejected']))
                   @php
                       // 1. Identify Type (Using the 'display_type' we mapped in the controller)
@@ -170,7 +171,7 @@
                                   'name' => $reservation->user->name ?? 'Error name',
                                   'accommodation' => $accName,
                                   'accommodationType' => $reservationType ?? 'Error accomodation type',
-                                  'price' => $reservation->total_price,
+                                  'price' => $reservation->total_amount,
                                   'pax' => $reservation->pax,
                                   'check_in' => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
                                   'check_out' => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
