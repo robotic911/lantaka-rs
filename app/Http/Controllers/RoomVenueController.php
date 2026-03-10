@@ -299,7 +299,6 @@ class RoomVenueController extends Controller
         $data = Venue::findOrFail($id);
         $data->display_name = $data->name;
 
-<<<<<<< HEAD
         // Fetch from VenueReservation model
         $reservations = VenueReservation::where('venue_id', $id)
             ->get([
@@ -326,12 +325,5 @@ class RoomVenueController extends Controller
     return view('employee.create_reservation', compact('data', 'category', 'occupiedDates', 'client'));
 }
     }
-=======
-        $occupiedDates = array_values(array_unique($occupiedDates));
-
-        return view('employee.create_reservation', compact('data', 'category', 'occupiedDates', 'client'));
-    }   
-}
->>>>>>> 9da99f1 (created employee reservation)
 
     
