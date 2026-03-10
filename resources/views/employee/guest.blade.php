@@ -8,7 +8,7 @@
       <div class="page-content">
         <h1 class="page-title">Guest</h1>
 
-        <form method="GET"action="{{ route('employee.guest') }}">
+        <form method="GET" action="{{ route('employee.guest') }}">
             
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search names, rooms, or venues" value="{{ request('search') }}">

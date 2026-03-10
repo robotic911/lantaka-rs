@@ -9,49 +9,46 @@
         <h1 class="page-title">Reservation</h1>
 
         {{-- START OF FILTER FORM --}}
-        <form method="GET" action="{{ route('employee.reservations') }}">
+        <form method="GET" action="{{ route('employee.reservations') }}" id="filterForm">
+          <input type="hidden" name="status" value="{{ request('status') }}">
             <div class="search-container">
               <input type="text" name="search" class="search-input" placeholder="Search by name, room, or venue..." value="{{ request('search') }}">
               <button type="submit" class="search-icon" style="background:none; border:none;">🔍</button>
-              </div>
-
-              <div class="status-cards">
-
-          <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'pending']) }}"
-            style="text-decoration:none;color:inherit;">
-            <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
-              <div class="status-label">Pending</div>
-              <div class="status-number">{{ $allForCounts->where('status','pending')->count() }}</div>
             </div>
-          </a>
 
+            <div class="status-cards">
+              <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'pending']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
+                  <div class="status-label">Pending</div>
+                  <div class="status-number">{{ $allForCounts->where('status','pending')->count() }}</div>
+                </div>
+              </a>
 
-          <a href="{{ request('status') == 'confirmed' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
-            style="text-decoration:none;color:inherit;">
-            <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
-              <div class="status-label">Confirmed</div>
-              <div class="status-number">{{ $allForCounts->where('status','confirmed')->count() }}</div>
+              <a href="{{ request('status') == 'confirmed' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
+                  <div class="status-label">Confirmed</div>
+                  <div class="status-number">{{ $allForCounts->where('status','confirmed')->count() }}</div>
+                </div>
+              </a>
+
+              <a href="{{ request('status') == 'checked-in' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
+                  <div class="status-label">Completed</div>
+                  <div class="status-number">{{ $allForCounts->where('status','checked-in')->count() }}</div>
+                </div>
+              </a>
+
+              <a href="{{ request('status') == 'rejected' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'rejected']) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
+                  <div class="status-label">Rejected</div>
+                  <div class="status-number">{{ $allForCounts->where('status','rejected')->count() }}</div>
+                </div>
+              </a>
             </div>
-          </a>
-
-
-          <a href="{{ request('status') == 'checked-in' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
-            style="text-decoration:none;color:inherit;">
-            <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
-              <div class="status-label">Completed</div>
-              <div class="status-number">{{ $allForCounts->where('status','checked-in')->count() }}</div>
-            </div>
-          </a>
-
-
-          <a href="{{ request('status') == 'rejected' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'rejected']) }}"
-            style="text-decoration:none;color:inherit;">
-            <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
-              <div class="status-label">Rejected</div>
-              <div class="status-number">{{ $allForCounts->where('status','rejected')->count() }}</div>
-            </div>
-          </a>
-          </div>
 
             <div class="filter-section">
               <div class="filter-group">
@@ -80,7 +77,7 @@
 
               {{-- Clear Filters Button --}}
               @if(request()->anyFilled(['search', 'date', 'client_type', 'accommodation_type', 'status']))
-                <a href="{{ route('employee.reservations') }}" style="text-decoration:none; color:#d9534f; margin-left:15px; font-weight:bold;">✕ Clear All Filters</a>
+                <a href="{{ url()->current() }}" style="text-decoration:none; color:#d9534f; margin-left:15px; font-weight:bold;">✕ Clear All Filters</a>
               @endif
             </div>
         </form>
@@ -165,6 +162,8 @@
                                   'id' => $dbId, // Use raw ID for database searching
                                   'db_id_display' => str_pad($dbId, 5, '0', STR_PAD_LEFT),
                                   'status' => strtolower($reservation->status),
+                                  'res_type' => $reservation->display_type, //ito inadd ko na bago
+                                  'client_type' => $reservation->user->usertype, //tsaka ito
                                   'type' => $reservation->user->usertype,
                                   'phone' => $reservation->user->phone ?? 'Error phone',
                                   'email' => $reservation->user->email ?? 'Error email',

@@ -105,7 +105,9 @@ class ReservationController extends Controller
                 'pax' => $request->pax,
                 'Room_Reservation_Total_Price' => $request->total_amount,
                 'status' => 'pending'
+                
             ]);
+            $this->sendConfirmationEmail($reservation);
         } else {
             $reservation = VenueReservation::create([
                 'venue_id' => $request->id,
@@ -118,10 +120,10 @@ class ReservationController extends Controller
                 'Venue_Reservation_Total_Price' => $request->total_amount,
                 'status' => 'pending'
             ]);
+            $this->sendConfirmationEmail($reservation);
             try {
                 Mail::to(auth()->user()->email)->send(new \App\Mail\ReservationConfirmationMail($reservation));
             } catch (\Exception $e) {
-                // Log the error if mail fails so the whole app doesn't crash
                 \Log::error("Mail failed: " . $e->getMessage());
             }
             // Handle Food Pivot for Venues
@@ -155,85 +157,165 @@ class ReservationController extends Controller
     // 3. Client List Page
     public function index(Request $request)
     {
-        $clientId = auth()->id();
         $search = $request->input('search');
         $status = $request->input('status');
-        $type = $request->input('type');
+        $dateFilter = $request->input('date');
+        $clientType = $request->input('client_type');
+        $accType = $request->input('accommodation_type');
 
-        // --- 1. Query Room Reservations ---
-        $roomQuery = \App\Models\RoomReservation::where('Client_ID', $clientId)->with('room');
+        // 1. Query Room Reservations (Global for Employees)
+        $roomQuery = \App\Models\RoomReservation::with(['room', 'user']);
 
-        if ($status && $status !== 'Status') {
-            $roomQuery->where('status', $status);
-        }
+        // 2. Query Venue Reservations (Global for Employees)
+        $venueQuery = \App\Models\VenueReservation::with(['venue', 'user', 'foods']);
 
-        if ($search) {
-            $roomQuery->where(function($q) use ($search) {
-                $q->where('Room_Reservation_ID', 'like', "%{$search}%")
-                ->orWhereHas('room', function($rq) use ($search) {
-                    $rq->where('room_number', 'like', "%{$search}%");
+        // 3. Apply Filters
+        foreach ([$roomQuery, $venueQuery] as $query) {
+            // Status Filter
+            if ($status) $query->where('status', $status);
+            
+            // Client Type Filter
+            if ($clientType) {
+                $query->whereHas('user', fn($q) => $q->where('usertype', $clientType));
+            }
+
+            // Date Filter (This was missing!)
+            if ($dateFilter) {
+                $date = match($dateFilter) {
+                    'last_week' => now()->subDays(7),
+                    'last_month' => now()->subDays(30),
+                    'last_year' => now()->startOfYear(),
+                    default => null
+                };
+                if ($date) {
+                    $dateCol = ($query->getModel() instanceof \App\Models\RoomReservation) 
+                        ? 'Room_Reservation_Date' 
+                        : 'Venue_Reservation_Date';
+                    $query->where($dateCol, '>=', $date);
+                }
+            }
+
+            // Search Logic (Matching the Guest page)
+            if ($search) {
+                $query->where(function($q) use ($search) {
+                    $isRoom = ($q->getModel() instanceof \App\Models\RoomReservation);
+                    $idCol = $isRoom ? 'Room_Reservation_ID' : 'Venue_Reservation_ID';
+                    
+                    $q->where($idCol, $search)
+                    ->orWhereHas('user', fn($uq) => $uq->where('name', 'like', "%{$search}%"));
+                    
+                    if ($isRoom) {
+                        $q->orWhereHas('room', fn($rq) => $rq->where('room_number', 'like', "%{$search}%"));
+                    } else {
+                        $q->orWhereHas('venue', fn($vq) => $vq->where('Venue_Name', 'like', "%{$search}%"));
+                    }
                 });
-            });
+            }
         }
 
-        // --- 2. Query Venue Reservations ---
-        $venueQuery = \App\Models\VenueReservation::where('Client_ID', $clientId)->with(['venue', 'foods']);
-
-        if ($status && $status !== 'Status') {
-            $venueQuery->where('status', $status);
-        }
-
-        if ($search) {
-            $venueQuery->where(function($q) use ($search) {
-                $q->where('Venue_Reservation_ID', 'like', "%{$search}%")
-                ->orWhereHas('venue', function($vq) use ($search) {
-                    $vq->where('name', 'like', "%{$search}%");
-                });
-            });
-        }
-
-        // --- 3. Combine and Apply Type Filter ---
-        $rooms = ($type === 'venue') ? collect() : $roomQuery->get()->map(function($item) {
+        // 4. Get Data
+        $rooms = ($accType === 'venue') ? collect() : $roomQuery->get()->map(function($item) {
+            $item->display_type = 'room';
             $item->type = 'room';
-            // Map custom PK to a standard property for easier sorting/handling if needed
-            $item->id = $item->Room_Reservation_ID; 
             return $item;
         });
 
-        $venues = ($type === 'room') ? collect() : $venueQuery->get()->map(function($item) {
+        $venues = ($accType === 'room') ? collect() : $venueQuery->get()->map(function($item) {
+            $item->display_type = 'venue';
             $item->type = 'venue';
-            $item->id = $item->Venue_Reservation_ID;
             return $item;
         });
 
-        // Merge and sort by newest first
         $reservations = $rooms->concat($venues)->sortByDesc('created_at');
+        
+        // 5. IMPORTANT: This variable is required for your Status Cards in the blade!
+        $allForCounts = \App\Models\RoomReservation::select('status')->get()
+                    ->concat(\App\Models\VenueReservation::select('status')->get());
 
-        return view('client.my_reservations', compact('reservations'));
+        return view('employee.reservations', compact('reservations', 'allForCounts'));
     }
     // 4. Admin List Page
     public function adminIndex(Request $request)
     {
+        // 1. Capture ALL dropdown inputs
         $search = $request->input('search');
         $status = $request->input('status');
+        $dateFilter = $request->input('date');
+        $clientType = $request->input('client_type');
+        $accType = $request->input('accommodation_type');
+
         $roomQuery = RoomReservation::with(['user', 'room']);
         $venueQuery = VenueReservation::with(['user', 'venue']);
 
-        if ($search) {
-            $roomQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', "%$search%"));
-            $venueQuery->whereHas('user', fn($q) => $q->where('name', 'LIKE', "%$search%"));
+        // 2. Filter by Client Type (Internal/External)
+        if ($clientType) {
+            $roomQuery->whereHas('user', fn($q) => $q->where('usertype', $clientType));
+            $venueQuery->whereHas('user', fn($q) => $q->where('usertype', $clientType));
         }
 
+        // 3. Filter by Date
+        if ($dateFilter) {
+            $days = match($dateFilter) {
+                'last_week' => 7,
+                'last_month' => 30,
+                'last_year' => 365,
+                default => 0
+            };
+            if ($days > 0) {
+                $roomQuery->where('created_at', '>=', now()->subDays($days));
+                $venueQuery->where('created_at', '>=', now()->subDays($days));
+            }
+        }
+
+        // 4. Search & Status (Case-Sensitive Column Names)
+        if ($search) {
+            // Search Rooms
+            $roomQuery->where(function($q) use ($search) {
+                $q->whereHas('user', fn($uq) => $uq->where('name', 'ILIKE', "%$search%"))
+                ->orWhereHas('room', fn($rq) => $rq->where('room_number', 'ILIKE', "%$search%"))
+                // Use whereRaw to cast BigInt to Text for comparison
+                ->orWhereRaw('CAST("Room_Reservation_ID" AS TEXT) ILIKE ?', ["%$search%"]);
+            });
+
+            // Search Venues
+            $venueQuery->where(function($q) use ($search) {
+                $q->whereHas('user', fn($uq) => $uq->where('name', 'ILIKE', "%$search%"))
+                ->orWhereHas('venue', fn($vq) => $vq->where('name', 'ILIKE', "%$search%"))
+                // Use whereRaw to cast BigInt to Text for comparison
+                ->orWhereRaw('CAST("Venue_Reservation_ID" AS TEXT) ILIKE ?', ["%$search%"]);
+            });
+        }
+        
         if ($status) {
             $roomQuery->where('status', $status);
             $venueQuery->where('status', $status);
         }
 
-        $rooms = $roomQuery->get()->map(function($item) { $item->display_type = 'room'; return $item; });
-        $venues = $venueQuery->get()->map(function($item) { $item->display_type = 'venue'; return $item; });
+        // 5. Filter by Accommodation Type (The Dropdown choice)
+        $rooms = collect();
+        $venues = collect();
+
+        if (!$accType || $accType === 'room') {
+            $rooms = $roomQuery->get()->map(function($item) { 
+                $item->display_type = 'room'; 
+                $item->type = 'room'; // Helper for the Blade
+                return $item; 
+            });
+        }
+
+        if (!$accType || $accType === 'venue') {
+            $venues = $venueQuery->get()->map(function($item) { 
+                $item->display_type = 'venue'; 
+                $item->type = 'venue'; // Helper for the Blade
+                return $item; 
+            });
+        }
 
         $reservations = $rooms->concat($venues)->sortByDesc('created_at');
-        $allForCounts = RoomReservation::select('status')->get()->concat(VenueReservation::select('status')->get());
+        
+        // Status counts for the cards
+        $allForCounts = RoomReservation::select('status')->get()
+                        ->concat(VenueReservation::select('status')->get());
 
         return view('employee.reservations', compact('reservations', 'allForCounts'));
     }
@@ -381,8 +463,28 @@ class ReservationController extends Controller
 
     public function showReservationsCalendar()
     {
-        $roomRes = RoomReservation::with(['room', 'user'])->get();
-        $venueRes = VenueReservation::with(['venue', 'user'])->get();
+        $roomRes = RoomReservation::with(['room', 'user'])->get()->map(function($item) {
+            return [
+            'id' => $item->Room_Reservation_ID,
+            'status' => $item->status, // must match "pending", "confirmed", etc.
+            'check_in' => $item->Room_Reservation_Check_In_Time, 
+            'check_out' => $item->Room_Reservation_Check_Out_Time,
+            'user' => $item->user, // The JS needs res.user.name
+            'room' => $item->room, // The JS needs res.room.room_number
+            'type' => 'room'
+            ];
+        });
+        $venueRes = VenueReservation::with(['venue', 'user'])->get()->map(function($item) {
+            return [
+                'id' => $item->Venue_Reservation_ID,
+                'status' => $item->status,
+                'check_in' => $item->Venue_Reservation_Check_In_Time,
+                'check_out' => $item->Venue_Reservation_Check_Out_Time,
+                'user' => $item->user,
+                'venue' => $item->venue,
+                'type' => 'venue'
+            ];
+        });
 
         // Merge for the calendar view
         $reservations = $roomRes->concat($venueRes);
@@ -416,7 +518,11 @@ class ReservationController extends Controller
 
     return response()->json(['message' => 'Success']);
 }
-    
+    private function sendConfirmationEmail($reservation)
+    {
+        return true;
+    }
+        
 }
 
 

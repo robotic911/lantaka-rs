@@ -10,9 +10,13 @@ function paintReservationsMonth() {
 
     const date = cell.dataset.iso;
     const container = cell.querySelector('.event-label-month-container');
-    var status = ""
-    var redirect = ""
+    container.innerHTML = '';
     reservations.forEach(res => {
+      var status = ""
+      var redirect = ""
+
+      // Safe check for Room OR Venue
+      var label = res.room ? res.room.room_number : (res.venue ? res.venue.name : 'N/A');
       if (res.status === "pending") {
         status = res.status
         redirect = window.reservationPage
@@ -35,7 +39,7 @@ function paintReservationsMonth() {
       if (date >= res.check_in && date <= res.check_out) {
         if (status !== "") {
           container.innerHTML += `
-              <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
+              <a href="${redirect}?search=${encodeURIComponent(label)}" class="event-label ${status}">
                   ${label} - ${res.user ? res.user.name : 'Unknown'}
               </a>
           `;
@@ -52,9 +56,20 @@ function paintReservationsWeek() {
 
     const date = cell.dataset.iso;
     const container = cell.querySelector('.event-label-week-container');
-    var status = ""
-    var redirect = ""
+    container.innerHTML = '';
+
     reservations.forEach(res => {
+      var status = ""
+      var redirect = ""
+
+      var label = "";
+      if (res.room) {
+        label = res.room.room_number;
+      } else if (res.venue) {
+        label = res.venue.name;
+      } else {
+        label = "N/A";
+      }
       if (res.status === "pending") {
         status = res.status
         redirect = window.reservationPage
@@ -77,7 +92,7 @@ function paintReservationsWeek() {
         if (status !== "") {
           container.innerHTML += `
            <a href="${redirect}?search=${encodeURIComponent(`${res.id}`)}" class="event-label ${status}">
-          ${res.room.room_number} - ${res.user.name}
+            ${label} - ${res.user ? res.user.name : 'Unknown'}
         </a>
         `;
         }

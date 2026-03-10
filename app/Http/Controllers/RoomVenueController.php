@@ -6,7 +6,8 @@ use Illuminate\Http\Request;
 use App\Models\Room;
 use App\Models\Venue;
 use Illuminate\Support\Facades\Auth; // Needed to get the logged-in user
-use App\Models\Reservation;
+use App\Models\RoomReservation; // Add this
+use App\Models\VenueReservation;
 use Carbon\CarbonPeriod;
 use App\Models\Food;
 
@@ -125,28 +126,36 @@ class RoomVenueController extends Controller
         public function show($category, $id)
     {
         // 1. Find the correct item based on category
-        if ($category === 'Room') {
+        if (strtolower($category) === 'room') {
             $data = Room::findOrFail($id);
-            // Standardize the name for the view
-            $data->display_name = "Room " . $data->room_number . " (" . $data->room_type . ")"; 
+            $data->display_name = "Room " . ($data->room_number ?? $id);
+            
+            // Use RoomReservation model
+            $reservations = RoomReservation::where('room_id', $id)
+                ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
+                ->get();
+                
+            $dateFieldIn = 'Room_Reservation_Check_In_Time';
+            $dateFieldOut = 'Room_Reservation_Check_Out_Time';
         } else {
             $data = Venue::findOrFail($id);
             $data->display_name = $data->name;
+
+            // Use VenueReservation model
+            $reservations = VenueReservation::where('venue_id', $id)
+                ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
+                ->get();
+                
+            $dateFieldIn = 'Venue_Reservation_Check_In_Time';
+            $dateFieldOut = 'Venue_Reservation_Check_Out_Time';
         }
 
-        // 2. Fetch occupied dates from the Reservations table
-        // We use strtolower($category) because your DB saves it as 'room' or 'venue' (lowercase)
-        $reservations = Reservation::where('accommodation_id', $id)
-            ->where('type', strtolower($category))
-            // ->where('status', 'Approved') // OPTIONAL: Uncomment this if you only want to block 'Approved' bookings, not 'Pending' ones
-            ->get(['check_in', 'check_out']);
-
+        // 2. Map the occupied dates
         $occupiedDates = [];
         foreach ($reservations as $res) {
-            // CarbonPeriod automatically gets every single day between check-in and check-out
-            $period = CarbonPeriod::create($res->check_in, $res->check_out);
+            $period = CarbonPeriod::create($res->$dateFieldIn, $res->$dateFieldOut);
             foreach ($period as $date) {
-                $occupiedDates[] = $date->format('Y-m-d'); // Format for Day.js
+                $occupiedDates[] = $date->format('Y-m-d');
             }
         }
         
