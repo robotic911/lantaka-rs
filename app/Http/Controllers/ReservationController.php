@@ -12,6 +12,8 @@ use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
 use Carbon\Carbon;
+use PhpOffice\PhpSpreadsheet\IOFactory;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 
 class ReservationController extends Controller
 {
@@ -716,12 +718,12 @@ class ReservationController extends Controller
                     $days = $checkIn->diffInDays($checkOut) ?: 1;
 
                     $reservations->push([
-                        'name' => 'Room: ' . ($r->room->Room_Number ?? 'Room'),
+                        'name' => 'Room ' . ($r->room->room_number ?? 'Error'),
                         'check_in' => $checkIn->format('m/d/Y'),
                         'check_out' => $checkOut->format('m/d/Y'),
                         'pax' => $r->pax,
                         'days' => $days,
-                        'price' => $r->Room_Reservation_Total_Price ?? 0
+                        'total_price' => $r->Room_Reservation_Total_Price ?? 0
                     ]);
                 }
 
@@ -732,16 +734,163 @@ class ReservationController extends Controller
                     $days = $checkIn->diffInDays($checkOut) ?: 1;
 
                     $reservations->push([
-                        'name' => 'Venue: ' . ($v->venue->Venue_Name ?? 'Venue'),
+                        'name' => 'Venue ' . ($v->venue->name ?? 'Error'),
                         'check_in' => $checkIn->format('m/d/Y'),
                         'check_out' => $checkOut->format('m/d/Y'),
                         'pax' => $v->pax,
                         'days' => $days,
-                        'price' => $v->Venue_Reservation_Total_Price ?? 0
+                        'total_price' => $v->Venue_Reservation_Total_Price ?? 0
                     ]);
                 }
 
                 return view('employee.SOA', compact('client', 'reservations'));
+            }
+
+
+            public function exportSOA($clientId)
+            {
+                $client = User::findOrFail($clientId);
+            
+                $roomReservations = RoomReservation::with('room')
+                    ->where('Client_ID', $clientId)
+                    ->where('status', 'checked-in')
+                    ->get();
+            
+                $venueReservations = VenueReservation::with('venue')
+                    ->where('Client_ID', $clientId)
+                    ->where('status', 'checked-in')
+                    ->get();
+            
+                $reservations = collect();
+            
+                foreach ($roomReservations as $r) {
+                    $checkIn = Carbon::parse($r->Room_Reservation_Check_In_Time);
+                    $checkOut = Carbon::parse($r->Room_Reservation_Check_Out_Time);
+                    $days = $checkIn->diffInDays($checkOut) ?: 1;
+            
+                    $reservations->push([
+                        'name' => 'Room ' . ($r->room->Room_Number ?? 'Room'),
+                        'check_in' => $checkIn->format('d/m/Y'),
+                        'check_out' => $checkOut->format('d/m/Y'),
+                        'pax' => $r->pax,
+                        'days' => $days,
+                        'total_price' => $r->Room_Reservation_Total_Price ?? 0,
+                    ]);
+                }
+            
+                foreach ($venueReservations as $v) {
+                    $checkIn = Carbon::parse($v->Venue_Reservation_Check_In_Time);
+                    $checkOut = Carbon::parse($v->Venue_Reservation_Check_Out_Time);
+                    $days = $checkIn->diffInDays($checkOut) ?: 1;
+            
+                    $reservations->push([
+                        'name' => 'Venue ' . ($v->venue->Venue_Name ?? 'Venue'),
+                        'check_in' => $checkIn->format('d/m/Y'),
+                        'check_out' => $checkOut->format('d/m/Y'),
+                        'pax' => $v->pax,
+                        'days' => $days,
+                        'total_price' => $v->Venue_Reservation_Total_Price ?? 0,
+                    ]);
+                }
+            
+                /*
+                ===============================
+                LOAD EXCEL TEMPLATE
+                ===============================
+                */
+            
+                $templatePath = resource_path('templates/SOA_Template_Final.xlsx');
+            
+                if (!file_exists($templatePath)) {
+                    abort(500, 'SOA template not found.');
+                }
+            
+                $spreadsheet = IOFactory::load($templatePath);
+                $sheet = $spreadsheet->getActiveSheet();
+            
+                /*
+                ===============================
+                HEADER INFORMATION
+                ===============================
+                */
+            
+                $sheet->setCellValue('A15', 'Date: ' . now()->format('d/m/Y'));
+                $sheet->setCellValue('A17', 'To:');
+                $sheet->setCellValue('A18', $client->name);
+            
+                /*
+                ===============================
+                INSERT RESERVATIONS
+                TABLE STARTS AT ROW 25
+                ===============================
+                */
+            
+                $startRow = 25;
+                $currentRow = $startRow;
+                $subtotal = 0;
+            
+                foreach ($reservations as $r) {
+                    $days = $r['days'] ?? 1;
+                    $amount = $r['total_price'] ?? 0;
+                    $rate = $days > 0 ? $amount / $days : $amount;
+            
+                    $sheet->setCellValue("A{$currentRow}", $r['check_in']);
+                    $sheet->setCellValue("B{$currentRow}", $r['name']);
+                    $sheet->setCellValue("C{$currentRow}", $r['pax']);
+                    $sheet->setCellValue("D{$currentRow}", $days . ' day');
+                    $sheet->setCellValue("E{$currentRow}", $rate);
+                    $sheet->setCellValue("F{$currentRow}", $amount);
+            
+                    $subtotal += $amount;
+                    $currentRow++;
+                }
+            
+                /*
+                ===============================
+                SUMMARY BOX
+                Column E = labels
+                Column F = values
+                ===============================
+                */
+            
+                $sheet->setCellValue('F15', $subtotal); // Subtotal
+                $sheet->setCellValue('F16', 0);         // Additional Fees
+                $sheet->setCellValue('F17', 0);         // Discounts
+                $sheet->setCellValue('F18', $subtotal); // Total Amount Due
+            
+                /*
+                ===============================
+                CURRENCY FORMAT
+                ===============================
+                */
+            
+                for ($row = $startRow; $row < $currentRow; $row++) {
+                    $sheet->getStyle("E{$row}")
+                        ->getNumberFormat()
+                        ->setFormatCode('"₱"#,##0.00');
+            
+                    $sheet->getStyle("F{$row}")
+                        ->getNumberFormat()
+                        ->setFormatCode('"₱"#,##0.00');
+                }
+            
+                $sheet->getStyle('F15:F18')
+                    ->getNumberFormat()
+                    ->setFormatCode('"₱"#,##0.00');
+            
+                /*
+                ===============================
+                EXPORT FILE
+                ===============================
+                */
+            
+                $fileName = 'SOA_' . str_replace(' ', '_', $client->name) . '.xlsx';
+                $tempFile = tempnam(sys_get_temp_dir(), 'soa');
+            
+                $writer = new Xlsx($spreadsheet);
+                $writer->save($tempFile);
+            
+                return response()->download($tempFile, $fileName)->deleteFileAfterSend(true);
             }
 
 }

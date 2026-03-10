@@ -115,3 +115,7 @@ Route::get('/test_client_room_venue_viewing', function () {
     return view('test_client_room_venue_viewing');
 })->name('test_client_room_venue_viewing');
 // TEST ONLY DO NOT TOUCH (CALENDAR)
+
+/* SOA EXPORT*/
+Route::get('/export-soa/{clientId}', [ReservationController::class, 'exportSOA'])
+    ->name('export.exportSOA');
