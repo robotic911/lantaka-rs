@@ -7,6 +7,8 @@ use App\Http\Controllers\AccountController;
 use App\Http\Controllers\RoomVenueController;
 use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\FoodController;
+use App\Http\Controllers\EventLogController;
+
 
 /* --- 1. Pages Routes --- */
 
@@ -50,6 +52,8 @@ Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('cl
             Route::get('/SOA/{clientId}', [ReservationController::class, 'showSOA'])->name('SOA');
             // Route::post('/room_venue', action: fn() => view('employee.SOA'))->name('SOA');
             Route::post('/reservations/store', [ReservationController::class, 'storeReservation'])->name('reservations.store');
+            Route::get('/eventlogs', [EventLogController::class, 'index'])->name('employee.eventlogs');
+            
         });
         Route::prefix('client')
         ->name('client.')
@@ -93,7 +97,7 @@ Route::post('employee/reservations/store', [ReservationController::class, 'store
 Route::middleware(['auth'])->group(function () {
 
     Route::post('/logout', [LoginController::class, 'logout'])->name('logout');
-
+    Route::get('/eventlogs', [EventLogController::class, 'index'])->name('employee.eventlogs');
     // 1. The Checkout Page (calculates price)
     Route::get('/checkout', [ReservationController::class, 'checkout'])->name('checkout');
     
