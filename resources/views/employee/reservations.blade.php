@@ -122,7 +122,9 @@
 
                   <tr>
                       <td class="name-cell">
-                          <span class="user-icon">👤</span>
+                          <span class="user-icon">
+                            <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+                          </span>
                           <span>{{ $reservation->user->name ?? 'Unknown User' }}</span>
                       </td>
 

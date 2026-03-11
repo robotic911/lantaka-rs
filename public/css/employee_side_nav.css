@@ -88,9 +88,8 @@
 
 .nav-item:hover {
   color: white;
-  background-color: rgba(255, 255, 255, 0.1);
+  background-color: rgba(217, 217, 217, 0.1);
   border-radius: 10px;
-
 }
 
 .nav-item.active {
@@ -99,11 +98,61 @@
   background-color: rgba(255, 193, 7, 0.1);
   font-weight: 700;
   border-radius: 10px;
-
 }
 
-.nav-item .icon {
-  font-size: 18px;
-  width: 24px;
-  text-align: center;
+/* ICON BASE */
+
+.icon {
+  width: 20px;
+  height: 20px;
+  background-color: white;
+
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  transition: background-color 0.3s ease;
 }
+
+.nav-item.active .icon{
+  background-color: #ffc107;
+}
+
+/* ICON FILES */
+
+.dashboard-icon{
+  mask-image: url("/images/logo/sidenav/dashboard-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/dashboard-icon.svg");
+}
+
+.reservation-icon{
+  mask-image: url("/images/logo/sidenav/reservation-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/reservation-icon.svg");
+}
+
+.guest-icon{
+  mask-image: url("/images/logo/sidenav/guest-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/guest-icon.svg");
+}
+
+.accounts-icon{
+  mask-image: url("/images/logo/sidenav/accounts-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/accounts-icon.svg");
+}
+
+.rooms-icon{
+  mask-image: url("/images/logo/sidenav/rooms-venue-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/rooms-venue-icon.svg");
+}
+
+.logs-icon{
+  mask-image: url("/images/logo/sidenav/event-logs-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/event-logs-icon.svg");
+}
+
+
+/* ACTIVE ICON COLOR */

@@ -49,6 +49,13 @@
   margin-bottom: 16px;
 }
 
+.stat-header img{
+  width: 20px;
+  height: 20px;
+}
+.stat-header svg {
+  color: white;
+}
 .stat-header h3 {
   font-size: 14px;
   font-weight: 600;

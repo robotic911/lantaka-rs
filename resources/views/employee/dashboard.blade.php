@@ -14,7 +14,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <h3>Total Reservations</h3>
-                        <span class="stat-icon">📅</span>
+                        <img src="{{ asset('images/logo/dashboard/dashboard-reservations.svg') }}" alt="reservations">
                     </div>
                     <div class="stat-value">{{ $totalReservations }}</div>
                     <div class="stat-change">+20.1% from last month</div>
@@ -23,7 +23,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <h3>Occupancy Rate</h3>
-                        <span class="stat-icon">📊</span>
+                        <img src="{{ asset('images/logo/dashboard/dashboard-occupancy.svg') }}" alt="reservations">
                     </div>
                     <div class="stat-value">78.5%</div>
                     <div class="stat-change">+2.5% from last month</div>
@@ -32,7 +32,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <h3>Revenue</h3>
-                        <span class="stat-icon">💰</span>
+                        <img src="{{ asset('images/logo/dashboard/dashboard-revenue.svg') }}" alt="reservations">
                     </div>
                     <div class="stat-value">₱52,345</div>
                     <div class="stat-change">+15.3% from last month</div>
@@ -41,7 +41,7 @@
                 <div class="stat-card">
                     <div class="stat-header">
                         <h3>Active Guest</h3>
-                        <span class="stat-icon">👥</span>
+                        <img src="{{ asset('images/logo/dashboard/dashboard-guests.svg') }}" alt="reservations">
                     </div>
                     <div class="stat-value">312</div>
                     <div class="stat-change">+7.2% from last month</div>

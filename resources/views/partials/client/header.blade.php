@@ -34,10 +34,14 @@
                    My Reservations
                 </a>
 
-                <button class="icon-btn">🔔</button>
+                <button class="icon-btn">
+                    <img src="{{ asset(path: 'images/logo/topnav/notification-bell.svg') }}" alt="reservations">
+                </button>
 
                 <div class="user-profile" id="open-modal">
-                    <div class="user-avatar">👤</div>
+                    <div class="user-avatar">
+                        <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+                    </div>
                     <div class="user-info">
                         <p class="user-name">{{ Auth::user()->username ?? 'Client' }}</p>
                     </div>

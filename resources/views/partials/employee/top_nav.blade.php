@@ -4,9 +4,13 @@
                 <button class="menu-toggle">☰</button>
             </div>
             <div class="header-right">
-                <button class="icon-btn">🔔</button>
+                <button class="icon-btn">
+                  <img src="{{ asset('images/logo/topnav/notification-bell.svg') }}" alt="reservations">
+                </button>
                 <div class="user-profile" id="open-modal">
-                    <div class="user-avatar">👤</div>
+                    <div class="user-avatar">
+                      <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+                    </div>
                     <div class="user-info">
                         <p class="user-name">Welcome, {{ Auth::user()->name }}!</p>
                         

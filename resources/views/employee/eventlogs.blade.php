@@ -36,28 +36,36 @@
         </div>
         <div class="log-details">
           <div class="log-detail-item">
-            <span class="log-icon">👤</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Client</p>
               <p class="log-value">Tom Cruz</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-in</p>
               <p class="log-value">Feb 15, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-out</p>
               <p class="log-value">Feb 16, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">🏠</span>
+            <span class="log-icon">
+            <img src="{{ asset(path: 'images/logo/sidenav/rooms-venue-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Reservation Type</p>
               <p class="log-value">Room and Venue</p>
@@ -75,28 +83,36 @@
         </div>
         <div class="log-details">
           <div class="log-detail-item">
-            <span class="log-icon">👤</span>
+            <span class="log-icon">
+            <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Client</p>
               <p class="log-value">Aurey Kow</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-in</p>
               <p class="log-value">Feb 14, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+             <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-out</p>
               <p class="log-value">Feb 16, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">🏠</span>
+            <span class="log-icon">
+            <img src="{{ asset(path: 'images/logo/sidenav/rooms-venue-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Reservation Type</p>
               <p class="log-value">Room</p>
@@ -114,28 +130,36 @@
         </div>
         <div class="log-details">
           <div class="log-detail-item">
-            <span class="log-icon">👤</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Client</p>
               <p class="log-value">Harold Aryu</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-in</p>
               <p class="log-value">Feb 11, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">📅</span>
+            <span class="log-icon">
+              <img src="{{ asset(path: 'images/logo/sidenav/reservation-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Check-out</p>
               <p class="log-value">Feb 12, 2024</p>
             </div>
           </div>
           <div class="log-detail-item">
-            <span class="log-icon">🏠</span>
+            <span class="log-icon">
+            <img src="{{ asset(path: 'images/logo/sidenav/rooms-venue-icon.svg') }}" alt="reservations">
+            </span>
             <div>
               <p class="log-label">Reservation Type</p>
               <p class="log-value">Venue</p>

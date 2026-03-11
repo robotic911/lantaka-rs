@@ -15,7 +15,7 @@
         <div class="detail-section">
           <p class="detail-label">Number of Pax:</p>
           <p class="detail-value" id="modalPax"></p>
-        </div>
+        </div>    
 
         <div class="detail-section">
           <p class="detail-label">Check-in Date:</p>
