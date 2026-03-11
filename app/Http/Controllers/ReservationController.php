@@ -454,11 +454,28 @@ class ReservationController extends Controller
                 $discount = (float) ($request->discount ?? 0);
 
                 // 4. Update the Extra Fees in the DB
+                $descs = $request->input('additional_fees_desc', []);
+                $amounts = $request->input('additional_fees', []);
+                $qtys = $request->input('additional_fees_qty', []);
+
+                $combined = [];
+                $totalExtra = 0;
+
+                foreach ($descs as $index => $desc) {
+                    $amount = $amounts[$index] ?? 0;
+                    $qty = $qtys[$index] ?? 1;
+
+                    $lineTotal = $amount * $qty;
+                    $totalExtra += $lineTotal;
+
+                    $combined[] = $desc . ':' . $qty . ':' . $amount;
+                }
+
                 $reservation->Room_Reservation_Additional_Fees = $totalExtra;
-                $reservation->Room_Reservation_Additional_Fees_Desc = json_encode($request->additional_fees_desc);
-                
+                $reservation->Room_Reservation_Additional_Fees_Desc = json_encode($combined);
+
                 // 5. Calculate new total strictly using the True Booking Cost
-                $reservation->Room_Reservation_Total_Price = ($trueBookingCost + $totalExtra) - $discount;
+                $reservation->Room_Reservation_Total_Price = ($trueBookingCost + $totalExtra);
                 $reservation->save();
 
            } elseif ($type === 'venue') {
@@ -478,8 +495,25 @@ class ReservationController extends Controller
                 $discount = (float) ($request->discount ?? 0);
 
                 // 4. Assign new values directly (Removed the Schema check that was blocking it)
+                $descs = $request->input('additional_fees_desc', []);
+                $amounts = $request->input('additional_fees', []);
+                $qtys = $request->input('additional_fees_qty', []);
+
+                $combined = [];
+                $totalExtra = 0;
+
+                foreach ($descs as $index => $desc) {
+                    $amount = $amounts[$index] ?? 0;
+                    $qty = $qtys[$index] ?? 1;
+
+                    $lineTotal = $amount * $qty;
+                    $totalExtra += $lineTotal;
+
+                    $combined[] = $desc . ':' . $qty . ':' . $amount;
+                }
+
                 $reservation->Venue_Reservation_Additional_Fees = $totalExtra;
-                $reservation->Venue_Reservation_Additional_Fees_Desc = json_encode($request->input('additional_fees_desc', []));
+                $reservation->Venue_Reservation_Additional_Fees_Desc = json_encode($combined);
                 $reservation->Venue_Reservation_Discount = $discount;
 
                 // 5. Calculate new total strictly using the True Booking Cost

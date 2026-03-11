@@ -156,9 +156,8 @@
                 </div>              
                 
                 <div id="checkedInActions" class="modal-actions" style="display: none; gap: 10px;">
-                    <button type="button" class="check-in-btn" 
-                        onclick="event.preventDefault(); document.querySelector('#modificationForm').submit();">
-                        SAVE MODIFICATIONS
+                    <button type="button" class="check-in-btn" onclick="saveModificationsAndSubmit(event)">
+                      SAVE MODIFICATIONS
                     </button>
                     <button type="button" onclick="submitStatus('checked-out')" class="check-out-btn">CHECK-OUT</button>
                 </div>

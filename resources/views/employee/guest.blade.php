@@ -190,7 +190,6 @@
                             'res_type' => $res->type,
                             'accommodationType' => $reservationType ?? 'Error accomodation type',
                             'price' => $basePrice,
-                           
                             'food_total' => $foodTotal, // Pass the pre-calculated food total
                             'pax' => $res->pax,
                             'check_in' => \Carbon\Carbon::parse($res->check_in)->format('F d, Y'),

@@ -53,50 +53,54 @@ document.addEventListener('DOMContentLoaded', () => {
   expandButtons.forEach(button => {
     button.addEventListener('click', function () {
       const data = JSON.parse(this.getAttribute('data-info'));
-      console.log("Reservation Data:", data);
+      if (chargesContainer) {
+        chargesContainer.innerHTML = '';
+  
+        let descriptions = [];
+  
+        try {
+          descriptions = typeof data.additional_fees_desc === 'string'
+            ? JSON.parse(data.additional_fees_desc)
+            : data.additional_fees_desc;
+        } catch (e) {
+          descriptions = [];
+        }
+  
+        if (!Array.isArray(descriptions)) {
+          descriptions = [];
+        }
+  
+        if (descriptions.length > 0) {
+          descriptions.forEach((item) => {
+
+            let desc = '';
+            let qty = 1;
+            let amount = 0;
+          
+            if (typeof item === 'string' && item.includes(':')) {
+              const parts = item.split(':');
+          
+              desc = parts[0] || '';
+              qty = parseFloat(parts[1]) || 1;
+              amount = parseFloat(parts[2]) || 0;
+            }
+          
+            window.addAdditionalCharges(desc, amount, qty);
+          });
+        } else {
+          window.addAdditionalCharges('', 0);
+        }
+      }
+
       const resIdField = document.getElementById('modalResId');
       const resTypeField = document.getElementById('modalResType');
+
       if (resIdField) resIdField.value = data.id;
       if (resTypeField) resTypeField.value = data.res_type;
 
-      if (chargesContainer) {
-        chargesContainer.innerHTML = '';
-
-        let descriptions = [];
-        try {
-          descriptions = JSON.parse(data.additional_fees_desc);
-        } catch (e) {
-          descriptions = data.additional_fees_desc ? data.additional_fees_desc.split(', ') : [];
-        }
-
-        if (descriptions && descriptions.length > 0) {
-          let amounts = [];
-          try {
-            amounts = typeof data.additional_fees === 'string' ? JSON.parse(data.additional_fees) : data.additional_fees;
-          } catch (e) {
-            amounts = [data.additional_fees];
-          }
-
-          descriptions.forEach((item, index) => {
-            let desc = item;
-            let amount = 0;
-
-            if (typeof item === 'string' && item.includes(':')) {
-              const parts = item.split(':');
-              desc = parts[0];
-              amount = parseFloat(parts[1]) || 0;
-            } else {
-              if (Array.isArray(amounts)) {
-                amount = parseFloat(amounts[index]) || 0;
-              } else if (index === 0) {
-                amount = parseFloat(data.additional_fees) || 0;
-              }
-            }
-
-            addAditionalCharges(desc, amount);
-          });
-        }
-      }
+      console.log('modalResId =', resIdField?.value);
+      console.log('modalResType =', resTypeField?.value);
+      console.log('full data =', data);
 
       updateSoaLink(data.userId);
 
@@ -266,55 +270,67 @@ function updateSoaLink(clientId) {
   soaLink.href = `/employee/SOA/${clientId}`;
 }
 
-window.addAditionalCharges = function (description = '', amount = 0) {
+window.addAdditionalCharges = function (description = '', amount = 0, qty = 1) {
   const chargesContainer = document.getElementById('chargesContainer');
   if (!chargesContainer) return;
 
   const newRow = document.createElement('div');
   newRow.className = 'charges-container-sub';
-  newRow.style.marginTop = "8px";
+  newRow.style.marginTop = '8px';
 
   newRow.innerHTML = `
-          <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 230px;" required>
-          <input type="number" placeholder="Qty" class="charge-input" style="width: 70px;" min="1" value="1">
-          <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 100px;" required>
-          <button type="button" class="remove-btn" onclick="this.parentElement.remove(); window.calculateLiveTotal();" 
-                  style="background:none; border:none; color:red; cursor:pointer; font-size: 20px; padding-left: 5px;">&times;</button>
-      `;
+  <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 230px;" required>
+  <input type="number" name="additional_fees_qty[]" value="${qty}" placeholder="Qty" class="charge-input qty-input"  style="width: 70px;" min="1" value="1">
+  <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 100px;" required>
+  <button type="button" class="remove-btn" onclick="this.parentElement.remove(); window.calculateLiveTotal();" style="background:none; border:none; color:red; cursor:pointer; font-size: 20px; padding-left: 5px;">&times;</button>
+`;
 
   chargesContainer.appendChild(newRow);
 
-  const newAmountInput = newRow.querySelector('.amount-input');
+  const amountInput = newRow.querySelector('.amount-input');
+  const qtyInput = newRow.querySelector('.qty-input');
+  const removeBtn = newRow.querySelector('.remove-btn');
+
   if (typeof window.calculateLiveTotal === 'function') {
-    newAmountInput.addEventListener('input', window.calculateLiveTotal);
+    amountInput?.addEventListener('input', window.calculateLiveTotal);
+    qtyInput?.addEventListener('input', window.calculateLiveTotal);
   }
+
+  removeBtn?.addEventListener('click', function () {
+    newRow.remove();
+    window.calculateLiveTotal();
+  });
 };
 
 const addChargesBtn = document.getElementById('addAdditionalCharges');
 if (addChargesBtn) {
-  addChargesBtn.addEventListener('click', () => window.addAditionalCharges('', 0));
+  addChargesBtn.addEventListener('click', () => window.addAdditionalCharges('', 0));
 }
 
 // --- 6. SAVE MODIFICATIONS SCRIPT ---
 window.saveModificationsAndSubmit = function (e) {
   e.preventDefault();
 
+  console.log(
+    'Descriptions:',
+    [...document.querySelectorAll('input[name="additional_fees_desc[]"]')].map(i => i.value)
+  );
+
+  console.log(
+    'Amounts:',
+    [...document.querySelectorAll('input[name="additional_fees[]"]')].map(i => i.value)
+  );
+
+  console.log(
+    'Qtys:',
+    [...document.querySelectorAll('input[name="additional_fees_qty[]"]')].map(i => i.value)
+  );
+
+  console.log('reservation_id:', document.getElementById('modalResId')?.value);
+  console.log('res_type:', document.getElementById('modalResType')?.value);
+
   const modificationForm = document.getElementById('modificationForm');
-  const descInputs = document.querySelectorAll('input[name="additional_fees_desc[]"]');
-  const amountInputs = document.querySelectorAll('input[name="additional_fees[]"]');
-
-  descInputs.forEach((descInput, index) => {
-    const amount = amountInputs[index] ? (parseFloat(amountInputs[index].value) || 0) : 0;
-
-    // Bake the Description and Amount together with a ":"
-    if (descInput.value && !descInput.value.includes(':')) {
-      descInput.value = `${descInput.value.trim()}:${amount}`;
-    }
-  });
-
   if (modificationForm) {
     modificationForm.submit();
-  } else {
-    console.error("Could not find the modificationForm!");
   }
 };
