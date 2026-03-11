@@ -194,18 +194,38 @@
 }
 
 .status-badge.pending {
-  background-color: rgba(147, 197, 253, 0.3);
+  background: #d4e4ff;
   color: #1e40af;
 }
 
 .status-badge.confirmed {
-  background-color: rgba(134, 239, 172, 0.3);
-  color: #15803d;
+  background-color: #53e087;
+  color: #0f5729;
 }
 
 .status-badge.declined {
   background-color: rgba(252, 165, 165, 0.3);
   color: #991b1b;
+}
+
+.status-badge.cancelled {
+  background-color: rgba(252, 165, 165, 0.3);
+  color: #991b1b;
+}
+
+.status-badge.checked-in{
+  background-color: #369b6c;
+  color: #ffffff;
+}
+
+.status-badge.checked-out {
+  background-color: #f1a559;
+  color:rgb(188, 125, 7);
+}
+
+.status-badge.completed {
+  background-color: #f1a559;
+  color:rgb(188, 125, 7);
 }
 
 /* Responsive */

@@ -14,6 +14,14 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('modalCheckOut').textContent = data.check_out;
       document.getElementById('modalFoodIdLabel').textContent = `Food ID (${data.id}):`;
 
+      const cancelBtn = document.querySelector('.detail-section-cancel');
+      if (data.status !== "pending"){
+        cancelBtn.style.display = 'none';
+      }else if(data.status === "pending"){
+        cancelBtn.style.display = 'flex';
+      }
+      ;
+
       // NEW: Store the ID in the hidden input for Cancel/Edit functions
       const idInput = document.getElementById('cancelReservationId');
       if (idInput) {

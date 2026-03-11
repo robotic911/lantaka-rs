@@ -32,10 +32,12 @@
           
           <div id="modalFoodList"></div>
           <input type="hidden" id="cancelReservationId">
+          
         </div>
-        <div class="detail-section-cancel">
-          <button class="cancel-reservation" onclick="confirmCancellation()">CANCEL RESERVATION</button>
-        </div>
+          <div class="detail-section-cancel">
+            <button class="cancel-reservation" onclick="confirmCancellation()">CANCEL RESERVATION</button>
+          </div>
+        
       </div>
     </div>
   </div>

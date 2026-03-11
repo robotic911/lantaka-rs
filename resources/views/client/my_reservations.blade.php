@@ -100,7 +100,7 @@
               <td>
                   {{-- Dynamic Class for Status Color (pending, confirmed, cancelled) --}}
                   <span class="status-badge {{ strtolower($res->status) }}">
-                      {{ $res->status }}
+                      {{ ucfirst($res->status) }}
                   </span>
               </td>
               
@@ -122,7 +122,8 @@
                         'check_in' => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
                         'check_out' => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
                         'total' => number_format($res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0, 2),
-                        'foods' => $res->foods 
+                        'foods' => $res->foods,
+                        'status' => $res->status
                     ]) }}">
                     ⤡
                 </button>
