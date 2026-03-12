@@ -30,8 +30,14 @@
             
             <!-- Error Message -->
            @if(session('error'))
-                <div class="alert-message">
+                <div class="alert-message" style="color: red; margin-bottom: 15px; text-align: center;">
                     {{ session('error') }}
+                </div>
+            @endif
+
+            @if($errors->any())
+                <div class="alert-message" style="color: red; margin-bottom: 15px; text-align: center;">
+                    {{ $errors->first() }}
                 </div>
             @endif
 

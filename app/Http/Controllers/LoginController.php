@@ -48,7 +48,7 @@ class LoginController extends Controller
             ])->onlyInput('username');
         }
 
-        if ($user->role === 'client' && $user->status !== 'approved') {
+        if (strtolower($user->role) === 'client' && $user->status !== 'approved') {
             return back()->with('error', 'Your account is pending admin approval. Please check your email for updates.')
                         ->withInput($request->only('username'));
         }
@@ -57,13 +57,14 @@ class LoginController extends Controller
         // 5. If all checks pass, log the user in
         Auth::login($user);
         $request->session()->regenerate();
+        $role = strtolower($user->role);
 
         // 6. Redirect based on role
-        if ($user->role === 'admin' || $user->role === 'staff' || $user->role === 'Admin' || $user->role === 'Staff') {
+        if (in_array($role, ['admin', 'staff'])) {
             return redirect()->route('employee.dashboard');
         }
         
-        if ($user->role === 'client') {
+        if ($role === 'client') {
             return redirect()->route('client.room_venue');
         }
         
