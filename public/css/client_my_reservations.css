@@ -305,7 +305,7 @@
 .modal-container {
   position: relative;
   width: 100%;
-  max-width: 480px;
+  max-width: 520px;
 }
 
 /* Modal Content */
@@ -372,34 +372,83 @@
 
 /* Modal Body */
 .modal-body {
-  padding: 24px 24px 0px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
 }
 
-/* Detail Section */
+/* Card Section */
 .detail-section {
-  margin-bottom: 24px;
+  background-color: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 16px;
+  margin-left: 20px;
+  margin-right: 20px;
+}
+
+.detail-section:first-of-type {
+  margin-top: 20px;
 }
 
 .detail-label {
   font-size: 12px;
-  font-weight: 700;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+  letter-spacing: 0;
 }
 
 .detail-value {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.4;
+}
+
+/* Detail Row with Edit Link */
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-row-content {
+  flex: 1;
+}
+
+.detail-row-edit {
+  color: #d97960;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  margin-left: 16px;
+  white-space: nowrap;
+  transition: opacity 0.2s ease;
+}
+
+.detail-row-edit:hover {
+  opacity: 0.7;
 }
 
 /* Food Section */
 .food-section {
-  margin-top: 24px;
-  padding-top: 24px;
-  border-top: 1px solid var(--border-color);
+  background-color: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-bottom: 16px;
 }
 
 .food-category {
@@ -407,12 +456,12 @@
 }
 
 .food-category-title {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 12px;
+  text-transform: capitalize;
+  letter-spacing: 0;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -421,55 +470,170 @@
 .food-category-title::before {
   content: '';
   display: inline-block;
-  width: 4px;
-  height: 4px;
-  background-color: var(--accent-yellow);
-  border-radius: 50%;
+  width: 0;
+  height: 0;
+  background-color: transparent;
+  border-radius: 0;
 }
 
 /* Food Items List */
 .food-items {
   list-style: none;
-  padding-left: 12px;
+  padding-left: 0;
   margin: 0;
 }
 
 .food-items li {
   font-size: 13px;
-  color: var(--text-secondary);
-  margin-bottom: 6px;
+  color: var(--text-primary);
+  margin-bottom: 8px;
   position: relative;
-  padding-left: 12px;
+  padding-left: 0;
   line-height: 1.5;
 }
 
 .food-items li::before {
-  content: '•';
-  position: absolute;
-  left: 0;
-  color: var(--accent-yellow);
-  font-weight: 700;
+  content: '';
+  display: none;
 }
 
-.detail-section-cancel{
-  display: flex;
-  justify-content: end;
-  align-items: center;
-  margin-bottom: 10px;
+/* Food Table Styling */
+.modal-food-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-top: 12px;
 }
 
-.cancel-reservation{
-  display: flex;
-  background-color: var(--accent-yellow);
+.modal-food-table th,
+.modal-food-table td {
   border: none;
-  border-radius: 10px;
-  padding:14px 20px;
-  cursor: pointer;
-  transition: ease 0.3s;
+  border-bottom: 1px solid #e5e5e5;
+  padding: 12px 0;
+  text-align: left;
 }
-.cancel-reservation:hover{
+
+.modal-food-table th:last-child,
+.modal-food-table td:last-child {
+  text-align: right;
+}
+
+.modal-food-table th {
+  background-color: transparent;
+  font-weight: 600;
+  color: #666;
+  text-transform: capitalize;
+  letter-spacing: 0;
+  font-size: 12px;
+  padding-bottom: 8px;
+}
+
+.modal-food-table td {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+/* Section - CTA Footer */
+.detail-section-cancel {
   display: flex;
-  background-color: rgb(247, 229, 33);
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 20px;
+  background-color: #f5f0eb;
+  border-top: 1px solid #e5e5e5;
+}
+
+/* Note Section */
+.note-section {
+  background-color: #fafafa;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  padding: 20px;
+  margin-left: 20px;
+  margin-right: 20px;
+  margin-bottom: 16px;
+}
+
+.note-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  margin-bottom: 8px;
+  text-transform: capitalize;
+}
+
+.note-section-content {
+  font-size: 13px;
+  color: var(--text-primary);
+  line-height: 1.6;
+}
+
+/* Currency Conversion Info */
+.currency-info {
+  text-align: center;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #e5e5e5;
+}
+
+.currency-info-link {
+  color: #d97960;
+  text-decoration: none;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 8px;
+}
+
+.currency-info-link:hover {
+  text-decoration: underline;
+}
+
+/* Button Container */
+.button-container {
+  display: flex;
+  gap: 12px;
+}
+
+.cancel-reservation,
+.booking-button {
+  flex: 1;
+  border: none;
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: capitalize;
+  letter-spacing: 0;
+}
+
+.cancel-reservation {
+  background-color: #e8d0c4;
+  color: #333;
+}
+
+.cancel-reservation:hover {
+  background-color: #dfc0b0;
+  transform: translateY(-2px);
+}
+
+.booking-button {
+  background-color: #a75a47;
+  color: white;
+}
+
+.booking-button:hover {
+  background-color: #964f3d;
+  transform: translateY(-2px);
+}
+
+.cancel-reservation:active,
+.booking-button:active {
+  transform: translateY(0);
 }
 
 

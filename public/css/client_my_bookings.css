@@ -241,6 +241,120 @@ body {
   margin: 8px 0;
 }
 
+/* Food Section Styling */
+.item-food-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #eee;
+}
+
+.item-food-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+
+.food-by-category {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.food-category-group {
+  background-color: #f9f9f9;
+  border-radius: 6px;
+  padding: 12px;
+  border-left: 4px solid #ffd700;
+}
+
+.food-category-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 8px;
+}
+
+.food-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.food-item-entry {
+  font-size: 12px;
+  color: #555;
+  padding-left: 12px;
+  position: relative;
+}
+
+.food-item-entry::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #ffd700;
+  font-weight: bold;
+}
+
+/* Enhanced Food Table */
+.item-food-list {
+  margin-top: 12px;
+  width: 100%;
+  overflow-x: auto;
+}
+
+.item-food-list strong {
+  font-size: 12px !important;
+  display: block !important;
+  margin-bottom: 8px !important;
+  color: #333 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.modal-food-table,
+.item-food-list table {
+  width: 100% !important;
+  border-collapse: collapse !important;
+  font-size: 12px !important;
+  background-color: white;
+}
+
+.modal-food-table th,
+.item-food-list table th,
+.modal-food-table td,
+.item-food-list table td {
+  border: 1px solid #e5e5e5 !important;
+  padding: 10px 8px !important;
+  text-align: left !important;
+}
+
+.modal-food-table th,
+.item-food-list table th {
+  background-color: #f5f5f5 !important;
+  font-weight: 700 !important;
+  color: #333 !important;
+  font-size: 11px !important;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.modal-food-table td,
+.item-food-list table td {
+  color: #555 !important;
+  font-weight: 500 !important;
+  background-color: white !important;
+}
+
+.modal-food-table tr:nth-child(even) td,
+.item-food-list table tbody tr:nth-child(even) td {
+  background-color: #fafafa !important;
+}
+
 .item-inclusion {
   margin-top: 12px;
   padding-top: 12px;
@@ -411,4 +525,3 @@ body {
   --text-light: #6b7280;
   --border-color: #e5e7eb;
 }
-

@@ -23,7 +23,7 @@
                 <div class="header-text">
                     <p class="subtitle-text">Ateneo de Zamboanga University</p>
                     <h1 class="header-title">Lantaka Room and Venue Reservation Portal</h1>
-                    <h1 class="tagline"> &lt;Lantaka Online Room & Venue Reservation System/&gt; </h1>
+                    <h1 class="tagline"> &lt; Lantaka Online Room & Venue Reservation System/ &gt; </h1>
                 </div>
             </div>
             

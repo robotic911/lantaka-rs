@@ -1,5 +1,5 @@
 <link rel="stylesheet" href="{{ asset('css/booking_calendar.css') }}">
-@props(['occupiedDates' => '[]'])
+@props(['occupiedDates' => '[]', 'currentReservationDates' => '[]'])
 @vite(['resources/js/booking_calendar.js'])
 
   <div class="calendar-container">
@@ -27,6 +27,7 @@
         <div class="weekday">Sa</div>
         <div class="weekday">Su</div>
       </div>
+
       <div class="calendar-days">
           <!-- days render-->
       </div>
@@ -48,94 +49,25 @@
 
   </div>
   <script>
-    // Inject the Laravel data into a global JS variable
-    window.serverOccupiedRanges = {!! $occupiedDates !!};
+    // Inject the Laravel data into global JS variables
+    window.serverOccupiedDates          = {!! $occupiedDates !!};
+    window.serverCurrentReservationDates = {!! $currentReservationDates !!};
   </script>
 
-
-<style>
-  .past-date {
-    color: #bbb;
-    background: #f5f5f5;
-    cursor: not-allowed;
-    pointer-events: none;
-  }
-
-
-  /* FULL reserved days */
-  .occupied {
-    background: #ff6b6b;
-    color: white;
-  }
-
-  /* START reservation (bottom half filled) */
-  .occupied-start {
-    background: linear-gradient(
-      to top,
-      #ff6b6b 50%,
-      transparent 50%
-    );
-  }
-
-  /* END reservation (top half filled) */
-  .occupied-end {
-    background: linear-gradient(
-      to bottom,
-      #ff6b6b 50%,
-      transparent 50%
-    );
-  }
-
-  /* still clickable */
-  .occupied-start,
-  .occupied-end {
-    cursor: pointer;
-  }
-
-
-  /* full occupied days (middle of reservation) */
-.day.occupied {
-  background: #ff6b6b;
-  color: white;
-}
-
-/* reservation start → diagonal lower-left fill */
-.day.occupied-start {
-  background: linear-gradient(
-    135deg,
-    transparent 50%,
-    #ff6b6b 50%
-  );
-}
-
-/* reservation end → diagonal upper-right fill */
-.day.occupied-end {
-  background: linear-gradient(
-    135deg,
-    #ff6b6b 50%,
-    transparent 50%
-  );
-}
-
-/* optional: prevent interaction with past dates */
-.day.past-date {
-  pointer-events: none;
-  color: #ccc;
-}
-
-.in-range{
-  background-color: lightblue !important;
-}
-
-.range-start{
-  background-color: lightblue !important;
-  color: black !important;
-}
-
-.range-end{
-  background-color: lightblue !important;
-  color: black !important;
-}
-
-
-</style>
+  <style>
+    .past-date {
+      color: #bbb;
+      background: #f5f5f5;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+    /* Dates that belong to the reservation being edited — selectable, shown in light blue */
+    .day.current-reservation {
+      background: #a8d4f0;
+      color: #2c3e7f;
+      cursor: pointer;
+    }
+    .day.current-reservation:hover {
+      background: #8ec5e8;
+    }
+  </style>

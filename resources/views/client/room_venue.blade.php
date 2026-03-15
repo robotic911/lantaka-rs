@@ -48,10 +48,10 @@
               class="book-btn">
                 <div class="accommodations-grid">
                     <div class="card">
-                        <div class="card-image">
+                        <!-- <div class="card-image">
                             <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('images/adzu_logo.png') }}" 
                                 alt="{{ $item->display_name }}">
-                        </div>
+                        </div> -->
 
                         <div class="card-content">
                             <div>

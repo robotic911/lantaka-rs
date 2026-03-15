@@ -35,21 +35,35 @@ class LoginController extends Controller
         $user = User::where('username', $request->username)->first();
 
         // 3. CHECK: Does the username exist?
+       // 1. USER NOT FOUND
         if (!$user) {
             return back()->withErrors([
-                'username' => 'This username does not exist.',
+                'username' => 'Invalid username or password. Please try again.',
             ])->onlyInput('username');
         }
 
-        // 4. CHECK: Is the password correct?
+        // 2. WRONG PASSWORD
         if (!Hash::check($request->password, $user->password)) {
             return back()->withErrors([
-                'password' => 'Incorrect password.',
+                'password' => 'Invalid username or password. Please try again.',
             ])->onlyInput('username');
         }
 
-        if (strtolower($user->role) === 'client' && $user->status !== 'approved') {
-            return back()->with('error', 'Your account is pending admin approval. Please check your email for updates.')
+        // 3. ACCOUNT PENDING
+        if (strtolower($user->role) === 'client' && $user->status === 'pending') {
+            return back()->with('error', 'Your account is currently pending approval. Please wait for the administrator to review your registration.')
+                        ->withInput($request->only('username'));
+        }
+
+        // 4. ACCOUNT DEACTIVATED
+        if (strtolower($user->role) === 'client' && $user->status === 'deactivate') {
+            return back()->with('error', 'Your account has been deactivated. Please contact support or the administrator for assistance.')
+                        ->withInput($request->only('username'));
+        }
+
+        // 5. ACCOUNT DECLINED
+        if (strtolower($user->role) === 'client' && $user->status === 'declined') {
+            return back()->with('error', 'Your account registration was not approved. Please contact the administrator for more information.')
                         ->withInput($request->only('username'));
         }
         // --- NEW FEATURE END ---

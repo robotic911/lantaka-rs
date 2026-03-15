@@ -11,7 +11,7 @@ class FoodController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:50',
-            'type' => 'required|string|in:breakfast,snack,lunch,dinner',
+            'type' => 'required|string|in:rice,set_viand,sidedish,drinks,desserts,other_viand,snacks',
             'price' => 'required|numeric|min:0',
             'status' => 'required|string|in:available,unavailable',
         ]);
@@ -41,9 +41,7 @@ class FoodController extends Controller
 
     public function showEmployeeFood(Request $request)
     {
-        // Notice we changed groupBy to 'food_category'
-        $foods = Food::all()->groupBy('food_category'); 
-
+        $foods = Food::all();
         return view('employee_food', [
             'foods' => $foods,
         ]);
@@ -77,4 +75,31 @@ class FoodController extends Controller
 
         return back()->with('success','Food deleted successfully');
     }
+
+
+    public function getFoodsAjax()
+    {
+        $foods = Food::where('status', 'available')
+            ->orderBy('food_category')
+            ->orderBy('food_name')
+            ->get()
+            ->groupBy(function ($food) {
+                return strtolower($food->food_category);
+            })
+            ->map(function ($categoryFoods) {
+                return $categoryFoods->map(function ($food) {
+                    return [
+                        'food_id' => $food->food_id,
+                        'food_name' => $food->food_name,
+                        'food_category' => strtolower($food->food_category),
+                        'food_price' => $food->food_price,
+                        'status' => $food->status,
+                    ];
+                })->values();
+            });
+    
+        return response()->json($foods);
+    }
+    
+
 }

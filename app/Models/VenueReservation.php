@@ -19,6 +19,7 @@ class VenueReservation extends Model
         'Venue_Reservation_Check_In_Time',
         'Venue_Reservation_Check_Out_Time',
         'pax',
+        'purpose',
         'Venue_Reservation_Total_Price',
         'status',
         'Venue_Reservation_Additional_Fees', 
@@ -41,6 +42,6 @@ class VenueReservation extends Model
             'food_reservations',    // Table name
             'venue_reservation_id', // Foreign key for VenueReservation
             'food_id'               // Foreign key for Food
-        )->withPivot('status', 'serving_time', 'total_price');
+        )->withPivot('status', 'serving_time', 'meal_time', 'total_price');
     }
 }

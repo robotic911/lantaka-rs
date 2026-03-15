@@ -27,18 +27,22 @@
             <span>Guest</span>
         </a>
 
-        <a href="{{route('employee.accounts')}}" class="nav-item {{ request()->routeIs('employee.accounts') ? 'active' : '' }}">
-            <span class="icon accounts-icon"></span>
-            <span>Accounts</span>
-        </a>
-
         <a href="{{route('employee.room_venue')}}" class="nav-item {{ request()->routeIs('employee.room_venue') ? 'active' : '' }}">
             <span class="icon rooms-icon"></span>
             <span>Rooms / Venue</span>
         </a>
 
+        @if(Auth::user()->role === 'admin')
+        <a href="{{route('employee.accounts')}}" class="nav-item {{ request()->routeIs('employee.accounts') ? 'active' : '' }}">
+            <span class="icon accounts-icon"></span>
+            <span>Accounts</span>
+        </a>
+
+        
+
         <a href="{{route('employee.eventlogs')}}" class="nav-item {{ request()->routeIs('employee.eventlogs') ? 'active' : '' }}">
             <span class="icon logs-icon"></span>
             <span>Event Logs</span>
         </a>
+        @endif
         </nav>

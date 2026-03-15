@@ -127,62 +127,68 @@ class RoomVenueController extends Controller
 
         return view('employee.room_venue', compact('rooms', 'venues', 'foods'));
     }
-    public function show($category, $id)
+        public function show($category, $id)
     {
+        // 1. Find the correct item based on category
         if (strtolower($category) === 'room') {
             $data = Room::findOrFail($id);
             $data->display_name = "Room " . ($data->room_number ?? $id);
-    
+            
+            // Use RoomReservation model
             $reservations = RoomReservation::where('room_id', $id)
                 ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
                 ->get();
-    
+                
             $dateFieldIn = 'Room_Reservation_Check_In_Time';
             $dateFieldOut = 'Room_Reservation_Check_Out_Time';
-    
         } else {
             $data = Venue::findOrFail($id);
             $data->display_name = $data->name;
-    
+
+            // Use VenueReservation model
             $reservations = VenueReservation::where('venue_id', $id)
                 ->whereIn('status', ['pending', 'confirmed', 'checked-in'])
                 ->get();
-    
+                
             $dateFieldIn = 'Venue_Reservation_Check_In_Time';
             $dateFieldOut = 'Venue_Reservation_Check_Out_Time';
         }
-    
-        // Send ranges instead of individual dates
-        $occupiedDates = $reservations->map(function ($res) use ($dateFieldIn, $dateFieldOut) {
-            return [
-                'start' => \Carbon\Carbon::parse($res->$dateFieldIn)->format('Y-m-d'),
-                'end'   => \Carbon\Carbon::parse($res->$dateFieldOut)->format('Y-m-d')
-            ];
-        });
-    
+
+        // 2. Map the occupied dates
+        $occupiedDates = [];
+        foreach ($reservations as $res) {
+            $period = CarbonPeriod::create($res->$dateFieldIn, $res->$dateFieldOut);
+            foreach ($period as $date) {
+                $occupiedDates[] = $date->format('Y-m-d');
+            }
+        }
+        
+        // Remove duplicate dates just in case, and reset array keys
+        $occupiedDates = array_values(array_unique($occupiedDates));
+
+        // 3. Pass the data AND the occupiedDates to the view
         return view('client.room_venue_viewing', compact('data', 'category', 'occupiedDates'));
     }
-    
     public function prepareBooking(\Illuminate\Http\Request $request)
     {
+        // Grab all the data the user just submitted (dates, pax, accommodation_id, type)
         $bookingData = $request->all();
-    
+
+        // 1. If it's a Room, skip food and go straight to Checkout
         if ($request->type === 'room') {
             return redirect()->route('checkout', $bookingData);
         }
-    
+
+        // 2. If it's a Venue, fetch the food and go to the Food Options page
         if ($request->type === 'venue') {
-            $foods = Food::where('status', 'available')
-                ->get()
-                ->groupBy(function ($food) {
-                    return strtolower($food->food_category);
-                });
-    
+            
+            // FETCH THE AVAILABLE FOOD HERE
+            $foods = Food::where('status', 'available')->get()->groupBy('food_category');
+
+            // PASS BOTH bookingData AND foods TO THE VIEW
             return view('client.food_option', compact('bookingData', 'foods'));
         }
     }
-
-    
 
     public function update(Request $request)
     {
@@ -302,21 +308,60 @@ class RoomVenueController extends Controller
         }
 
         $client = User::findOrFail($userId);
+
+        // Prefill data for edit mode (passed via query string from the employee modal)
+        $reservationId  = $request->reservation_id;
+        $prefillPax     = $request->pax;
+        $prefillPurpose = $request->purpose;
+
+        // 2a. If editing, collect dates belonging to THIS reservation so they
+        //     can be shown as "current" (blue/selectable) instead of "occupied" (red).
+        $currentReservationDates = [];
+        if ($reservationId) {
+            if ($category === 'Room') {
+                $editRes = \App\Models\RoomReservation::find($reservationId);
+                if ($editRes) {
+                    $editPeriod = CarbonPeriod::create(
+                        $editRes->Room_Reservation_Check_In_Time,
+                        $editRes->Room_Reservation_Check_Out_Time
+                    );
+                    foreach ($editPeriod as $d) {
+                        $currentReservationDates[] = $d->format('Y-m-d');
+                    }
+                }
+            } else {
+                $editRes = \App\Models\VenueReservation::find($reservationId);
+                if ($editRes) {
+                    $editPeriod = CarbonPeriod::create(
+                        $editRes->Venue_Reservation_Check_In_Time,
+                        $editRes->Venue_Reservation_Check_Out_Time
+                    );
+                    foreach ($editPeriod as $d) {
+                        $currentReservationDates[] = $d->format('Y-m-d');
+                    }
+                }
+            }
+        }
+
+        // 2b. Build occupied dates, excluding the current reservation's own dates
         $occupiedDates = [];
-
-        // 2. Generate the list of occupied dates
         foreach ($reservations as $res) {
-            // Ensure we are using the aliased names 'check_in' and 'check_out'
             $period = CarbonPeriod::create($res->check_in, $res->check_out);
-
             foreach ($period as $date) {
-                $occupiedDates[] = $date->format('Y-m-d');
+                $dateStr = $date->format('Y-m-d');
+                // Skip dates that belong to the reservation being edited
+                if (!in_array($dateStr, $currentReservationDates)) {
+                    $occupiedDates[] = $dateStr;
+                }
             }
         }
 
         $occupiedDates = array_values(array_unique($occupiedDates));
 
-        return view('employee.create_reservation', compact('data', 'category', 'occupiedDates', 'client'));
+        return view('employee.create_reservation', compact(
+            'data', 'category', 'occupiedDates', 'client',
+            'reservationId', 'prefillPax', 'prefillPurpose', 'currentReservationDates'
+        ));
     }
 }
 

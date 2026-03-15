@@ -38,6 +38,7 @@
             </thead>
 
             <tbody>
+              @php $lastSoaDate = null; @endphp
               @foreach($reservations as $index => $r)
                   <tr
                     class="soa-table-row"
@@ -65,8 +66,13 @@
 
                 @if(!empty($r['additional_fee_items']))
                   @foreach($r['additional_fee_items'] as $fee)
+                  @php
+                    $feeDate = !empty($fee['date']) ? \Carbon\Carbon::parse($fee['date'])->format('m/d/Y') : '';
+                    $showDate = ($feeDate !== '' && $feeDate !== $lastSoaDate) ? $feeDate : '';
+                    if ($feeDate !== '') $lastSoaDate = $feeDate;
+                  @endphp
                   <tr class="soa-extra-row" data-group="soa-group-{{ $index }}">
-                    <td></td>
+                    <td>{{ $showDate }}</td>
                     <td style="padding-left:30px;">
                       + {{ $fee['desc'] }}
                     </td>

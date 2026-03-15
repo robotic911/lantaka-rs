@@ -65,7 +65,7 @@
             <div class="filter-section" style="display: flex; align-items: center; gap: 15px;">
               <div class="filter-group">
                 <select name="date" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Date ▼</option>
+                  <option value="">Date  </option>
                   <option value="last_week " {{ request('date') == 'last_week' ? 'selected' : '' }}>Last 7 Days</option>
                   <option value="last_month" {{ request('date') == 'last_month' ? 'selected' : '' }}>Last 30 Days</option>
                   <option value="last_year" {{ request('date') == 'last_year' ? 'selected' : '' }}>This Year</option>
@@ -74,7 +74,7 @@
               
               <div class="filter-group">
                 <select name="client_type" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Client Type ▼</option>
+                  <option value="">Client Type  </option>
                   <option value="Internal" {{ request('client_type') == 'Internal' ? 'selected' : '' }}>Internal</option>
                   <option value="External" {{ request('client_type') == 'External' ? 'selected' : '' }}>External</option>
                 </select>
@@ -82,7 +82,7 @@
               
               <div class="filter-group">
                 <select name="accommodation_type" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Accommodation Type ▼</option>
+                  <option value="">Accommodation Type  </option>
                   <option value="room" {{ request('accommodation_type') == 'room' ? 'selected' : '' }}>Room</option>
                   <option value="venue" {{ request('accommodation_type') == 'venue' ? 'selected' : '' }}>Venue</option>
                 </select>
@@ -112,6 +112,7 @@
               </tr>
             </thead>
             <tbody>
+ 
               @forelse($reservations as $res)
               @if(in_array($res->status, ['confirmed','checked-in','checked-out','cancelled']))
 
@@ -181,8 +182,9 @@
                       <button class="expand-btn" data-info="{{
                         json_encode([
                             'id' => $res->id,
+                            'idx' => $res->type == 'venue' ? $res->venue_id : $res->room_id,
                             'status' => strtolower($res->status),
-                            'name' => $res->user->name ?? $res->user->first_name ?? 'Unknown',
+                            'name' => $res->user->name ?? $res->user->first_name ?? 'Unknssown',
                             'accommodation' => $accName,
                             'phone' => $res->user->phone ?? 'Error phone',
                             'email' => $res->user->email ?? 'Error email',

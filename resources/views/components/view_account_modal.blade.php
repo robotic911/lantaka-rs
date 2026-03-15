@@ -50,7 +50,7 @@
         </div>
 
         <div class="approval-buttons">
-            <button type="submit" name="action" value="deactivate" class="approval-btn decline btn-decline">DEACTIVATE</button>
+            <button type="submit" name="action" value="deactivate" class="approval-btn deactivate btn-decline">DEACTIVATE</button>
             <button type="submit" name="action" value="save" class="approval-btn accept btn-accept">SAVE</button>
         </div>
       </form>

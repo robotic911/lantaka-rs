@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('modalPax').textContent = data.pax;
       document.getElementById('modalCheckIn').textContent = data.check_in;
       document.getElementById('modalCheckOut').textContent = data.check_out;
-      document.getElementById('modalFoodIdLabel').textContent = `Food ID (${data.display_id}):`;
+      document.getElementById('modalFoodIdLabel').textContent = `Food:`;
 
       const cancelBtn = document.querySelector('.detail-section-cancel');
       if (cancelBtn) {

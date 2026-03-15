@@ -8,21 +8,23 @@ use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Reservation;
-
 class GuestCheckOutMail extends Mailable
 {
     use Queueable, SerializesModels;
     public $reservation;
+    public $type;
+    public $foodTotal;
 
     /**
      * Create a new message instance.
      *
      * @return void
      */
-    public function __construct(Reservation $reservation) // <--- Add the variable here!
+    public function __construct($reservation, $type = 'room', $foodTotal = 0)
     {
         $this->reservation = $reservation;
+        $this->type        = $type;
+        $this->foodTotal   = $foodTotal;
     }
 
     /**

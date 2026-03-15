@@ -1,4 +1,6 @@
-
+a{
+  text-decoration: none;
+}
 
 .container {
   display: flex;
@@ -153,7 +155,7 @@
 }
 
 .status-badge.pending {
-  background-color: #ffd700;
+  background-color: #92c0ff;
   color: var(--status-online);
 }
 
@@ -163,9 +165,10 @@
 }
 
 .status-badge.deactivated {
-  background-color: rgba(158, 158, 158, 0.2);
+  background-color: rgba(165, 165, 165, 0.2);
   color: var(--status-deactivated);
 }
+
 
 .status-badge.declined {
   background-color: rgba(239, 83, 80, 0.2);
@@ -180,25 +183,37 @@
 /* Action Button */
 
 .action-btn-approve {
-  background: none;
+  background: #659ae4;
   border: none;
+  border-radius: 100%;
   font-size: 16px;
   cursor: pointer;
   color: var(--primary-blue);
-  transition: color 0.3s ease;
-  padding: 4px 8px;
+  transition: color 0.1s ease;
+  padding: 7px 8px;
+}
+.action-btn-approve:hover {
+  background: #9bc1f7;
+
 }
 .action-btn-view {
-  background: none;
+  background-color: #ffc107;
   border: none;
+  border-radius: 100%;
   font-size: 16px;
   cursor: pointer;
-  color: var(--primary-blue);
-  transition: color 0.3s ease;
-  padding: 4px 8px;
+  color: black;
+  transition: color 0.1s ease;
+  padding: 8px 12px;
 }
+.action-btn-view:hover {
+  color: #000000;
+  background-color: #ffe081;
+}
+
 .action-btn:hover {
-  color: var(--primary-dark);
+  color: #ffc107;
+  background-color: #c6c6c6;
 }
 
 /* Responsive */

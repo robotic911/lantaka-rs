@@ -48,7 +48,7 @@
                 </div>
 
                 <div class="user-profile-modal">
-                    <a href="#" class="modal-link">
+                    <a href="{{ route('client.account') }}" class="modal-link">
                         <button class="btn-view-account">View your account</button>
                     </a>
                     <form class="modal-form" action="{{ route('logout') }}" method="POST">

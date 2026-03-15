@@ -108,7 +108,7 @@
 }
 
 .filter-button::after {
-    content: '▼';
+    content: ' ';
     font-size: 10px;
 }
 

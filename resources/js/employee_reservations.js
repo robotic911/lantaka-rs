@@ -1,3 +1,8 @@
+let currentNights = 1;
+let currentDays = 1;
+let mode = "";
+
+
 document.addEventListener('DOMContentLoaded', () => {
   const expandButtons = document.querySelectorAll('.expand-btn');
   const modalOverlay = document.querySelector('.modal-overlay');
@@ -5,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const statusForm = document.getElementById('statusForm');
   const statusInput = document.getElementById('statusInput');
   const chargesContainer = document.getElementById('chargesContainer');
-  const addChargesBtn = document.getElementById('addAdditionalCharges');
+  const addChargesBtn = document.getElementById('addAdditsionalCharges');
   const discInput = document.getElementById('discount');
 
   console.log("employee_reservations.js connection working - FULL VERSION");
@@ -15,9 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const unitPriceEl = document.getElementById('unit-price');
     // Improved regex to handle the ₱ symbol and commas
     const base = unitPriceEl ? (parseFloat(unitPriceEl.textContent.replace(/[^\d.-]/g, '')) || 0) : 0;
-
     const foodEl = document.getElementById('summaryFood');
     const food = foodEl ? (parseFloat(foodEl.textContent.replace(/[^\d.-]/g, '')) || 0) : 0;
+    // const days = document.getElementById('');
 
     const discInput = document.getElementById('discount');
     const disc = discInput ? (parseFloat(discInput.value) || 0) : 0;
@@ -29,20 +34,27 @@ document.addEventListener('DOMContentLoaded', () => {
       const qty = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
       extra += (parseFloat(input.value) || 0) * qty;
     });
+    let multiplier = mode == "venue" ? currentDays : currentNights; 
+    const totalPriceWithCurrenNights = base * multiplier;
+    const modalNightsEl = document.getElementById('night-price');
+    if (modalNightsEl) modalNightsEl.textContent =  `₱${Number(totalPriceWithCurrenNights).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-    const grandTotal = (base + food + extra) - disc;
+  
+    console.log(mode + multiplier);
+    
+    const grandTotal = ((base * multiplier) + food + extra) - disc;
 
     // Debugging: Check your F12 console to see these numbers!
     console.log(`Calculation: Base(${base}) + Food(${food}) + Extra(${extra}) - Disc(${disc}) = ${grandTotal}`);
 
     const summaryExtra = document.getElementById('summaryExtra');
-    if (summaryExtra) summaryExtra.textContent = `₱ ${extra.toFixed(2)}`;
+    if (summaryExtra) summaryExtra.textContent = `₱ ${extra.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
     const summaryDiscount = document.getElementById('summaryDiscount');
-    if (summaryDiscount) summaryDiscount.textContent = `₱ ${disc.toFixed(2)}`;
+    if (summaryDiscount) summaryDiscount.textContent = `₱ ${disc.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
     const totalAmountEl = document.getElementById('totalAmount');
-    if (totalAmountEl) totalAmountEl.textContent = `₱${grandTotal.toFixed(2)}`;
+    if (totalAmountEl) totalAmountEl.textContent = `₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
   };
 
   if (discInput) {
@@ -50,9 +62,44 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- 2. MODAL POPULATION ---
+  // --- Edit button wiring ---
+  const editLinkBtn = document.getElementById('editLink');
+  if (editLinkBtn) {
+    editLinkBtn.addEventListener('click', function () {
+      const d = window.currentModalData;
+      console.log("hereserser");
+      
+      console.log(d);
+      if (!d) return;
+
+      const category    = d.accommodationType || 'Room';  // "Room" or "Venue"
+      const idx         = d.idx;
+      const userId      = d.userId;
+      const reservationId = d.id;
+      const checkIn     = d.check_in_raw || d.check_in;
+      const checkOut    = d.check_out_raw || d.check_out;
+      const pax         = d.pax || 1;
+      const purpose     = d.purpose || '';
+
+      const url = `/employee/create_reservation?` +
+        `category=${encodeURIComponent(category)}` +
+        `&id=${encodeURIComponent(idx)}` +
+        `&user_id=${encodeURIComponent(userId)}` +
+        `&reservation_id=${encodeURIComponent(reservationId)}` +
+        `&check_in=${encodeURIComponent(checkIn)}` +
+        `&check_out=${encodeURIComponent(checkOut)}` +
+        `&pax=${encodeURIComponent(pax)}` +
+        `&purpose=${encodeURIComponent(purpose)}`;
+
+      window.location.href = url;
+    });
+  }
+
   expandButtons.forEach(button => {
     button.addEventListener('click', function () {
       const data = JSON.parse(this.getAttribute('data-info'));
+      // Store so the Edit button can read it
+      window.currentModalData = data;
       if (chargesContainer) {
         chargesContainer.innerHTML = '';
   
@@ -76,16 +123,18 @@ document.addEventListener('DOMContentLoaded', () => {
             let desc = '';
             let qty = 1;
             let amount = 0;
+            let date = '';
           
             if (typeof item === 'string' && item.includes(':')) {
               const parts = item.split(':');
-          
+
               desc = parts[0] || '';
               qty = parseFloat(parts[1]) || 1;
               amount = parseFloat(parts[2]) || 0;
+              date = parts[3] || '';
             }
-          
-            window.addAdditionalCharges(desc, amount, qty);
+
+            window.addAdditionalCharges(desc, amount, qty, date);
           });
         } else {
           window.addAdditionalCharges('', 0);
@@ -101,6 +150,38 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('modalResId =', resIdField?.value);
       console.log('modalResType =', resTypeField?.value);
       console.log('full data =', data);
+ 
+      const checkIn = new Date(data.check_in);
+      const checkOut = new Date(data.check_out);
+      
+      // milliseconds → days
+      const diffDays = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
+      
+      console.log(diffDays);
+
+      console.log(checkIn + "check in");
+      
+      console.log(checkOut + "check Out");
+      const modalNightsEl = document.getElementById('modalNights');
+      mode = resTypeField.value;
+      if (resTypeField?.value === "room") {
+          currentNights = diffDays || 1;
+          currentDays = 1;
+          console.log('nights =', data.nights);
+          if (modalNightsEl) modalNightsEl.textContent = currentNights;
+      } else if (resTypeField?.value === "venue") {
+          currentDays = (diffDays + 1) || 1;
+          currentNights = 1;
+          console.log("Current Days:" + currentDays);
+          if (modalNightsEl) modalNightsEl.textContent = currentDays;
+      }
+  
+
+      
+ 
+
+      const nightsLabelEl = document.getElementById('nightsLabel');
+      if (nightsLabelEl) nightsLabelEl.textContent = data.accommodationType === 'Venue' ? 'Days' : 'Nights';
 
       updateSoaLink(data.userId);
 
@@ -128,30 +209,35 @@ document.addEventListener('DOMContentLoaded', () => {
       const blockCheckout = document.getElementById('checkedInActions');
       const blockAccept = document.getElementById('pendingActions');
       const showSOA = document.getElementById('exportSection');
-      const showAddChSection = document.getElementById('additionalChargesSection');
+      const showAddChSection = document.getElementById('modal-bottom');
 
       const row = this.closest('tr');
       const badge = row.querySelector('.badge');
       const badgeStatus = badge ? badge.textContent.trim() : '';
       const discountSection = document.getElementById('discountSection');
       const checkAccomodation = data.accommodationType;
-
+      document.querySelector('#editLink').style.display = 'flex';
       if (badgeStatus === "Completed" || badgeStatus === "Checked-out" || badgeStatus === "Cancelled") {
         if (blockCheckout) blockCheckout.style.display = 'none';
+        document.querySelector('#editLink').style.display = 'none';
       }
       if (badgeStatus === "Rejected") {
         if (blockAccept) blockAccept.style.display = 'none';
+        document.querySelector('#editLink').style.display = 'none';
       }
       if (badgeStatus === "Cancelled" || badgeStatus === "Completed") {
         if (blockCheckin) blockCheckin.style.display = 'none';
+        document.querySelector('#editLink').style.display = 'none';
       }
 
       if (badgeStatus !== "Checked-in") {
         showSOA.style.display = 'none';
         showAddChSection.style.display = 'none';
+        document.querySelector('.meals-container').style.maxHeight = '75vh';
+      
       } else {
-        showSOA.style.display = 'block';
-        showAddChSection.style.display = 'block';
+        showSOA.style.display = 'flex';
+        showAddChSection.style.display = 'flex';
       }
 
       if (badgeStatus === "Checked-in" && checkAccomodation === "Venue") {
@@ -160,6 +246,8 @@ document.addEventListener('DOMContentLoaded', () => {
         discountSection.classList.add('none');
       }
 
+      console.log(data);
+      
       let fullName = data.name || 'Unknown';
       let nameParts = fullName.trim().split(' ');
 
@@ -171,18 +259,41 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('affiliation').value = data.type || '';
       document.getElementById('modalName').textContent = data.accommodation || 'N/A';
       document.getElementById('modalLastName').textContent = data.pax || '1';
-      document.getElementById('modalCheckIn').textContent = data.check_in || '';
+      document.getElementById('modalCheckIn') && (document.getElementById('modalCheckIn').textContent = data.check_in || '');
       document.getElementById('modalCheckOut').textContent = data.check_out || '';
       document.getElementById('accomodation-type').textContent = data.accommodationType || '';
 
+      if (data.accommodationType == "Venue") {
+        document.getElementById('meal-container-left').style.display = "block";
+        // Populate the food table with the actual reserved foods
+        if (Array.isArray(data.foods) && data.foods.length > 0) {
+          createFoodTables(data.foods);
+        } else {
+          // No foods — reset all cells in the current container tables back to "None"
+          document.querySelectorAll('#foodTablesContainer .food-display').forEach(el => {
+            el.textContent = 'None';
+          });
+        }
+    } else {
+        document.getElementById('meal-container-left').style.display = "none";
+    }
+     
+      document.getElementById('fullName_r').textContent = fullName;
+      document.getElementById('phoneNumber_r').textContent = data.phone || '';
+      document.getElementById('email_r').textContent = data.email || '';
+      document.getElementById('affiliation_r').textContent = data.type || '';
+      const purposeEl = document.getElementById('purpose_r');
+      if (purposeEl) purposeEl.textContent = data.purpose || '';
+  
+
       const basePrice = data.price || data.total_amount || 0;
       const unitPriceEl = document.getElementById('unit-price');
-      if (unitPriceEl) unitPriceEl.textContent = `₱${parseFloat(basePrice).toFixed(2)}`;
+      if (unitPriceEl) unitPriceEl.textContent = `₱${parseFloat(basePrice).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
       // 2. Fix the Food Total (This explicitly updates the food text so the math works)
       const foodTotal = data.food_total || 0;
       const summaryFoodEl = document.getElementById('summaryFood');
-      if (summaryFoodEl) summaryFoodEl.textContent = `₱${parseFloat(foodTotal).toFixed(2)}`;
+      if (summaryFoodEl) summaryFoodEl.textContent = `₱${parseFloat(foodTotal).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
       // 3. Fix the Discount (Targets both possible ID variations safely)
       const discountValue = data.discount || 0;
@@ -194,12 +305,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // 4. Update the User ID
       const userIdEl = document.getElementById('userId');
       if (userIdEl) userIdEl.value = data.userId || '';
-
-      // 5. Update Food List (if applicable)
-      const foodListContainer = document.getElementById('modalFoodList');
-      if (foodListContainer && data.food_items) {
-        foodListContainer.innerHTML = data.food_items;
-      }
 
       window.calculateLiveTotal();
       modalOverlay.style.display = 'flex';
@@ -270,7 +375,7 @@ function updateSoaLink(clientId) {
   soaLink.href = `/employee/SOA/${clientId}`;
 }
 
-window.addAdditionalCharges = function (description = '', amount = 0, qty = 1) {
+window.addAdditionalCharges = function (description = '', amount = 0, qty = 1, date = '') {
   const chargesContainer = document.getElementById('chargesContainer');
   if (!chargesContainer) return;
 
@@ -279,9 +384,10 @@ window.addAdditionalCharges = function (description = '', amount = 0, qty = 1) {
   newRow.style.marginTop = '8px';
 
   newRow.innerHTML = `
-  <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 230px;" required>
-  <input type="number" name="additional_fees_qty[]" value="${qty}" placeholder="Qty" class="charge-input qty-input"  style="width: 70px;" min="1" value="1">
-  <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 100px;" required>
+  <input type="date" name="additional_fees_date[]" value="${date}" class="charge-input date-input" style="width: 140px;" title="Date of charge">
+  <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 180px;" required>
+  <input type="number" name="additional_fees_qty[]" value="${qty}" placeholder="Qty" class="charge-input qty-input" style="width: 60px;" min="1">
+  <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 90px;" required>
   <button type="button" class="remove-btn" onclick="this.parentElement.remove(); window.calculateLiveTotal();" style="background:none; border:none; color:red; cursor:pointer; font-size: 20px; padding-left: 5px;">&times;</button>
 `;
 
@@ -304,10 +410,181 @@ window.addAdditionalCharges = function (description = '', amount = 0, qty = 1) {
 
 const addChargesBtn = document.getElementById('addAdditionalCharges');
 if (addChargesBtn) {
-  addChargesBtn.addEventListener('click', () => window.addAdditionalCharges('', 0));
+  addChargesBtn.addEventListener('click', () => {
+    const todayStr = new Date().toISOString().split('T')[0];
+    window.addAdditionalCharges('', 0, 1, todayStr);
+  });
 }
 
-// --- 6. SAVE MODIFICATIONS SCRIPT ---
+// --- 6. FOOD TABLE HELPERS ---
+
+/**
+ * Reset every food cell back to "None"
+ */
+function resetSingleFoodTable(table) {
+  table.querySelectorAll('.food-display').forEach(el => {
+    el.textContent = 'None';
+  });
+}
+
+function groupFoodsByDate(foods) {
+  const grouped = {};
+
+  foods.forEach(food => {
+    // pivot.serving_time is the date ("2026-03-19"), not a meal label
+    const rawDate = food.pivot?.serving_time;
+
+    const date = rawDate
+      ? new Date(rawDate).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        })
+      : 'No Date';
+
+    if (!grouped[date]) {
+      grouped[date] = [];
+    }
+
+    grouped[date].push(food);
+  });
+
+  return grouped;
+}
+
+/**
+ * Populate the food table from the foods array in data-info.
+ * Each food has: food_name, food_category, pivot.serving_time (date),
+ *               pivot.meal_time (Breakfast / AM Snack / Lunch / PM Snack / Dinner)
+ *
+ * Columns (th order): Rice=1, Set Viand=2, Sidedish=3,
+ *                     Drinks=4, Desserts=5, Other Viand=6, Snack=7
+ * Rows (.meal-name):  Breakfast, AM Snack, Lunch, PM Snack, Dinner
+ */
+function createFoodTables(foods) {
+  const container = document.getElementById('foodTablesContainer');
+  const template  = document.querySelector('.food-table');
+
+  if (!container || !template) return;
+
+  container.innerHTML = '';
+
+  // food_category values stored in DB (lowercase / snake_case)
+  const categoryColMap = {
+    rice:        1,
+    set_viand:   2,
+    sidedish:    3,
+    drinks:      4,
+    desserts:    5,
+    other_viand: 6,
+    snack:       7,
+  };
+
+  // ── Group foods by pivot.serving_time (the date) ──
+  const groupedByDate = groupFoodsByDate(foods);
+
+  Object.entries(groupedByDate).forEach(([date, foodList]) => {
+    const newTable = template.cloneNode(true);
+
+    // Reset every food cell
+    newTable.querySelectorAll('.food-display').forEach(el => {
+      el.textContent = '';
+    });
+
+    // Restore all meal rows (in case template had some hidden)
+    newTable.querySelectorAll('tbody .meal-row').forEach(row => {
+      row.style.display = '';
+    });
+
+    // Show the date in the header
+    const dateEl = newTable.querySelector('.food-date');
+    if (dateEl) dateEl.textContent = date;
+
+    // ── Populate columns by meal_time + food_category ──
+    foodList.forEach(food => {
+      const category = food.food_category?.toLowerCase().trim();
+      const name     = food.food_name;
+      // meal_time stored in DB: e.g. "breakfast", "am_snack", "lunch", "pm_snack", "dinner"
+      // Match against the visible .meal-name text (case-insensitive, underscore → space)
+      const mealTimeRaw = food.pivot?.meal_time;
+
+      if (!category || !name) return;
+
+      const colIndex = categoryColMap[category];
+      if (!colIndex) return;
+
+      // Find the correct meal row by matching .meal-name text
+      let targetRow = null;
+      if (mealTimeRaw) {
+        // Normalise stored value: "am_snack" → "am snack", "PM_Snack" → "pm snack"
+        const mealNormalized = mealTimeRaw.replace(/_/g, ' ').toLowerCase().trim();
+
+        newTable.querySelectorAll('tbody .meal-row').forEach(row => {
+          const labelEl = row.querySelector('.meal-name');
+          if (labelEl) {
+            const labelNormalized = labelEl.textContent.toLowerCase().trim();
+            if (labelNormalized === mealNormalized) {
+              targetRow = row;
+            }
+          }
+        });
+      }
+
+      // Fallback: if meal_time not found, put it in the first row
+      if (!targetRow) {
+        targetRow = newTable.querySelector('tbody .meal-row');
+      }
+
+      if (!targetRow) return;
+
+      // td:nth-child(1) = label cell, food cells start at nth-child(2)
+      const cell = targetRow.querySelector(`td:nth-child(${colIndex + 1})`);
+      if (!cell) return;
+
+      const display = cell.querySelector('.food-display');
+      if (!display) return;
+
+      // Append to the cell (multiple items in same category → comma-separated)
+      if (display.textContent === 'None' || display.textContent === '') {
+        display.textContent = name;
+      } else {
+        display.textContent += `, ${name}`;
+      }
+    });
+
+    container.appendChild(newTable);
+  });
+}
+
+function renderFoodTables(foods) {
+  const container = document.getElementById('foodTablesContainer');
+  const template = container.querySelector('.food-table-template');
+
+  if (!container || !template) return;
+
+  // clear old generated tables
+  container.innerHTML = '';
+
+  const groupedFoods = groupFoodsByDate(foods);
+
+  Object.entries(groupedFoods).forEach(([date, foodsForDate], index) => {
+    const newTable = template.cloneNode(true);
+
+    newTable.classList.remove('food-table-template');
+    newTable.classList.add('generated-food-table');
+
+    const dateEl = newTable.querySelector('.food-date');
+    if (dateEl) {
+      dateEl.textContent = date;
+    }
+
+    populateSingleFoodTable(newTable, foodsForDate);
+
+    container.appendChild(newTable);
+  });
+}
+
+// --- 7. SAVE MODIFICATIONS SCRIPT ---
 window.saveModificationsAndSubmit = function (e) {
   e.preventDefault();
 

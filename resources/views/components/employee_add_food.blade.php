@@ -12,17 +12,17 @@
       </div>
 
       @if ($errors->any())
-        <div style="background-color: #ffe6e6; color: red; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
-          <ul style="margin: 0; padding-left: 20px;">
-            @foreach ($errors->all() as $error)
-              <li>{{ $error }}</li>
-            @endforeach
-          </ul>
-        </div>
+      <div style="background-color: #ffe6e6; color: red; padding: 10px; border-radius: 5px; margin-bottom: 15px;">
+        <ul style="margin: 0; padding-left: 20px;">
+          @foreach ($errors->all() as $error)
+          <li>{{ $error }}</li>
+          @endforeach
+        </ul>
+      </div>
       @endif
 
       <form action="{{ route('admin.food.store') }}" method="POST" class="addfood-form">
-        @csrf 
+        @csrf
 
         <div class="addfood-row">
           <div class="addfood-group">
@@ -40,25 +40,16 @@
         </div>
 
         <div class="addfood-group">
-          <label>Food Type</label>
-          <div class="addfood-radio">
-            <label class="addfood-radio-label">
-              <input type="radio" name="type" value="breakfast" checked>
-              <span>Breakfast</span>
-            </label>
-            <label class="addfood-radio-label">
-              <input type="radio" name="type" value="snack">
-              <span>Snack</span>
-            </label>
-            <label class="addfood-radio-label">
-              <input type="radio" name="type" value="lunch">
-              <span>Lunch</span>
-            </label>
-            <label class="addfood-radio-label">
-              <input type="radio" name="type" value="dinner">
-              <span>Dinner</span>
-            </label>
-          </div>
+          <label for="addFoodType">Food Category</label>
+          <select id="addFoodType" name="type" required>
+            <option value="rice">Rice</option>
+            <option value="set_viand">Set Viand</option>
+            <option value="sidedish">Side Dish</option>
+            <option value="drinks">Drinks</option>
+            <option value="desserts">Desserts</option>
+            <option value="snacks">Snacks</option>
+            <option value="other_viand">Other Viand</option>
+          </select>
         </div>
 
         <div class="addfood-group">

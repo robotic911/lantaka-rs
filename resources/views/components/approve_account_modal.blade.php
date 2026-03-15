@@ -16,11 +16,10 @@
             <label>Password</label>
             <div class="approval-password">
               <input type="password" value="********" readonly>
-              <span class="approval-eye">👁‍🗨</span>
+              <span class="approval-eye"></span>
             </div>
           </div>
         </div>
-
         <div class="approval-row">
           <div class="approval-field">
             <label>First Name</label>
@@ -45,8 +44,8 @@
 
         <div class="approval-field full-width">
             <label>ID / Proof of Identity</label>
-            <div class="id-preview-container" style="border: 1px solid #ccc; padding: 10px; border-radius: 5px; margin-top: 5px; text-align: center;">
-                <img id="approve_id_image" src="" alt="Valid ID" style="max-width: 100%; max-height: 250px; display: none;">
+            <div class="id-preview-container">
+                <img id="approve_id_image" src="" alt="Valid ID">
                 <p id="approve_no_id" style="color: #999;">No image available</p>
             </div>
         </div>

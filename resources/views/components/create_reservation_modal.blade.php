@@ -1,4 +1,3 @@
-@vite('resources/js/employee/create_reservation.js')
 @vite('resources/js/employee/search_accounts.js')
 <link rel="stylesheet" href="{{ asset('css/create_reservation.css') }}">
 

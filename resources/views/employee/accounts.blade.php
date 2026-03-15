@@ -32,7 +32,7 @@
         </div>
 
         <div class="tabs">
-          <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('role') ? 'active' : '' }}">All</a>
+          <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('role') ? 'active' : '' }}">All Accounts</a>
           
           <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
           
@@ -41,6 +41,7 @@
           <a href="{{ route('employee.accounts', ['status' => 'declined']) }}" class="tab-btn {{ request('status') == 'declined' ? 'active' : '' }}">Declined Client Account</a>
           
           <a href="{{ route('employee.accounts', ['status' => 'pending']) }}" class="tab-btn {{ request('status') == 'pending' ? 'active' : '' }}">Pending Client Account</a>
+          <a href="{{ route('employee.accounts', ['status' => 'deactivate']) }}" class="tab-btn {{ request('status') == 'deactivate' ? 'active' : '' }}">Deactivated Client Account</a>
         </div>
 
         <div class="table-container">
@@ -77,22 +78,30 @@
                     @elseif($user->status == 'approved')
                         <span class="status-badge online">Approved</span>
                     @elseif($user->status == 'declined')
-                        <span class="status-badge deactivated">Declined</span>
-                    @else
-                        <span class="status-badge online">Online</span>
+                        <span class="status-badge declined">Declined</span>
+                    @elseif($user->status == 'deactivate')
+                        <span class="status-badge deactivated">Deactivated</span>
                     @endif
                   </td>
                   <td>
-
                     @if($user->status == 'pending')
-                        <button class="action-btn-approve" data-user="{{ json_encode($user) }}">👁️</button>
-                    @else
-                        <button class="action-btn-view" data-user="{{ json_encode($user) }}">✎</button>
+                        <button class="action-btn-approve" data-user="{{ json_encode($user) }}">
+                          <span class="icon-eye">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/>
+                            </svg>
+                          </span>
+                        </button>
+                        @elseif($user->status == 'approved')
+                          <button class="action-btn-view" data-user="{{ json_encode($user) }}">✎</button>
+                        @else
+
                     @endif
 
                   </td>
                 </tr>
                 @empty
+                
                   <th style="display: flex; width: 150px; justify-content: center;">
                     Status
                   </th>

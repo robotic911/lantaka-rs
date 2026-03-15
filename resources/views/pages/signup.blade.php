@@ -12,7 +12,9 @@
     <div class="background"></div>
     <div class="card-header">
         <div class="logo-section">
-          <div class="logo-icon">🎓</div>
+          <div class="logo-icon">
+            <img src="{{ asset('images/adzu_logo.png') }}" class="logo">
+          </div>
           <p class="university-name">Ateneo de Zamboanga University</p>
         </div>
         <h1 class="main-title">Lantaka Room and Venue Reservation System</h1>
@@ -70,6 +72,7 @@
                 <option value="student" {{ old('affiliation') == 'student' ? 'selected' : '' }}>Student</option>
                 <option value="faculty" {{ old('affiliation') == 'faculty' ? 'selected' : '' }}>Faculty</option>
                 <option value="staff" {{ old('affiliation') == 'staff' ? 'selected' : '' }}>Staff</option>
+                <option value="student" {{ old('affiliation') == 'organization' ? 'selected' : '' }}>Organization</option>
                 <option value="external" {{ old('affiliation') == 'external' ? 'selected' : '' }}>External</option>
               </select>
             </div>

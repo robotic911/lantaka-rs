@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lantaka – Client Booking Flow</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e2e8f0;
+    min-height: 100vh;
+    padding: 40px 24px;
+  }
+
+  h1 {
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #f8fafc;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+
+  .subtitle {
+    text-align: center;
+    font-size: 0.82rem;
+    color: #64748b;
+    margin-bottom: 48px;
+  }
+
+  /* ── FLOW WRAPPER ── */
+  .flow {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  /* ── STEP CARD ── */
+  .step {
+    width: 100%;
+    background: #1e2130;
+    border: 1px solid #2d3148;
+    border-radius: 14px;
+    padding: 20px 24px;
+    position: relative;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    cursor: default;
+  }
+
+  .step:hover {
+    border-color: #4f6ef7;
+    box-shadow: 0 0 0 1px #4f6ef720, 0 8px 32px #0006;
+  }
+
+  .step-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+  }
+
+  .step-number {
+    flex-shrink: 0;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #4f6ef7;
+    color: #fff;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+  }
+
+  .step-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #f1f5f9;
+    line-height: 1.3;
+  }
+
+  .step-subtitle {
+    font-size: 0.75rem;
+    color: #64748b;
+    margin-top: 2px;
+  }
+
+  /* ── PILLS ── */
+  .pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+    margin-left: 42px;
+  }
+
+  .pill {
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 100px;
+    letter-spacing: 0.3px;
+  }
+
+  .pill-route   { background: #1e3a5f; color: #60aff5; border: 1px solid #2563eb44; }
+  .pill-ctrl    { background: #1a3326; color: #4ade80; border: 1px solid #16a34a44; }
+  .pill-view    { background: #2d1f47; color: #c084fc; border: 1px solid #9333ea44; }
+  .pill-comp    { background: #3b2012; color: #fb923c; border: 1px solid #ea580c44; }
+  .pill-js      { background: #2d2b10; color: #facc15; border: 1px solid #ca8a0444; }
+  .pill-session { background: #1f2b3b; color: #94a3b8; border: 1px solid #47556944; }
+  .pill-model   { background: #1e1e2e; color: #a5b4fc; border: 1px solid #6366f144; }
+
+  /* ── DETAIL ROWS ── */
+  .details {
+    margin-top: 14px;
+    margin-left: 42px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .detail-row {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    font-size: 0.77rem;
+    color: #94a3b8;
+    line-height: 1.5;
+  }
+
+  .detail-row .icon {
+    flex-shrink: 0;
+    font-size: 0.9rem;
+    margin-top: 1px;
+  }
+
+  .hl { color: #c084fc; font-weight: 600; }
+  .hl-green { color: #4ade80; font-weight: 600; }
+  .hl-yellow { color: #facc15; font-weight: 600; }
+  .hl-orange { color: #fb923c; font-weight: 600; }
+  .hl-blue { color: #60aff5; font-weight: 600; }
+
+  /* ── FORK ── */
+  .fork-block {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .fork-label {
+    text-align: center;
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #475569;
+    margin: 0 0 10px 0;
+  }
+
+  .fork-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .fork-card {
+    background: #1a1f35;
+    border: 1px solid #2d3148;
+    border-radius: 12px;
+    padding: 16px 18px;
+    transition: border-color 0.2s;
+  }
+
+  .fork-card:hover { border-color: #4f6ef7; }
+
+  .fork-card-title {
+    font-size: 0.8rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .fork-badge {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 100px;
+    text-transform: uppercase;
+  }
+
+  .badge-room { background: #1e3a5f; color: #60aff5; }
+  .badge-venue { background: #1a3326; color: #4ade80; }
+
+  .fork-card .details { margin-left: 0; margin-top: 0; }
+
+  /* ── CONNECTOR ARROWS ── */
+  .connector {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+    padding: 4px 0;
+    color: #334155;
+  }
+
+  .connector-line {
+    width: 2px;
+    height: 20px;
+    background: linear-gradient(to bottom, #334155, #4f6ef7);
+  }
+
+  .connector-arrow {
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid #4f6ef7;
+  }
+
+  .connector-label {
+    font-size: 0.65rem;
+    color: #4f6ef7;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin: 2px 0;
+    text-transform: uppercase;
+  }
+
+  /* ── FORK CONNECTOR ── */
+  .fork-connector {
+    position: relative;
+    width: 100%;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .fork-connector::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 50%;
+    background: linear-gradient(to bottom, #334155, #4f6ef7);
+  }
+
+  .fork-connector::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 25%;
+    right: 25%;
+    height: 2px;
+    background: #4f6ef7;
+  }
+
+  .fork-l, .fork-r {
+    position: absolute;
+    bottom: 0;
+    width: 2px;
+    height: 50%;
+    background: #4f6ef7;
+  }
+
+  .fork-l { left: 25%; transform: translateX(-50%); }
+  .fork-r { right: 25%; transform: translateX(50%); }
+
+  /* ── MERGE CONNECTOR ── */
+  .merge-connector {
+    position: relative;
+    width: 100%;
+    height: 40px;
+  }
+
+  .merge-connector::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    height: 50%;
+    background: #4f6ef7;
+  }
+
+  .merge-connector::after {
+    content: '';
+    position: absolute;
+    bottom: 50%;
+    left: 25%;
+    right: 25%;
+    height: 2px;
+    background: #4f6ef7;
+  }
+
+  .merge-l, .merge-r {
+    position: absolute;
+    top: 0;
+    width: 2px;
+    height: 50%;
+    background: #4f6ef7;
+  }
+
+  .merge-l { left: 25%; transform: translateX(-50%); }
+  .merge-r { right: 25%; transform: translateX(50%); }
+
+  /* ── LEGEND ── */
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin: 40px auto 0;
+    max-width: 700px;
+  }
+
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.72rem;
+    color: #64748b;
+  }
+
+  .legend-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 2px;
+  }
+
+  /* ── SESSION BADGE ── */
+  .session-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #1f2b3b;
+    border: 1px dashed #47556944;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 0.7rem;
+    color: #94a3b8;
+    margin-top: 10px;
+    margin-left: 42px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Lantaka — Client Booking Flow</h1>
+<p class="subtitle">From browsing to confirmed reservation · Controller → View → Components</p>
+
+<div class="flow">
+
+  <!-- STEP 1 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div>
+        <div class="step-title">Browse Accommodations</div>
+        <div class="step-subtitle">Client lands on the accommodations listing</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-route">GET /accommodations</span>
+      <span class="pill pill-ctrl">RoomVenueController@index</span>
+      <span class="pill pill-view">client/room_venue.blade.php</span>
+      <span class="pill pill-comp">&lt;x-client_room_venue_card&gt;</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">🗂️</span><span>Fetches all available rooms &amp; venues from DB, renders each as a <span class="hl-orange">&lt;x-client_room_venue_card&gt;</span> component</span></div>
+      <div class="detail-row"><span class="icon">👆</span><span>Clicking a card navigates to <span class="hl-blue">/checkout/{category}/{id}</span></span></div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label">click card</div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div>
+        <div class="step-title">View Room / Venue Detail</div>
+        <div class="step-subtitle">Detail page with interactive date picker</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-route">GET /checkout/{category}/{id}</span>
+      <span class="pill pill-ctrl">RoomVenueController@show</span>
+      <span class="pill pill-view">client/room_venue_viewing.blade.php</span>
+      <span class="pill pill-comp">&lt;x-booking_calendar&gt;</span>
+      <span class="pill pill-js">booking_calendar.js</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">📅</span><span>Controller queries <span class="hl">RoomReservation</span> or <span class="hl">VenueReservation</span> for booked dates, builds <span class="hl-yellow">$occupiedDates[]</span> array</span></div>
+      <div class="detail-row"><span class="icon">🧩</span><span><span class="hl-orange">&lt;x-booking_calendar&gt;</span> receives <span class="hl-yellow">$occupiedDates</span> as a prop → injected into <span class="hl-yellow">window.serverOccupiedDates</span> for JS</span></div>
+      <div class="detail-row"><span class="icon">⚙️</span><span><span class="hl-yellow">booking_calendar.js</span> renders the calendar grid, blocks occupied dates, and sets hidden inputs <span class="hl-blue">check_in</span> &amp; <span class="hl-blue">check_out</span></span></div>
+      <div class="detail-row"><span class="icon">📋</span><span>Form collects <span class="hl-blue">accommodation_id</span>, <span class="hl-blue">type</span>, <span class="hl-blue">check_in</span>, <span class="hl-blue">check_out</span>, <span class="hl-blue">pax</span> → submits GET to <span class="hl-blue">/booking/prepare</span></span></div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label">submit booking form</div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div>
+        <div class="step-title">Prepare Booking</div>
+        <div class="step-subtitle">Controller decides the next step based on type</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-route">GET /booking/prepare</span>
+      <span class="pill pill-ctrl">RoomVenueController@prepareBooking</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">🔀</span><span>Checks <span class="hl-blue">$request→type</span> — forks to either direct checkout (room) or food options (venue)</span></div>
+    </div>
+  </div>
+
+  <!-- FORK CONNECTORS -->
+  <div style="width:100%; position:relative; height:50px; display:flex; align-items:center; justify-content:center;">
+    <div style="position:absolute; top:0; left:50%; width:2px; height:50%; background:linear-gradient(to bottom,#334155,#4f6ef7); transform:translateX(-50%);"></div>
+    <div style="position:absolute; top:50%; left:25%; right:25%; height:2px; background:#4f6ef7;"></div>
+    <div style="position:absolute; top:50%; left:25%; width:2px; height:50%; background:#4f6ef7; transform:translateX(-50%);"></div>
+    <div style="position:absolute; top:50%; right:25%; width:2px; height:50%; background:#4f6ef7; transform:translateX(50%);"></div>
+  </div>
+
+  <!-- FORK CARDS -->
+  <div class="fork-row">
+    <div class="fork-card">
+      <div class="fork-card-title">
+        <span class="fork-badge badge-room">🛏 Room</span>
+        Direct to Checkout
+      </div>
+      <div class="details">
+        <div class="detail-row"><span class="icon">↩️</span><span>Redirects to <span class="hl-blue">GET /checkout</span> with all booking params as query string</span></div>
+        <div class="detail-row"><span class="icon">⏭️</span><span>Skips food selection entirely</span></div>
+      </div>
+    </div>
+    <div class="fork-card">
+      <div class="fork-card-title">
+        <span class="fork-badge badge-venue">🏛 Venue</span>
+        Food Options Page
+      </div>
+      <div class="pills" style="margin:0 0 10px 0;">
+        <span class="pill pill-view">client/food_option.blade.php</span>
+        <span class="pill pill-js">client_food_option.js</span>
+      </div>
+      <div class="details">
+        <div class="detail-row"><span class="icon">🍽️</span><span>Fetches <span class="hl-green">Food</span> models grouped by <span class="hl-yellow">food_category</span></span></div>
+        <div class="detail-row"><span class="icon">📆</span><span>Iterates every date in range using <span class="hl-blue">CarbonPeriod</span>, renders a meal table per day</span></div>
+        <div class="detail-row"><span class="icon">🔄</span><span>AJAX → <span class="hl-green">FoodController@getFoodsAjax</span> (<span class="hl-blue">GET /foods/ajax/list</span>) populates food <span class="hl-yellow">&lt;select&gt;</span> dropdowns</span></div>
+        <div class="detail-row"><span class="icon">🔘</span><span>Toggle per date (<span class="hl-blue">food_enabled[date]</span>) and per meal (<span class="hl-blue">meal_enabled[date][meal]</span>)</span></div>
+        <div class="detail-row"><span class="icon">📤</span><span>Submits GET → <span class="hl-blue">/checkout</span> with full <span class="hl-yellow">food_selections[date][meal][category]</span> tree</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MERGE CONNECTORS -->
+  <div style="width:100%; position:relative; height:50px;">
+    <div style="position:absolute; bottom:0; left:50%; width:2px; height:50%; background:#4f6ef7; transform:translateX(-50%);"></div>
+    <div style="position:absolute; bottom:50%; left:25%; right:25%; height:2px; background:#4f6ef7;"></div>
+    <div style="position:absolute; top:0; left:25%; width:2px; height:50%; background:#4f6ef7; transform:translateX(-50%);"></div>
+    <div style="position:absolute; top:0; right:25%; width:2px; height:50%; background:#4f6ef7; transform:translateX(50%);"></div>
+    <!-- arrow tip -->
+    <div style="position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:0; height:0; border-left:6px solid transparent; border-right:6px solid transparent; border-top:8px solid #4f6ef7;"></div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div>
+        <div class="step-title">Checkout — Build Cart Items</div>
+        <div class="step-subtitle">Controller assembles <code style="font-size:0.78rem;background:#0f1117;padding:1px 5px;border-radius:4px;">$processedItems</code> from session + DB</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-route">GET /checkout</span>
+      <span class="pill pill-ctrl">ReservationController@checkout</span>
+      <span class="pill pill-session">session('pending_bookings')</span>
+      <span class="pill pill-model">Room / Venue / Food</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">💾</span><span>Reads <span class="hl-blue">session('pending_bookings')</span>, merges new booking under key <span class="hl-yellow">{type}_{id}_{check_in}_{check_out}</span>, writes back to session</span></div>
+      <div class="detail-row"><span class="icon">🔍</span><span>For each booking: queries <span class="hl-green">Room</span> or <span class="hl-green">Venue</span> for name/price/image; queries <span class="hl-green">Food</span> models by IDs from food_selections</span></div>
+      <div class="detail-row"><span class="icon">🧮</span><span>Calculates <span class="hl-yellow">$accommodationTotal</span> (price × days), <span class="hl-yellow">$foodTotal</span> (food_price × pax per item, skipping disabled dates/meals)</span></div>
+      <div class="detail-row"><span class="icon">📦</span><span>Builds <span class="hl-yellow">$processedItems[]</span> with totals, raw selections, and food model collection → passes to view</span></div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label">return view</div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="step">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div>
+        <div class="step-title">My Bookings — Cart UI</div>
+        <div class="step-subtitle">The checkout page that displays cart items and the order summary</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-view">client/my_bookings.blade.php</span>
+      <span class="pill pill-view">layouts/client.blade.php</span>
+      <span class="pill pill-comp">partials/client/header.blade.php</span>
+      <span class="pill pill-js">my_booking.js</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">🏗️</span><span>Extends <span class="hl">layouts/client.blade.php</span> → includes <span class="hl-orange">partials/client/header.blade.php</span> in the layout shell</span></div>
+    </div>
+
+    <!-- INNER LAYOUT -->
+    <div style="margin-top:16px; margin-left:42px; display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+
+      <div style="background:#0f1117; border:1px solid #2d3148; border-radius:10px; padding:14px;">
+        <div style="font-size:0.75rem; font-weight:700; color:#c084fc; margin-bottom:8px;">📦 .cart-items (left panel)</div>
+        <div class="details" style="margin:0;">
+          <div class="detail-row"><span class="icon">🔁</span><span><span class="hl-yellow">@forelse($processedItems)</span> renders each booking as <span class="hl-orange">.cart-item</span> div</span></div>
+          <div class="detail-row"><span class="icon">📊</span><span>All data embedded as <span class="hl-blue">data-*</span> attributes: name, total, id, type, dates, pax, food JSON, food-selections, food-enabled, meal-enabled</span></div>
+          <div class="detail-row"><span class="icon">🍽️</span><span>Venues with food show: foods grouped by category + a date×food table</span></div>
+          <div class="detail-row"><span class="icon">🖱️</span><span>Click = toggles <span class="hl-orange">.highlighted</span> class → triggers <span class="hl-yellow">my_booking.js</span></span></div>
+        </div>
+      </div>
+
+      <div style="background:#0f1117; border:1px solid #2d3148; border-radius:10px; padding:14px;">
+        <div style="font-size:0.75rem; font-weight:700; color:#c084fc; margin-bottom:8px;">🧾 .checkout-summary (right panel)</div>
+        <div class="details" style="margin:0;">
+          <div class="detail-row"><span class="icon">🙈</span><span>Hidden by default; shown when at least one item is selected</span></div>
+          <div class="detail-row"><span class="icon">📋</span><span><span class="hl-orange">#summary-items</span> — accommodation rows with subtotals</span></div>
+          <div class="detail-row"><span class="icon">🍽️</span><span><span class="hl-orange">#summary-foods</span> — food breakdown by date/meal/category</span></div>
+          <div class="detail-row"><span class="icon">💰</span><span><span class="hl-orange">#summary-grand-total</span> — running sum of all selected items</span></div>
+          <div class="detail-row"><span class="icon">📤</span><span>Hidden input <span class="hl-orange">#selected-items-input</span> holds JSON payload for form POST</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- JS Section -->
+    <div style="margin-top:12px; margin-left:42px; background:#2d2b10; border:1px solid #ca8a0444; border-radius:10px; padding:14px;">
+      <div style="font-size:0.75rem; font-weight:700; color:#facc15; margin-bottom:8px;">⚙️ my_booking.js — Cart Logic</div>
+      <div class="details" style="margin:0;">
+        <div class="detail-row"><span class="icon">🗃️</span><span>In-memory <span class="hl-yellow">cart{}</span> object — keyed by <span class="hl-blue">{type}_{id}_{checkIn}_{checkOut}</span></span></div>
+        <div class="detail-row"><span class="icon">👆</span><span><span class="hl-yellow">selectItem(el)</span> — reads data-* attrs, re-parses food JSON, recalculates food total (skipping disabled dates/meals), pushes into cart</span></div>
+        <div class="detail-row"><span class="icon">🔄</span><span><span class="hl-yellow">renderSummaryItems()</span> — writes accommodation subtotal rows into <span class="hl-orange">#summary-items</span></span></div>
+        <div class="detail-row"><span class="icon">🍱</span><span><span class="hl-yellow">renderSummaryFoods()</span> — writes date-grouped food entries with meal label, category, pax &amp; subtotal into <span class="hl-orange">#summary-foods</span></span></div>
+        <div class="detail-row"><span class="icon">💵</span><span><span class="hl-yellow">updateGrandTotal()</span> — sums cart[].total → updates <span class="hl-orange">#summary-grand-total</span>, calls render functions</span></div>
+        <div class="detail-row"><span class="icon">📦</span><span><span class="hl-yellow">updateHiddenSelectedItemsInput()</span> — serializes cart to JSON → stuffs into <span class="hl-orange">#selected-items-input</span></span></div>
+        <div class="detail-row"><span class="icon">✅</span><span>Form submit guard — prevents submit if cart is empty, shows alert</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="connector">
+    <div class="connector-line"></div>
+    <div class="connector-label">POST reservation.store</div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="step" style="border-color:#16a34a44;">
+    <div class="step-header">
+      <div class="step-number" style="background:#16a34a;">6</div>
+      <div>
+        <div class="step-title" style="color:#4ade80;">Confirm Reservation</div>
+        <div class="step-subtitle">Store records in the database</div>
+      </div>
+    </div>
+    <div class="pills">
+      <span class="pill pill-route">POST /reservation/store</span>
+      <span class="pill pill-ctrl">ReservationController@store</span>
+      <span class="pill pill-model">RoomReservation / VenueReservation / FoodReservation</span>
+    </div>
+    <div class="details">
+      <div class="detail-row"><span class="icon">📥</span><span>Decodes <span class="hl-yellow">selected_items</span> JSON from the form POST</span></div>
+      <div class="detail-row"><span class="icon">💾</span><span>Creates <span class="hl-green">RoomReservation</span> or <span class="hl-green">VenueReservation</span> records, then <span class="hl-green">FoodReservation</span> entries for each food selection</span></div>
+      <div class="detail-row"><span class="icon">📧</span><span>Sends confirmation email via <span class="hl-blue">Mail</span> facade</span></div>
+      <div class="detail-row"><span class="icon">🧹</span><span>Clears <span class="hl-blue">session('pending_bookings')</span> on success</span></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- LEGEND -->
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#1e3a5f;border:1px solid #2563eb44;"></div> Route</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1a3326;border:1px solid #16a34a44;"></div> Controller</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2d1f47;border:1px solid #9333ea44;"></div> Blade View</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#3b2012;border:1px solid #ea580c44;"></div> Component</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2d2b10;border:1px solid #ca8a0444;"></div> JavaScript</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1f2b3b;border:1px solid #47556944;"></div> Session</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#1e1e2e;border:1px solid #6366f144;"></div> Eloquent Model</div>
+</div>
+
+</body>
+</html>

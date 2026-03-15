@@ -28,7 +28,7 @@
         </div>
 
         <div class="detail-section">
-          <p class="detail-label" id="modalFoodIdLabel">Food ID:</p>
+          <p class="detail-label" id="modalFoodIdLabel">Food:</p>
           
           <div id="modalFoodList"></div>
           <input type="hidden" id="cancelReservationId">

@@ -54,7 +54,7 @@
               <div class="filter-group">
                 {{-- Added name="date" and onchange to auto-submit --}}
                 <select name="date" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Date ▼</option>
+                  <option value="">Date</option>
                   <option value="last_week" {{ request('date') == 'last_week' ? 'selected' : '' }}>Last week</option>
                   <option value="last_month" {{ request('date') == 'last_month' ? 'selected' : '' }}>Last month</option>
                   <option value="last_year" {{ request('date') == 'last_year' ? 'selected' : '' }}>Last year</option>
@@ -62,14 +62,14 @@
               </div>
               <div class="filter-group">
                 <select name="client_type" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Client Type ▼</option>
+                  <option value="">Client Type</option>
                   <option value="Internal" {{ request('client_type') == 'Internal' ? 'selected' : '' }}>Internal</option>
                   <option value="External" {{ request('client_type') == 'External' ? 'selected' : '' }}>External</option>
                 </select>
               </div>
               <div class="filter-group">
                 <select name="accommodation_type" class="filter-select" onchange="this.form.submit()">
-                  <option value="">Accommodation Type ▼</option>
+                  <option value="">Accommodation Type</option>
                   <option value="room" {{ request('accommodation_type') == 'room' ? 'selected' : '' }}>Room</option>
                   <option value="venue" {{ request('accommodation_type') == 'venue' ? 'selected' : '' }}>Venue</option>
                 </select>
@@ -125,6 +125,17 @@
                       $extraFees = 0;
                       $extraFeesDesc = '';
                       $foodTotal = 0;
+                    
+                     
+                      $checkIn = \Carbon\Carbon::parse($dbCheckIn);
+                      $checkOut = \Carbon\Carbon::parse($dbCheckOut);
+
+                      // Rooms bill per night (Mar 25–26 = 1 night)
+                      // Venues bill per day inclusive (Mar 25–26 = 2 days)
+                      $nights = $isRoom
+                          ? ($checkIn->diffInDays($checkOut) ?: 1)
+                          : ($checkIn->diffInDays($checkOut) + 1);
+
 
                       if($isRoom) {
                           $basePrice = $reservation->room->price ?? 0;
@@ -171,7 +182,9 @@
                       <td class="action-cell">
                           <button class="expand-btn"
                                   data-info="{{ json_encode([
+                                      'nights' => $nights,
                                       'id' => $dbId,
+                                      'idx' => $reservation->display_type == 'venue' ? $reservation->venue_id : $reservation->room_id,
                                       'db_id_display' => str_pad($dbId, 5, '0', STR_PAD_LEFT),
                                       'status' => strtolower($reservation->status),
                                       'res_type' => $reservation->display_type,
@@ -183,15 +196,22 @@
                                       'accommodation' => $accName,
                                       'accommodationType' => $reservationType,
                                       
+                                      
                                       'price' => $basePrice,
                                       'food_total' => $foodTotal,
                                       'discount' => $discount,
                                       'additional_fees' => $extraFees,
                                       'additional_fees_desc' => $extraFeesDesc,
                                       
+                                      
                                       'pax' => $reservation->pax,
                                       'check_in' => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
                                       'check_out' => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
+                                      'check_in_raw' => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
+                                      'check_out_raw' => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
+                                      'accommodation_id' => $isRoom ? $reservation->room_id : $reservation->venue_id,
+                                      'userId' => $reservation->Client_ID,
+                                      'purpose' => $reservation->purpose ?? '',
                                       'foods' => $reservation->foods ?? []
                                   ]) }}">
                               ⤢
@@ -210,6 +230,14 @@
 
             </tbody>
           </table>
+
+          {{-- Pagination --}}
+          @if($reservations->hasPages())
+            <div style="padding: 4px 20px;">
+              {{ $reservations->links('vendor.pagination.simple') }}
+            </div>
+          @endif
+
         </div>
       </div>
       <x-modal_e_reservations/>

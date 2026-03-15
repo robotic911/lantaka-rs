@@ -16,6 +16,7 @@ class FoodReservation extends Model
         'client_id',
         'staff_id',
         'serving_time',
+        'meal_time',
         'total_price',
         'status',
     ];

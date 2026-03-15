@@ -16,9 +16,10 @@ class RoomReservation extends Model
         'Room_Reservation_Check_In_Time',
         'Room_Reservation_Check_Out_Time', 
         'Room_Reservation_Total_Price',
-        'pax', 
+        'pax',
+        'purpose',
         'status',
-        'Room_Reservation_Additional_Fees', 
+        'Room_Reservation_Additional_Fees',
         'Room_Reservation_Additional_Fees_Desc'
     ];
 

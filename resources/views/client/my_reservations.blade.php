@@ -32,8 +32,6 @@
             <option value="confirmed" {{ request('status') == 'confirmed' ? 'selected' : '' }}>Confirmed</option>
             <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
         </select>
-        
-        <a href="{{ route('client.my_reservations') }}" class="btn-clear">Clear</a>
     </div>
 </form>
 

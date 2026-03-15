@@ -16,7 +16,7 @@
                         <h3>Total Reservations</h3>
                         <img src="{{ asset('images/logo/dashboard/dashboard-reservations.svg') }}" alt="reservations">
                     </div>
-                    <div class="stat-value">{{ $totalReservations ?? 0 }}</div>
+                    <div class="stat-value" id="totalReservationsValue">{{ $totalReservations ?? 0 }}</div>
                     <div class="stat-change">+20.1% from last month</div>
                 </div>
                 <div class="stat-card">
@@ -24,7 +24,7 @@
                         <h3>Occupancy Rate</h3>
                         <img src="{{ asset('images/logo/dashboard/dashboard-occupancy.svg') }}" alt="reservations">
                     </div>
-                    <div class="stat-value">{{ number_format($occupancyRate ?? 0, 1) }}%</div>
+                    <div class="stat-value" id="occupancyRateValue">{{ number_format($occupancyRate ?? 0, 1) }}%</div>
                     <div class="stat-change">+2.5% from last month</div>
                 </div>
 
@@ -33,7 +33,7 @@
                         <h3>Revenue</h3>
                         <img src="{{ asset('images/logo/dashboard/dashboard-revenue.svg') }}" alt="reservations">
                     </div>
-                    <div class="stat-value">₱{{ number_format($totalRevenue ?? 0) }}</div>
+                    <div class="stat-value" id="totalRevenueValue">₱{{ number_format($totalRevenue ?? 0) }}</div>
                     <div class="stat-change">+15.3% from last month</div>
                 </div>
 
@@ -42,7 +42,7 @@
                         <h3>Active Guest</h3>
                         <img src="{{ asset('images/logo/dashboard/dashboard-guests.svg') }}" alt="reservations">
                     </div>
-                    <div class="stat-value">{{ $activeGuests ?? 0 }}</div>
+                    <div class="stat-value" id="activeGuestsValue">{{ $activeGuests ?? 0 }}</div>
                     <div class="stat-change">+7.2% from last month</div>
                 </div>
                 <div class="stat-card">
@@ -50,7 +50,7 @@
                         <h3>Checked-outs Today</h3>
                         <img src="{{ asset('images/logo/dashboard/dashboard-occupancy.svg') }}" alt="reservations">
                     </div>
-                    <div class="stat-value">{{ number_format($occupancyRate ?? 0, 1) }}%</div>
+                    <div class="stat-value" id="checkOutsTodayValue">{{ number_format($checkOutsTodayCount ?? 0) }}</div>
                     <div class="stat-change">+2.5% from last month</div>
                 </div>
             </div>
@@ -148,6 +148,7 @@
             window.reservations = @json($reservations);
             window.reservationPage = "{{ route('employee.reservations') }}"
             window.guestPage = "{{ route('employee.guest') }}"
+            window.calendarDataRoute = "{{ route('calendar.fetchUpdatedData') }}";
         </script>
 @endsection
     
