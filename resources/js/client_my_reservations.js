@@ -1,185 +1,150 @@
 document.addEventListener('DOMContentLoaded', () => {
-  const expandButtons = document.querySelectorAll('.expand-button');
-  const modalOverlay = document.querySelector('.modal-overlay');
-  const closeBtn = document.querySelector('.close-btn');
 
-  function formatDateHeader(dateString) {
-    if (!dateString) return 'Unknown Date';
+  /* ── References ── */
+  const overlay    = document.getElementById('crmOverlay');
+  const closeBtn   = document.getElementById('crmClose');
+  const expandBtns = document.querySelectorAll('.expand-button');
 
-    const date = new Date(dateString);
-    if (isNaN(date.getTime())) return dateString;
+  /* ── Helpers ── */
+  function el(id) { return document.getElementById(id); }
 
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: '2-digit',
-      year: 'numeric'
-    });
+  function statusClass(status) {
+    const map = {
+      pending: 'pending', confirmed: 'confirmed', cancelled: 'cancelled',
+      rejected: 'rejected', 'checked-in': 'checked-in',
+      'checked-out': 'checked-out', completed: 'completed',
+    };
+    return map[status?.toLowerCase()] ?? '';
   }
 
-  expandButtons.forEach(button => {
-    button.addEventListener('click', function () {
+  function calcDuration(rawIn, rawOut, type) {
+    if (!rawIn || !rawOut) return '—';
+    const d1   = new Date(rawIn);
+    const d2   = new Date(rawOut);
+    const diff = Math.round((d2 - d1) / 86400000);
+    if (diff <= 0) return '—';
+    const unit = type === 'venue'
+      ? (diff === 1 ? 'day'   : 'days')
+      : (diff === 1 ? 'night' : 'nights');
+    return `${diff} ${unit}`;
+  }
+
+  function buildFoodHtml(foods) {
+    if (!foods || foods.length === 0) {
+      return '<p class="crm-empty">No food reserved.</p>';
+    }
+
+    const grouped = {};
+    foods.forEach(f => {
+      const raw  = f.pivot?.Food_Reservation_Serving_Date || f.Food_Reservation_Serving_Date || null;
+      const name = f.Food_Name || f.name || 'Unknown item';
+      const meal = f.pivot?.Food_Reservation_Meal_time || f.Food_Reservation_Meal_time || null;
+      if (!raw) return;
+
+      const dateKey = raw.substring(0, 10); // "YYYY-MM-DD"
+      if (!grouped[dateKey]) grouped[dateKey] = [];
+      grouped[dateKey].push({ name, meal });
+    });
+
+    const dates = Object.keys(grouped).sort();
+    if (dates.length === 0) return '<p class="crm-empty">No food reserved.</p>';
+
+    return dates.map(date => {
+      const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      });
+      const items = grouped[date].map(item => `
+        <div class="crm-food-item">
+          <span class="crm-food-dot"></span>
+          <span>${item.name}</span>
+          ${item.meal ? `<span class="crm-food-meal">${item.meal}</span>` : ''}
+        </div>
+      `).join('');
+
+      return `
+        <div class="crm-food-date-group">
+          <p class="crm-food-date-header">${label}</p>
+          <div class="crm-food-items">${items}</div>
+        </div>
+      `;
+    }).join('');
+  }
+
+  function infoNoteText(status) {
+    const notes = {
+      'pending':     "Your reservation is awaiting review. We'll notify you once it's confirmed.",
+      'confirmed':   'Your reservation is confirmed! Please arrive on time for check-in.',
+      'checked-in':  "You're currently checked in. Enjoy your stay!",
+      'checked-out': 'Your stay has ended. Thank you for choosing Lantaka!',
+      'completed':   'Your stay has ended. Thank you for choosing Lantaka!',
+      'cancelled':   'This reservation has been cancelled.',
+      'rejected':    'This reservation was not approved. Please contact us for details.',
+    };
+    return notes[status?.toLowerCase()] ?? '';
+  }
+
+  /* ── Open modal ── */
+  expandBtns.forEach(btn => {
+    btn.addEventListener('click', function () {
       const data = JSON.parse(this.getAttribute('data-info'));
 
-      // --- 1. Fill basic text details ---
-      document.getElementById('modalAccommodation').textContent = data.accommodation;
-      document.getElementById('modalPax').textContent = data.pax;
-      document.getElementById('modalCheckIn').textContent = data.check_in;
-      document.getElementById('modalCheckOut').textContent = data.check_out;
-      document.getElementById('modalFoodIdLabel').textContent = `Food:`;
+      /* Header */
+      el('crmResId').textContent = `Reservation #${data.display_id}`;
+      el('crmTypePill').textContent = data.type === 'room' ? 'Room' : 'Venue';
 
-      const cancelBtn = document.querySelector('.detail-section-cancel');
-      if (cancelBtn) {
-        if (data.status !== 'pending') {
-          cancelBtn.style.display = 'none';
-        } else {
-          cancelBtn.style.display = 'flex';
-        }
+      const statusEl = el('crmStatusBadge');
+      const s = data.status || '';
+      statusEl.textContent = s.charAt(0).toUpperCase() + s.slice(1);
+      statusEl.className   = 'crm-status-badge ' + statusClass(s);
+
+      /* Details */
+      el('crmAccommodation').textContent = data.accommodation || '—';
+      el('crmPax').textContent           = data.pax           || '—';
+      el('crmCheckIn').textContent       = data.check_in      || '—';
+      el('crmCheckOut').textContent      = data.check_out     || '—';
+      el('crmDuration').textContent      = calcDuration(data.check_in_raw, data.check_out_raw, data.type);
+
+      /* Total */
+      el('crmTotal').textContent = `₱ ${data.total || '0.00'}`;
+
+      /* Payment badge — only meaningful after checkout */
+      const afterCheckout = ['checked-out', 'completed'].includes(s.toLowerCase());
+      el('crmPaymentRow').style.display = (afterCheckout && data.payment_status) ? '' : 'none';
+      if (afterCheckout && data.payment_status) {
+        const badge = el('crmPaymentBadge');
+        const ps = data.payment_status.toLowerCase();
+        badge.textContent = ps.charAt(0).toUpperCase() + ps.slice(1);
+        badge.className   = 'crm-payment-badge ' + ps;
       }
 
-      // --- 2. Store ID + type for cancellation ---
-      const idInput = document.getElementById('cancelReservationId');
-      if (idInput) {
-        idInput.value = data.real_id;
-        idInput.setAttribute('data-type', data.type);
-        console.log('Captured ID:', idInput.value, 'Type:', data.type);
-      }
+      /* Food */
+      el('crmFoodList').innerHTML = buildFoodHtml(data.foods);
 
-      // --- 3. Build food table by date ---
-      const foodListContainer = document.getElementById('modalFoodList');
-      let foodHtml = '';
-
-      if (data.foods && data.foods.length > 0) {
-        const foodsByDate = {};
-
-        data.foods.forEach(food => {
-          const servingTime =
-            food.pivot?.serving_time ||
-            food.serving_time ||
-            null;
-
-          const foodName =
-            food.food_name ||
-            food.name ||
-            'Unknown Food';
-
-          if (!servingTime) return;
-
-          if (!foodsByDate[servingTime]) {
-            foodsByDate[servingTime] = [];
-          }
-
-          foodsByDate[servingTime].push(foodName);
-        });
-
-        const dates = Object.keys(foodsByDate).sort();
-
-        if (dates.length > 0) {
-          let maxRows = 0;
-
-          dates.forEach(date => {
-            maxRows = Math.max(maxRows, foodsByDate[date].length);
-          });
-
-          foodHtml += `
-            <div style="overflow-x: auto; margin-top: 8px;">
-              <table style="width: 100%; border-collapse: collapse; font-size: 0.85em;">
-                <thead>
-                  <tr style="background: #f5f5f5;">
-          `;
-
-          dates.forEach(date => {
-            foodHtml += `
-              <th style="border: 1px solid #ddd; padding: 8px; text-align: left; min-width: 130px;">
-                ${formatDateHeader(date)}
-              </th>
-            `;
-          });
-
-          foodHtml += `
-                  </tr>
-                </thead>
-                <tbody>
-          `;
-
-          for (let row = 0; row < maxRows; row++) {
-            foodHtml += `<tr>`;
-
-            dates.forEach(date => {
-              foodHtml += `
-                <td style="border: 1px solid #ddd; padding: 8px; vertical-align: top;">
-                  ${foodsByDate[date][row] ?? '—'}
-                </td>
-              `;
-            });
-
-            foodHtml += `</tr>`;
-          }
-
-          foodHtml += `
-                </tbody>
-              </table>
-            </div>
-          `;
-        } else {
-          foodHtml = '<p class="detail-value" style="margin-top: 5px;">No food reserved.</p>';
-        }
+      /* Info note */
+      const note    = infoNoteText(s);
+      const noteBox = el('crmInfoNote');
+      if (note) {
+        el('crmInfoText').textContent = note;
+        noteBox.style.display = '';
       } else {
-        foodHtml = '<p class="detail-value" style="margin-top: 5px;">No food reserved.</p>';
+        noteBox.style.display = 'none';
       }
 
-      foodListContainer.innerHTML = foodHtml;
-
-      if (modalOverlay) {
-        modalOverlay.style.display = 'flex';
+      /* Contact card — show only for pending reservations */
+      const cancelSection = el('crmCancelSection');
+      if (cancelSection) {
+        cancelSection.style.display = s.toLowerCase() === 'pending' ? '' : 'none';
       }
+
+      overlay.classList.add('open');
     });
   });
 
-  // --- 4. Cancellation logic ---
-  window.confirmCancellation = async function () {
-    const inputEl = document.getElementById('cancelReservationId');
-    if (!inputEl) return;
+  /* ── Close modal ── */
+  function closeModal() { overlay.classList.remove('open'); }
+  if (closeBtn)  closeBtn.addEventListener('click', closeModal);
+  if (overlay)   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
-    const id = inputEl.value;
-    const type = inputEl.getAttribute('data-type');
-
-    if (!confirm('Are you sure you want to cancel this reservation?')) return;
-
-    try {
-      const response = await fetch(`/client/reservations/${id}/cancel`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').content
-        },
-        body: JSON.stringify({ type: type })
-      });
-
-      if (response.ok) {
-        alert('Reservation cancelled successfully.');
-        window.location.reload();
-      } else {
-        const result = await response.json();
-        alert(result.message || 'Failed to cancel reservation.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred. Check the console.');
-    }
-  };
-
-  // --- 5. Close modal ---
-  if (closeBtn && modalOverlay) {
-    closeBtn.addEventListener('click', () => {
-      modalOverlay.style.display = 'none';
-    });
-  }
-
-  if (modalOverlay) {
-    modalOverlay.addEventListener('click', (e) => {
-      if (e.target === modalOverlay) {
-        modalOverlay.style.display = 'none';
-      }
-    });
-  }
+  // Cancel is handled by contacting Lantaka — no client-side AJAX needed.
 });

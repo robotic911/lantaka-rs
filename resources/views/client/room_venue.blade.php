@@ -42,16 +42,15 @@
     <section class="accommodations">
       
         @if(isset($all_accommodations) && $all_accommodations->isNotEmpty())
-            
             @foreach($all_accommodations as $item)
               <a href="{{ route('client.show', parameters: ['category' => $item->category, 'id' => $item->id]) }}" 
               class="book-btn">
                 <div class="accommodations-grid">
                     <div class="card">
-                        <!-- <div class="card-image">
-                            <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('images/adzu_logo.png') }}" 
+                        <div class="card-image">
+                            <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('images/adzu_logo.png') }}"
                                 alt="{{ $item->display_name }}">
-                        </div> -->
+                        </div>
 
                         <div class="card-content">
                             <div>
@@ -62,7 +61,7 @@
                                     <span class="detail-item">👤 {{ $item->capacity }} Guests</span>
                                     @if (isset(Auth()->user()->usertype))
                                         @if ( Auth()->user()->usertype == 'Internal')
-                                          <span class="detail-item">₱ {{ number_format($item->price, 2) }}</span>
+                                          <span class="detail-item">₱ {{ number_format($item->internal_price, 2) }}</span>
                                         @else
                                           <span class="detail-item">₱ {{ number_format($item->external_price, 2) }}</span>
                                       @endif

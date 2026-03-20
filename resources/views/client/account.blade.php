@@ -6,8 +6,8 @@
 
 @php
   $user     = Auth::user();
-  $initials = collect(explode(' ', $user->name))->map(fn($w) => strtoupper($w[0] ?? ''))->take(2)->implode('');
-  $statusClass = strtolower($user->status ?? 'pending');
+  $initials = collect(explode(' ', $user->Account_Name))->map(fn($w) => strtoupper($w[0] ?? ''))->take(2)->implode('');
+  $statusClass = strtolower($user->Account_Status ?? 'pending');
 @endphp
 
 {{-- Flash messages --}}
@@ -39,7 +39,7 @@
         @endif
       </div>
 
-      <p class="profile-name">{{ $user->name }}</p>
+      <p class="profile-name">{{ $user->Account_Name }}</p>
       <span class="profile-status-badge {{ $statusClass }}">{{ ucfirst($statusClass) }}</span>
 
       <hr class="profile-divider">
@@ -55,7 +55,7 @@
           </div>
           <div class="profile-info-text">
             <span class="profile-info-label">Email</span>
-            <span class="profile-info-value">{{ $user->email }}</span>
+            <span class="profile-info-value">{{ $user->Account_Email }}</span>
           </div>
         </div>
 
@@ -67,7 +67,7 @@
           </div>
           <div class="profile-info-text">
             <span class="profile-info-label">Phone</span>
-            <span class="profile-info-value">{{ $user->phone ?? '—' }}</span>
+            <span class="profile-info-value">{{ $user->Account_Phone ?? '—' }}</span>
           </div>
         </div>
 
@@ -80,7 +80,7 @@
           </div>
           <div class="profile-info-text">
             <span class="profile-info-label">User Type</span>
-            <span class="profile-info-value">{{ $user->usertype ?? '—' }}</span>
+            <span class="profile-info-value">{{ $user->Account_Type ?? '—' }}</span>
           </div>
         </div>
 
@@ -152,25 +152,25 @@
             <div class="edit-form-group">
               <label class="edit-form-label" for="name">Full Name</label>
               <input class="edit-form-input" type="text" id="name" name="name"
-                     value="{{ old('name', $user->name) }}" required>
+                     value="{{ old('name', $user->Account_Name) }}" required>
             </div>
 
             <div class="edit-form-group">
               <label class="edit-form-label" for="username">Username</label>
               <input class="edit-form-input" type="text" id="username" name="username"
-                     value="{{ old('username', $user->username) }}" required>
+                     value="{{ old('username', $user->Account_Username) }}" required>
             </div>
 
             <div class="edit-form-group">
               <label class="edit-form-label" for="email">Email</label>
               <input class="edit-form-input" type="email" id="email" name="email"
-                     value="{{ old('email', $user->email) }}" required>
+                     value="{{ old('email', $user->Account_Email) }}" required>
             </div>
 
             <div class="edit-form-group">
               <label class="edit-form-label" for="phone">Phone Number</label>
               <input class="edit-form-input" type="text" id="phone" name="phone"
-                     value="{{ old('phone', $user->phone) }}" placeholder="e.g. 09171234567">
+                     value="{{ old('phone', $user->Account_Phone) }}" placeholder="e.g. 09171234567">
             </div>
 
             <div class="edit-form-group">
@@ -266,6 +266,7 @@
     input.type = isText ? 'password' : 'text';
     btn.querySelector('svg').style.opacity = isText ? '1' : '0.4';
   }
+  
 </script>
 
 @endsection

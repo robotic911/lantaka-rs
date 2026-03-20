@@ -76,7 +76,16 @@ a{
 .stat-change {
   font-size: 12px;
   color: #999;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
 }
+
+.chg-positive { color: #16a34a; font-weight: 700; }
+.chg-negative { color: #dc2626; font-weight: 700; }
+.chg-neutral  { color: #6b7280; font-weight: 600; }
+.chg-label    { color: #999; }
 
 /* Calendar Section */
 .calendar-section {

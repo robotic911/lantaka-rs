@@ -418,7 +418,9 @@
 /* Modal Container */
 .modal-container {
   width: 100%;
-  max-width: 1200px;
+  max-width: 1230px;
+  display: flex;
+  justify-content: center;
 }
 
 /* Modal Content */
@@ -508,6 +510,140 @@
   flex: 2;
   gap: 20px;
 }
+
+/* ============================================================
+   ROOM MODAL — Left Panel Redesign
+   Venue modal is untouched (no .room-mode class applied to it)
+   ============================================================ */
+
+/* Left panel: fixed-width action sidebar */
+.modal-body.room-mode .modal-left-column {
+  flex: 0 0 280px;
+  min-width: 0;
+  max-width: 280px;
+  overflow: visible;
+  background: #f4f6f9;
+  border-radius: 10px;
+  border: 1px solid #e2e6ea;
+  padding: 18px 14px;
+  gap: 0;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+/* Right summary column fills the rest */
+.modal-body.room-mode .modal-right-column {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Form: tighten gap for compact panel */
+.modal-body.room-mode .modal-form {
+  gap: 12px;
+  height: 100%;
+}
+
+/* EDIT button — full width, prominent */
+.modal-body.room-mode #editSection {
+  width: 100%;
+}
+
+.modal-body.room-mode #editSection #editLink {
+  width: 100% !important;
+  margin-top: 0 !important;
+  align-self: stretch !important;
+  font-size: 13px !important;
+  padding: 10px 12px !important;
+  text-align: center;
+  border-radius: 8px;
+  box-sizing: border-box;
+  display: block;
+}
+
+/* Bottom container: natural height, no fixed 18vh */
+.modal-body.room-mode .modal-left-bottom-container {
+  height: auto;
+  gap: 12px;
+}
+
+/* Additional charges + discount: vertical card layout */
+.modal-body.room-mode .add-fees-discount-container {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  gap: 10px;
+  background: #ffffff;
+  border-radius: 8px;
+  border: 1px solid #e2e6ea;
+  padding: 12px 10px;
+}
+
+/* Hide the decorative vertical <hr> bar — meaningless in vertical layout */
+.modal-body.room-mode .add-fees-discount-container > hr {
+  display: none;
+}
+
+/* Fees container: override the 60vh min-width that causes blowout */
+.modal-body.room-mode .add-fees-container {
+  min-width: 0;
+  width: 100%;
+}
+
+.modal-body.room-mode .additional-charges-header {
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+/* Allow the charges scroll area to grow a bit */
+.modal-body.room-mode .charges-container {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+/* 2-column grid for charge inputs: date spans full row, rest pair up */
+.modal-body.room-mode .charges-container-sub {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  flex-wrap: unset;
+}
+
+.modal-body.room-mode .charges-container-sub input[type="date"] {
+  grid-column: 1 / -1;
+}
+
+.modal-body.room-mode .charges-container-sub .charge-input {
+  width: 100% !important;
+  box-sizing: border-box;
+  font-size: 12px;
+  padding: 7px 8px;
+}
+
+/* Description input spans full row too */
+.modal-body.room-mode .charges-container-sub input[placeholder="Description"] {
+  grid-column: 1 / -1;
+}
+
+/* Discount section: vertical, full width */
+.modal-body.room-mode #discountSection {
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+}
+
+.modal-body.room-mode #discountSection .charge-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* SOA / export button — full width, pill style */
+.modal-body.room-mode #exportSection .export-btn {
+  width: 100%;
+  box-sizing: border-box;
+  justify-content: center;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 13px;
+}
 .modal-left-bottom-container{
   display: flex;
   flex-direction: column;
@@ -520,7 +656,9 @@
   flex-direction: column;
   justify-content: space-between;
   border-left: 1px solid #e5e7eb;
+  border-right: 1px solid #e5e7eb;
   padding-left: 19px;
+  padding-right: 19px;
 
 }
 

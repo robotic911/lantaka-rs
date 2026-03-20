@@ -8,7 +8,7 @@
 <div class="content">
   <h1 class="page-title">
     {{ isset($reservationId) && $reservationId ? 'Edit Reservation for:' : 'Create Reservation for:' }}
-    <strong>{{ $client->name }}</strong>
+    <strong>{{ $client->Account_Name }}</strong>
   </h1>
 
   <div class="content-wrapper">
@@ -88,7 +88,7 @@
         <form action="{{ route('employee.reservations.prepare') }}" method="POST" class="booking-form" id="bookingForm">
           @csrf
 
-          <input type="hidden" name="user_id" value="{{ $client->id }}">
+          <input type="hidden" name="user_id" value="{{ $client->Account_ID }}">
           <input type="hidden" name="accommodation_id" value="{{ $data->id }}">
           <input type="hidden" name="res_name" id="res_name" value="{{ $data->display_name }}">
           <input type="hidden" name="type" value="{{ strtolower($category) }}">
@@ -124,10 +124,10 @@
             </div>
           </div>
 
-
-
           <button type="submit" class="proceed-button" style="font-size: 14px;">
+
             {{ isset($reservationId) && $reservationId ? 'UPDATE RESERVATION' : 'PROCEED' }}
+            
           </button>
 
         </form>
@@ -137,6 +137,7 @@
   </div>
 </div>
 @endsection
+
 <script>
   document.addEventListener('DOMContentLoaded', function() {
 

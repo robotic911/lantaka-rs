@@ -17,7 +17,7 @@
             </div>
 
             <div class="status-cards">
-              <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'pending']) }}"
+              <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'pending'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
                   <div class="status-label">Pending</div>
@@ -25,7 +25,7 @@
                 </div>
               </a>
 
-              <a href="{{ request('status') == 'confirmed' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'confirmed']) }}"
+              <a href="{{ request('status') == 'confirmed' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'confirmed'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card confirmed {{ request('status') == 'confirmed' ? 'active' : '' }}">
                   <div class="status-label">Confirmed</div>
@@ -33,7 +33,7 @@
                 </div>
               </a>
 
-              <a href="{{ request('status') == 'checked-in' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'checked-in']) }}"
+              <a href="{{ request('status') == 'checked-in' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'checked-in'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card completed {{ request('status') == 'checked-in' ? 'active' : '' }}">
                   <div class="status-label">Completed</div>
@@ -41,7 +41,7 @@
                 </div>
               </a>
 
-              <a href="{{ request('status') == 'rejected' ? route('employee.reservations', request()->except('status')) : request()->fullUrlWithQuery(['status' => 'rejected']) }}"
+              <a href="{{ request('status') == 'rejected' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'rejected'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card cancelled {{ request('status') == 'rejected' ? 'active' : '' }}">
                   <div class="status-label">Rejected</div>
@@ -77,7 +77,7 @@
 
               {{-- Clear Filters Button --}}
               @if(request()->anyFilled(['search', 'date', 'client_type', 'accommodation_type', 'status']))
-                <a href="{{ url()->current() }}" style="text-decoration:none; color:#d9534f; margin-left:15px; font-weight:bold;">✕ Clear All Filters</a>
+                <a href="{{ route('employee.reservations') }}" style="display:flex; align-items :center; text-decoration: none; color: #e74c3c; font-size: 14px; font-weight: bold; margin-left: 10px;">✕ Clear All Filters</a>
               @endif
             </div>
         </form>
@@ -114,9 +114,9 @@
                       $dbTotal = $isRoom ? $reservation->Room_Reservation_Total_Price : $reservation->Venue_Reservation_Total_Price;
 
                       // 3. Setup Accommodation Name & Type
-                      $accName = $isRoom 
-                          ? 'Room: ' . ($reservation->room->room_number ?? 'N/A') 
-                          : 'Venue: ' . ($reservation->venue->Venue_Name ?? $reservation->venue->name ?? 'N/A');
+                      $accName = $isRoom
+                          ? 'Room: ' . ($reservation->room->Room_Number ?? 'N/A')
+                          : 'Venue: ' . ($reservation->venue->Venue_Name ?? 'N/A');
                       $reservationType = $isRoom ? 'Room' : 'Venue';
 
                       // 4. Setup Pricing Variables for the JavaScript
@@ -125,8 +125,8 @@
                       $extraFees = 0;
                       $extraFeesDesc = '';
                       $foodTotal = 0;
-                    
-                     
+
+
                       $checkIn = \Carbon\Carbon::parse($dbCheckIn);
                       $checkOut = \Carbon\Carbon::parse($dbCheckOut);
 
@@ -138,16 +138,20 @@
 
 
                       if($isRoom) {
-                          $basePrice = $reservation->room->price ?? 0;
+                          $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
+                              ? ($reservation->room->Room_Internal_Price ?? 0)
+                              : ($reservation->room->Room_External_Price ?? 0);
                           $discount = $reservation->Room_Reservation_Discount ?? 0;
                           $extraFees = $reservation->Room_Reservation_Additional_Fees ?? 0;
                           $extraFeesDesc = $reservation->Room_Reservation_Additional_Fees_Desc ?? '';
                       } else {
-                          $basePrice = $reservation->venue->price ?? 0;
+                          $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
+                              ? ($reservation->venue->Venue_Internal_Price ?? 0)
+                              : ($reservation->venue->Venue_External_Price ?? 0);
                           $discount = $reservation->Venue_Reservation_Discount ?? 0;
                           $extraFees = $reservation->Venue_Reservation_Additional_Fees ?? 0;
                           $extraFeesDesc = $reservation->Venue_Reservation_Additional_Fees_Desc ?? '';
-                          $foodTotal = $reservation->foods ? $reservation->foods->sum('pivot.total_price') : 0;
+                          $foodTotal = $reservation->foods ? $reservation->foods->sum('pivot.Food_Reservation_Total_Price') : 0;
                       }
                   @endphp
 
@@ -156,10 +160,10 @@
                           <span class="user-icon">
                             <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
                           </span>
-                          <span>{{ $reservation->user->name ?? 'Unknown User' }}</span>
+                          <span>{{ $reservation->user->Account_Name ?? 'Unknown Account' }}</span>
                       </td>
 
-                      <td>{{ $reservation->user->usertype ?? 'External' }}</td> 
+                      <td>{{ $reservation->user->Account_Type ?? 'External' }}</td>
 
                       <td>
                           <strong>{{ $accName }}</strong>
@@ -167,7 +171,7 @@
 
                       <td>{{ \Carbon\Carbon::parse($dbCheckIn)->format('m/d/Y') }}</td>
                       <td>{{ \Carbon\Carbon::parse($dbCheckOut)->format('m/d/Y') }}</td>
-                      <td>{{ $reservation->pax }}</td>
+                      <td>{{ $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax }}</td>
 
                       <td>
                           @if($reservation->status == 'checked-in')
@@ -184,35 +188,35 @@
                                   data-info="{{ json_encode([
                                       'nights' => $nights,
                                       'id' => $dbId,
-                                      'idx' => $reservation->display_type == 'venue' ? $reservation->venue_id : $reservation->room_id,
+                                      'idx' => $reservation->display_type == 'venue' ? $reservation->Venue_ID : $reservation->Room_ID,
                                       'db_id_display' => str_pad($dbId, 5, '0', STR_PAD_LEFT),
                                       'status' => strtolower($reservation->status),
                                       'res_type' => $reservation->display_type,
-                                      'client_type' => $reservation->user->usertype ?? 'External',
-                                      'type' => $reservation->user->usertype ?? 'External',
-                                      'phone' => $reservation->user->phone ?? 'Error phone',
-                                      'email' => $reservation->user->email ?? 'Error email',
-                                      'name' => $reservation->user->name ?? 'Unknown User',
+                                      'client_type' => $reservation->user->Account_Type ?? 'External',
+                                      'type' => $reservation->user->Account_Type ?? 'External',
+                                      'phone' => $reservation->user->Account_Phone ?? 'Error phone',
+                                      'email' => $reservation->user->Account_Email ?? 'Error email',
+                                      'name' => $reservation->user->Account_Name ?? 'Unknown Account',
                                       'accommodation' => $accName,
                                       'accommodationType' => $reservationType,
-                                      
-                                      
+
                                       'price' => $basePrice,
                                       'food_total' => $foodTotal,
                                       'discount' => $discount,
                                       'additional_fees' => $extraFees,
                                       'additional_fees_desc' => $extraFeesDesc,
-                                      
-                                      
-                                      'pax' => $reservation->pax,
+
+                                      'pax' => $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax,
                                       'check_in' => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
                                       'check_out' => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
                                       'check_in_raw' => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
                                       'check_out_raw' => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
-                                      'accommodation_id' => $isRoom ? $reservation->room_id : $reservation->venue_id,
+                                      'accommodation_id' => $isRoom ? $reservation->Room_ID : $reservation->Venue_ID,
                                       'userId' => $reservation->Client_ID,
-                                      'purpose' => $reservation->purpose ?? '',
-                                      'foods' => $reservation->foods ?? []
+                                      'purpose' => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
+                                                            :($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
+                                      'foods' => $reservation->foods ?? [],
+                                      'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null)
                                   ]) }}">
                               ⤢
                           </button>

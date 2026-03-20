@@ -27,7 +27,6 @@
         <div class="venue-details">
           <h2 class="venue-name">{{ $data->display_name }}</h2>
           <p class="venue-type">{{ $category }}</p>
-
           <div class="venue-specs">
             <div class="spec-item">
               <div>
@@ -45,9 +44,9 @@
             </div>
           </div>
 
-          @if (isset(Auth()->user()->usertype))
-            @if (Auth()->user()->usertype == 'Internal')
-                <p class="price">₱ {{ number_format($data->price, 2) }}<span>/use</span></p>
+          @if (isset(Auth()->user()->Account_Type))
+            @if (Auth()->user()->Account_Type == 'Internal')
+                <p class="price">₱ {{ number_format($data->internal_price, 2) }}<span>/use</span></p>
               @else
                 <p class="price">₱ {{ number_format($data->external_price, 2) }}<span>/use</span></p>
               @endif

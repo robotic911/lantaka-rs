@@ -252,7 +252,6 @@ document.addEventListener('DOMContentLoaded', function () {
       }
   }
 
-
   function populateFoodSelects() {
 
       document.querySelectorAll('.food-select').forEach(select => {
@@ -280,11 +279,11 @@ document.addEventListener('DOMContentLoaded', function () {
           categoryFoods.forEach(food => {
 
               const option = document.createElement('option');
-              option.value = food.food_id;
-              option.dataset.price = food.food_price;
+              option.value = food.Food_ID;
+              option.dataset.price = food.Food_Price;
 
               option.textContent =
-                  `${food.food_name} - ₱${parseFloat(food.food_price).toFixed(2)}`;
+                  `${food.Food_Name} - ₱${parseFloat(food.Food_Price).toFixed(2)}`;
 
               select.appendChild(option);
 

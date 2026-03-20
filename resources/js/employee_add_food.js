@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const addFoodClose = document.getElementById('addFoodClose')
 
   // opener (from your food menu header)
-  const addFoodBtn = document.querySelector('.add-food-button')
+  const addFoodBtn = document.getElementById('add_food_button')
 
   function showAddFoodModal() {
     addFoodModal.classList.add('active')
@@ -20,7 +20,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   addFoodBtn?.addEventListener('click', () => {
     console.log('Worked')
+    window.closeFoodModal();
     showAddFoodModal()
+
   })
 
   addFoodClose?.addEventListener('click', hideAddFoodModal)

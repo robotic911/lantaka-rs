@@ -22,9 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     updateFoodStatus.value = status
     updateFoodPrice.value = price
   
-  document.querySelectorAll('input[name="type"]').forEach(radio=>{
-    radio.checked = radio.value === type
-    })
+  const typeSelect = document.getElementById('updateFoodType');
+    if (typeSelect) typeSelect.value = type;
     updateFoodForm.action = `/employee/room_venue/${id}`
     showUpdateFoodModal()
     })

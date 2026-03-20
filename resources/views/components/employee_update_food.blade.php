@@ -24,17 +24,17 @@
         @csrf
         @method('PUT')
 
-        <input type="hidden" id="updateFoodId" name="food_id">
+        <input type="hidden" id="updateFoodId" name="Food_ID">
 
         <div class="updatefood-row">
           <div class="updatefood-group">
             <label for="updateFoodName">Food Name</label>
-            <input type="text" id="updateFoodName" name="food_name" placeholder="Rice" required>
+            <input type="text" id="updateFoodName" name="Food_Name" placeholder="Rice" required>
           </div>
 
           <div class="updatefood-group">
             <label for="updateFoodStatus">Status</label>
-            <select id="updateFoodStatus" name="status" required>
+            <select id="updateFoodStatus" name="Food_Status" required>
               <option value="available">Available</option>
               <option value="unavailable">Unavailable</option>
             </select>
@@ -42,35 +42,23 @@
         </div>
 
         <div class="updatefood-group">
-          <label>Food Type</label>
-          <div class="updatefood-radio">
-            <label class="updatefood-radio-label">
-              <input type="radio" name="type" value="breakfast">
-              <span>Breakfast</span>
-            </label>
-
-            <label class="updatefood-radio-label">
-              <input type="radio" name="type" value="snack">
-              <span>Snack</span>
-            </label>
-
-            <label class="updatefood-radio-label">
-              <input type="radio" name="type" value="lunch">
-              <span>Lunch</span>
-            </label>
-
-            <label class="updatefood-radio-label">
-              <input type="radio" name="type" value="dinner">
-              <span>Dinner</span>
-            </label>
-          </div>
+          <label for="updateFoodType">Food Category</label>
+          <select id="updateFoodType" name="Food_Category" required>
+            <option value="rice">Rice</option>
+            <option value="set_viand">Set Viand</option>
+            <option value="sidedish">Side Dish</option>
+            <option value="drinks">Drinks</option>
+            <option value="desserts">Desserts</option>
+            <option value="snacks">Snacks</option>
+            <option value="other_viand">Other Viand</option>
+          </select>
         </div>
 
         <div class="updatefood-group">
           <label for="updateFoodPrice">Pricing</label>
           <div class="updatefood-price">
             <span class="updatefood-currency">₱</span>
-            <input type="number" id="updateFoodPrice" name="food_price" placeholder="500.00" step="0.01" required>
+            <input type="number" id="updateFoodPrice" name="Food_Price" placeholder="500.00" step="0.01" required>
           </div>
         </div>
 

@@ -27,12 +27,12 @@
         <div class="addfood-row">
           <div class="addfood-group">
             <label for="addFoodName">Food Name</label>
-            <input type="text" id="addFoodName" name="name" placeholder="Rice" required>
+            <input type="text" id="addFoodName" name="Food_Name" placeholder="Rice" required>
           </div>
 
           <div class="addfood-group">
             <label for="addFoodStatus">Status</label>
-            <select id="addFoodStatus" name="status" required>
+            <select id="addFoodStatus" name="Food_Status" required>
               <option value="available">Available</option>
               <option value="unavailable">Unavailable</option>
             </select>
@@ -41,7 +41,7 @@
 
         <div class="addfood-group">
           <label for="addFoodType">Food Category</label>
-          <select id="addFoodType" name="type" required>
+          <select id="addFoodType" name="Food_Category" required>
             <option value="rice">Rice</option>
             <option value="set_viand">Set Viand</option>
             <option value="sidedish">Side Dish</option>
@@ -56,7 +56,7 @@
           <label for="addFoodPrice">Pricing</label>
           <div class="addfood-price">
             <span class="addfood-currency">₱</span>
-            <input type="number" id="addFoodPrice" name="price" placeholder="500.00" step="0.01" required>
+            <input type="number" id="addFoodPrice" name="Food_Price" placeholder="500.00" step="0.01" required>
           </div>
         </div>
 

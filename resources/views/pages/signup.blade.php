@@ -5,6 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sign up - Lantaka Room and Venue Reservation System</title>
   <link rel="stylesheet" href="{{ asset('css/signup.css') }}">
+  <style>
+    .signup-info-note {
+      display: flex; align-items: flex-start; gap: 8px;
+      background: #eef3fb; border: 1px solid #c5d5ee;
+      border-radius: 8px; padding: 10px 14px;
+      font-size: 12.5px; color: #1e3a5f; line-height: 1.5;
+      margin-bottom: 4px;
+    }
+  </style>
   <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@200;300;400;500;600;700;800;900&family=Arsenal:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
@@ -84,14 +93,9 @@
               <input type="text" id="username" name="username" placeholder="Enter Username" value="{{ old('username') }}" required>
             </div>
 
-            <div class="form-group">
-              <label for="password">Password</label>
-              <input type="password" id="password" name="password" placeholder="Enter Password" required>
-            </div>
-
-            <div class="form-group">
-              <label for="confirmPassword">Confirm Password</label>
-              <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Re-enter Password" required>
+            <div class="signup-info-note">
+              <svg width="16" height="16" fill="none" viewBox="0 0 24 24" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10" stroke="#1e3a5f" stroke-width="1.8"/><path d="M12 8v4m0 4h.01" stroke="#1e3a5f" stroke-width="1.8" stroke-linecap="round"/></svg>
+              <span>No password needed. Once your account is approved, your login credentials will be sent to your registered email.</span>
             </div>
 
             <div class="form-group">

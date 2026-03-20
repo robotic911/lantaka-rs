@@ -7,17 +7,17 @@ use Illuminate\Database\Eloquent\Model;
 
 class FoodReservation extends Model
 {
-    protected $table = 'food_reservations';
-    protected $primaryKey = 'food_reservation_id';
-    
+    protected $table = 'Food_Reservation';
+    protected $primaryKey = 'Food_Reservation_ID';
+
     protected $fillable = [
-        'food_id',
-        'venue_reservation_id',
-        'client_id',
-        'staff_id',
-        'serving_time',
-        'meal_time',
-        'total_price',
-        'status',
+        'Food_ID',
+        'Venue_Reservation_ID',
+        'Client_ID',
+        'Staff_ID',
+        'Food_Reservation_Serving_Date',
+        'Food_Reservation_Meal_time',
+        'Food_Reservation_Total_Price',
+        'Food_Reservation_Status',
     ];
 }

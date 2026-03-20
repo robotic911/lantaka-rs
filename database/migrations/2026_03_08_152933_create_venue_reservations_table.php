@@ -13,7 +13,7 @@ return new class extends Migration
      */
     public function up()
     {
-        Schema::create('venue_reservations', function (Blueprint $table) {
+        Schema::create('Venue_Reservation', function (Blueprint $table) {
             $table->id('Venue_Reservation_ID'); // Matches ERD PK
 
             // Foreign Keys
@@ -23,7 +23,7 @@ return new class extends Migration
             $table->foreignId('Staff_ID')->nullable()->constrained('users');
 
             // The Missing Date and Time Details
-            $table->timestamp('Venue_Reservation_Date')->useCurrent(); 
+            $table->timestamp('Venue_Reservation_Date')->useCurrent();
             $table->dateTime('Venue_Reservation_Check_In_Time');
             $table->dateTime('Venue_Reservation_Check_Out_Time');
             $table->dateTime('Venue_Reservation_Actual_Check_Out')->nullable();
@@ -46,7 +46,7 @@ return new class extends Migration
      */
     public function down()
     {
-        Schema::table('venue_reservations', function (Blueprint $table) {
+        Schema::table('Venue_Reservation', function (Blueprint $table) {
             // Drops the column if you ever need to rollback
             $table->dropColumn('Venue_Reservation_Discount');
         });

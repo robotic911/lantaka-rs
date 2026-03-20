@@ -37,7 +37,10 @@ function renderSummaryItems() {
   summaryItemsContainer.innerHTML = '';
 
   Object.values(cart).forEach(item => {
+      console.log(cart);
+
     summaryItemsContainer.innerHTML += `
+
       <div class="summary-item">
         <span class="item-label">${item.name}</span>
         <span class="item-amount">${formatPeso(item.baseTotal)}</span>
@@ -82,10 +85,9 @@ function renderSummaryFoods() {
           <div style="font-weight: 600; font-size: 0.82em; color: #555; margin-bottom: 6px;">
             ${group.dateLabel}
           </div>
-
           ${group.items.map(entry => `
             <div style="display:flex; justify-content:space-between; gap:10px; font-size:0.8em; color:#666; margin-bottom:4px; padding-left:8px;">
-              <span>• ${entry.food_name} (${entry.mealLabel} • ${entry.categoryLabel} × ${entry.pax} pax)</span>
+              <span>• ${entry.Food_Name} (${entry.mealLabel} • ${entry.categoryLabel} × ${entry.pax} pax)</span>
               <span>${formatPeso(entry.subtotal)}</span>
             </div>
           `).join('')}
@@ -172,7 +174,7 @@ window.selectItem = function (element) {
     const foodMap = {};
     if (Array.isArray(foods)) {
       foods.forEach(food => {
-        foodMap[String(food.food_id)] = food;
+        foodMap[String(food.Food_ID)] = food;
       });
     }
 
@@ -198,15 +200,15 @@ window.selectItem = function (element) {
           const food = foodMap[String(foodId)];
           if (!food) return;
 
-          const unitPrice = Number(food.food_price || food.Food_Price || 0);
+          const unitPrice = Number(food.Food_Price || 0);
           const subtotal = unitPrice * pax;
 
-          foodArr.push(food.food_id);
+          foodArr.push(food.Food_ID);
           foodTotal += subtotal;
 
           dateEntries.push({
-            food_id: food.food_id,
-            food_name: food.food_name,
+            Food_ID: food.Food_ID,
+            Food_Name: food.Food_Name,
             mealType: mealType,
             mealLabel: mealLabels[mealType] || mealType,
             category: category,
@@ -313,3 +315,4 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 });
+

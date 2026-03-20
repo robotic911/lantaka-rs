@@ -34,14 +34,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const qty = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
       extra += (parseFloat(input.value) || 0) * qty;
     });
-    let multiplier = mode == "venue" ? currentDays : currentNights; 
+    let multiplier = mode == "venue" ? currentDays : currentNights;
     const totalPriceWithCurrenNights = base * multiplier;
     const modalNightsEl = document.getElementById('night-price');
     if (modalNightsEl) modalNightsEl.textContent =  `₱${Number(totalPriceWithCurrenNights).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-  
+
     console.log(mode + multiplier);
-    
+
     const grandTotal = ((base * multiplier) + food + extra) - disc;
 
     // Debugging: Check your F12 console to see these numbers!
@@ -68,7 +68,7 @@ document.addEventListener('DOMContentLoaded', () => {
     editLinkBtn.addEventListener('click', function () {
       const d = window.currentModalData;
       console.log("hereserser");
-      
+
       console.log(d);
       if (!d) return;
 
@@ -100,11 +100,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = JSON.parse(this.getAttribute('data-info'));
       // Store so the Edit button can read it
       window.currentModalData = data;
+
+      // Reset left column visibility so previous modal state doesn't bleed into the next open
+      const leftCol = document.querySelector('.modal-left-column');
+      if (leftCol) leftCol.style.display = 'flex';
+
       if (chargesContainer) {
         chargesContainer.innerHTML = '';
-  
+
         let descriptions = [];
-  
+
         try {
           descriptions = typeof data.additional_fees_desc === 'string'
             ? JSON.parse(data.additional_fees_desc)
@@ -112,11 +117,11 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (e) {
           descriptions = [];
         }
-  
+
         if (!Array.isArray(descriptions)) {
           descriptions = [];
         }
-  
+
         if (descriptions.length > 0) {
           descriptions.forEach((item) => {
 
@@ -124,7 +129,7 @@ document.addEventListener('DOMContentLoaded', () => {
             let qty = 1;
             let amount = 0;
             let date = '';
-          
+
             if (typeof item === 'string' && item.includes(':')) {
               const parts = item.split(':');
 
@@ -150,17 +155,17 @@ document.addEventListener('DOMContentLoaded', () => {
       console.log('modalResId =', resIdField?.value);
       console.log('modalResType =', resTypeField?.value);
       console.log('full data =', data);
- 
+
       const checkIn = new Date(data.check_in);
       const checkOut = new Date(data.check_out);
-      
+
       // milliseconds → days
       const diffDays = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-      
+
       console.log(diffDays);
 
       console.log(checkIn + "check in");
-      
+
       console.log(checkOut + "check Out");
       const modalNightsEl = document.getElementById('modalNights');
       mode = resTypeField.value;
@@ -175,79 +180,102 @@ document.addEventListener('DOMContentLoaded', () => {
           console.log("Current Days:" + currentDays);
           if (modalNightsEl) modalNightsEl.textContent = currentDays;
       }
-  
 
-      
- 
+
+
+
 
       const nightsLabelEl = document.getElementById('nightsLabel');
       if (nightsLabelEl) nightsLabelEl.textContent = data.accommodationType === 'Venue' ? 'Days' : 'Nights';
 
       updateSoaLink(data.userId);
 
-      const currentStatus = data.status ? data.status.toLowerCase().trim() : '';
-      const statusGroups = {
-        'pending': document.getElementById('pendingActions'),
-        'rejected': document.getElementById('pendingActions'),
-        'confirmed': document.getElementById('confirmedActions'),
-        'cancelled': document.getElementById('confirmedActions'),
-        'checked-in': document.getElementById('checkedInActions'),
-        'checked-out': document.getElementById('checkedInActions'),
-      };
+      const currentStatus  = data.status          ? data.status.toLowerCase().trim()          : '';
+      const currentPayment = data.payment_status  ? data.payment_status.toLowerCase().trim() : '';
 
-      Object.values(statusGroups).forEach(group => {
-        if (group) group.style.display = 'none';
+      // --- Hide ALL action panels first ---
+      const allPanels = [
+        'pendingActions', 'confirmedActions', 'checkedInActions',
+        'checkedOutUnpaidActions', 'checkedOutPaidActions'
+      ];
+      allPanels.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
       });
 
-      if (statusGroups[currentStatus]) {
-        statusGroups[currentStatus].style.display = 'flex';
-      } else if (statusGroups['pending']) {
-        statusGroups['pending'].style.display = 'flex';
+      // --- Show the correct panel for the current status ---
+      const statusGroups = {
+        'pending':    'pendingActions',
+        'rejected':   'pendingActions',
+        'confirmed':  'confirmedActions',
+        'cancelled':  'confirmedActions',
+        'checked-in': 'checkedInActions',
+      };
+
+      if (currentStatus === 'checked-out') {
+        // After checkout: show payment panel based on payment_status
+        const payPanel = (currentPayment === 'paid')
+          ? document.getElementById('checkedOutPaidActions')
+          : document.getElementById('checkedOutUnpaidActions');
+        if (payPanel) payPanel.style.display = 'flex';
+
+        // Stash IDs so doMarkAsPaid / doMarkAsUnpaid can use them
+        window._paymentResId   = data.id;
+        window._paymentResType = data.res_type;
+
+      } else if (statusGroups[currentStatus]) {
+        const el = document.getElementById(statusGroups[currentStatus]);
+        if (el) el.style.display = 'flex';
+      } else {
+        const fallback = document.getElementById('pendingActions');
+        if (fallback) fallback.style.display = 'flex';
       }
 
-      const blockCheckin = document.getElementById('confirmedActions');
-      const blockCheckout = document.getElementById('checkedInActions');
-      const blockAccept = document.getElementById('pendingActions');
-      const showSOA = document.getElementById('exportSection');
+      const blockCheckin    = document.getElementById('confirmedActions');
+      const blockCheckout   = document.getElementById('checkedInActions');
+      const blockAccept     = document.getElementById('pendingActions');
+      const showSOA         = document.getElementById('exportSection');
       const showAddChSection = document.getElementById('modal-bottom');
 
+
+      const discountSection   = document.getElementById('discountSection');
+      const checkAccomodation = data.accommodationType;
       const row = this.closest('tr');
       const badge = row.querySelector('.badge');
-      const badgeStatus = badge ? badge.textContent.trim() : '';
-      const discountSection = document.getElementById('discountSection');
-      const checkAccomodation = data.accommodationType;
+      // Use the real status from data (not badge text, which can be relabelled on the Guest page)
       document.querySelector('#editLink').style.display = 'flex';
-      if (badgeStatus === "Completed" || badgeStatus === "Checked-out" || badgeStatus === "Cancelled") {
+
+      if (currentStatus === 'completed' || currentStatus === 'checked-out' || currentStatus === 'cancelled') {
         if (blockCheckout) blockCheckout.style.display = 'none';
         document.querySelector('#editLink').style.display = 'none';
       }
-      if (badgeStatus === "Rejected") {
+      if (currentStatus === 'rejected') {
         if (blockAccept) blockAccept.style.display = 'none';
         document.querySelector('#editLink').style.display = 'none';
       }
-      if (badgeStatus === "Cancelled" || badgeStatus === "Completed") {
+      if (currentStatus === 'cancelled' || currentStatus === 'completed' || currentStatus === 'pending' || currentStatus === 'checked-out') {
         if (blockCheckin) blockCheckin.style.display = 'none';
         document.querySelector('#editLink').style.display = 'none';
+        document.querySelector('.modal-left-column').style.display = 'none';
       }
 
-      if (badgeStatus !== "Checked-in") {
+      if (currentStatus !== 'checked-in') {
         showSOA.style.display = 'none';
         showAddChSection.style.display = 'none';
         document.querySelector('.meals-container').style.maxHeight = '75vh';
-      
       } else {
         showSOA.style.display = 'flex';
         showAddChSection.style.display = 'flex';
       }
 
-      if (badgeStatus === "Checked-in" && checkAccomodation === "Venue") {
+      if (currentStatus === 'checked-in' && checkAccomodation === 'Venue') {
         discountSection.classList.remove('none');
       } else {
         discountSection.classList.add('none');
       }
 
       console.log(data);
-      
+
       let fullName = data.name || 'Unknown';
       let nameParts = fullName.trim().split(' ');
 
@@ -265,6 +293,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (data.accommodationType == "Venue") {
         document.getElementById('meal-container-left').style.display = "block";
+        document.querySelector('.modal-body').classList.remove('room-mode');
         // Populate the food table with the actual reserved foods
         if (Array.isArray(data.foods) && data.foods.length > 0) {
           createFoodTables(data.foods);
@@ -276,15 +305,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     } else {
         document.getElementById('meal-container-left').style.display = "none";
+        document.querySelector('.modal-body').classList.add('room-mode');
     }
-     
+
       document.getElementById('fullName_r').textContent = fullName;
       document.getElementById('phoneNumber_r').textContent = data.phone || '';
       document.getElementById('email_r').textContent = data.email || '';
       document.getElementById('affiliation_r').textContent = data.type || '';
       const purposeEl = document.getElementById('purpose_r');
       if (purposeEl) purposeEl.textContent = data.purpose || '';
-  
+
 
       const basePrice = data.price || data.total_amount || 0;
       const unitPriceEl = document.getElementById('unit-price');
@@ -302,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (discInputEl) discInputEl.value = discountValue;
       if (discInputAlt) discInputAlt.value = discountValue;
 
-      // 4. Update the User ID
+      // 4. Update the Account ID
       const userIdEl = document.getElementById('userId');
       if (userIdEl) userIdEl.value = data.userId || '';
 
@@ -341,10 +371,61 @@ document.addEventListener('DOMContentLoaded', () => {
       form.action = `/employee/reservations/${resId}/status?type=${resType}`;
 
       console.log("Submitting to:", form.action); // Debugging line
+      window.showEmailToast && window.showEmailToast('sending');
       form.submit();
     } else {
       console.error("Form or Reservation ID missing!");
     }
+  };
+
+  // --- Mark an already-checked-out reservation as paid ---
+  window.doMarkAsPaid = function () {
+    const id   = window._paymentResId;
+    const type = window._paymentResType;
+    if (!id || !type) {
+      console.error('markAsPaid: missing id or type');
+      return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/employee/reservations/${id}/mark-paid?type=${type}`;
+
+    const csrf = document.createElement('input');
+    csrf.type  = 'hidden';
+    csrf.name  = '_token';
+    csrf.value = document.querySelector('meta[name="csrf-token"]')?.content
+                 || document.querySelector('input[name="_token"]')?.value
+                 || '';
+    form.appendChild(csrf);
+
+    document.body.appendChild(form);
+    form.submit();
+  };
+
+  // --- Revert a paid reservation back to unpaid (admin only, enforced server-side) ---
+  window.doMarkAsUnpaid = function () {
+    const id   = window._paymentResId;
+    const type = window._paymentResType;
+    if (!id || !type) {
+      console.error('markAsUnpaid: missing id or type');
+      return;
+    }
+
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/employee/reservations/${id}/mark-unpaid?type=${type}`;
+
+    const csrf = document.createElement('input');
+    csrf.type  = 'hidden';
+    csrf.name  = '_token';
+    csrf.value = document.querySelector('meta[name="csrf-token"]')?.content
+                 || document.querySelector('input[name="_token"]')?.value
+                 || '';
+    form.appendChild(csrf);
+
+    document.body.appendChild(form);
+    form.submit();
   };
 
   // --- 4. STATUS CARDS ANIMATION ---
@@ -386,9 +467,17 @@ window.addAdditionalCharges = function (description = '', amount = 0, qty = 1, d
   newRow.innerHTML = `
   <input type="date" name="additional_fees_date[]" value="${date}" class="charge-input date-input" style="width: 140px;" title="Date of charge">
   <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 180px;" required>
+  <span style="display: flex;
+    flex-direction: row;
+    width: 100%;
+    column-span: 2;
+    grid-column: 1 / -1;
+    gap: 8px;
+    padding-right: 6px;">
   <input type="number" name="additional_fees_qty[]" value="${qty}" placeholder="Qty" class="charge-input qty-input" style="width: 60px;" min="1">
   <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 90px;" required>
   <button type="button" class="remove-btn" onclick="this.parentElement.remove(); window.calculateLiveTotal();" style="background:none; border:none; color:red; cursor:pointer; font-size: 20px; padding-left: 5px;">&times;</button>
+  </span>
 `;
 
   chargesContainer.appendChild(newRow);
@@ -431,8 +520,8 @@ function groupFoodsByDate(foods) {
   const grouped = {};
 
   foods.forEach(food => {
-    // pivot.serving_time is the date ("2026-03-19"), not a meal label
-    const rawDate = food.pivot?.serving_time;
+    // pivot.Food_Reservation_Serving_Date is the date ("2026-03-19"), not a meal label
+    const rawDate = food.pivot?.Food_Reservation_Serving_Date;
 
     const date = rawDate
       ? new Date(rawDate).toLocaleDateString('en-US', {
@@ -454,8 +543,8 @@ function groupFoodsByDate(foods) {
 
 /**
  * Populate the food table from the foods array in data-info.
- * Each food has: food_name, food_category, pivot.serving_time (date),
- *               pivot.meal_time (Breakfast / AM Snack / Lunch / PM Snack / Dinner)
+ * Each food has: Food_Name, Food_Category, pivot.Food_Reservation_Serving_Date (date),
+ *               pivot.Food_Reservation_Meal_time (Breakfast / AM Snack / Lunch / PM Snack / Dinner)
  *
  * Columns (th order): Rice=1, Set Viand=2, Sidedish=3,
  *                     Drinks=4, Desserts=5, Other Viand=6, Snack=7
@@ -469,7 +558,7 @@ function createFoodTables(foods) {
 
   container.innerHTML = '';
 
-  // food_category values stored in DB (lowercase / snake_case)
+  // Food_Category values stored in DB (lowercase / snake_case)
   const categoryColMap = {
     rice:        1,
     set_viand:   2,
@@ -480,7 +569,7 @@ function createFoodTables(foods) {
     snack:       7,
   };
 
-  // ── Group foods by pivot.serving_time (the date) ──
+  // ── Group foods by pivot.Food_Reservation_Serving_Date (the date) ──
   const groupedByDate = groupFoodsByDate(foods);
 
   Object.entries(groupedByDate).forEach(([date, foodList]) => {
@@ -500,13 +589,13 @@ function createFoodTables(foods) {
     const dateEl = newTable.querySelector('.food-date');
     if (dateEl) dateEl.textContent = date;
 
-    // ── Populate columns by meal_time + food_category ──
+    // ── Populate columns by Food_Reservation_Meal_time + Food_Category ──
     foodList.forEach(food => {
-      const category = food.food_category?.toLowerCase().trim();
-      const name     = food.food_name;
-      // meal_time stored in DB: e.g. "breakfast", "am_snack", "lunch", "pm_snack", "dinner"
+      const category = food.Food_Category?.toLowerCase().trim();
+      const name     = food.Food_Name;
+      // Food_Reservation_Meal_time stored in DB: e.g. "breakfast", "am_snack", "lunch", "pm_snack", "dinner"
       // Match against the visible .meal-name text (case-insensitive, underscore → space)
-      const mealTimeRaw = food.pivot?.meal_time;
+      const mealTimeRaw = food.pivot?.Food_Reservation_Meal_time;
 
       if (!category || !name) return;
 
@@ -530,7 +619,7 @@ function createFoodTables(foods) {
         });
       }
 
-      // Fallback: if meal_time not found, put it in the first row
+      // Fallback: if Food_Reservation_Meal_time not found, put it in the first row
       if (!targetRow) {
         targetRow = newTable.querySelector('tbody .meal-row');
       }

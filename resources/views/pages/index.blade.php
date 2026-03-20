@@ -40,7 +40,7 @@
             <h2 class="hero-title">LANTAKA CAMPUS</h2>
             <p class="hero-subtitle">The Ateneo de Zamboanga University Spirituality, Formation, and Training Center<br>Since 2019</p>
             <form method="GET" action="{{ route('client.room_venue') }}">
-            <button type="submit" class="explore-btn">EXPLORE</button>
+                <button type="submit" class="explore-btn">EXPLORE</button>
             </form>
             <p class="login-prompt" style="margin-top: 20px; font-size: 0.95rem; font-weight: 300;">
                 Want to make a reservation? Please <a href="{{ route('login') }}" style="color: #FFD700; text-decoration: none; font-weight: 500;">Login</a> or <a href="{{ route('signup') }}" style="color: #FFD700; text-decoration: none; font-weight: 500;">Sign up</a> to get started.

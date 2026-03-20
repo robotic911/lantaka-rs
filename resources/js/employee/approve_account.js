@@ -3,29 +3,28 @@ document.addEventListener('DOMContentLoaded', function () {
   const approveButtons = document.querySelectorAll('.action-btn-approve');
   const exitApproveModal = approveModal ? approveModal.querySelector('.approval-close') : null;
 
-  // Action buttons inside the modal footer
-  const acceptBtn = document.querySelector('.btn-accept');
-  const declineBtn = document.querySelector('.btn-decline');
+  // get buttons INSIDE this modal only
+  const acceptBtn = approveModal ? approveModal.querySelector('.btn-accept') : null;
+  const declineBtn = approveModal ? approveModal.querySelector('.btn-decline') : null;
+
   let currentUserId = null;
 
   approveButtons.forEach(button => {
     button.addEventListener('click', function () {
       const user = JSON.parse(this.getAttribute('data-user'));
-      currentUserId = user.id;
+      currentUserId = user.id ?? user.Account_ID;
 
-      // Fill approval fields (make sure IDs are approve_fname, etc.)
-      const nameParts = (user.name || '').trim().split(/\s+/);
+      const nameParts = (user.Account_Name || '').trim().split(/\s+/);
       document.getElementById('approve_fname').value = nameParts[0] || '';
       document.getElementById('approve_lname').value = nameParts.slice(1).join(' ') || '';
-      document.getElementById('approve_username').value = user.username || '';
-      document.getElementById('approve_phone').value = user.phone || '';
-      document.getElementById('approve_email').value = user.email || '';
+      document.getElementById('approve_username').value = user.Account_Username || '';
+      document.getElementById('approve_phone').value = user.Account_Phone || '';
+      document.getElementById('approve_email').value = user.Account_Email || '';
 
       const imgElement = document.getElementById('approve_id_image');
       const noIdText = document.getElementById('approve_no_id');
 
       if (user.valid_id_path) {
-        // Ensure the path is correctly prefixed with your storage link
         imgElement.src = `/storage/${user.valid_id_path}`;
         imgElement.style.display = 'block';
         if (noIdText) noIdText.style.display = 'none';
@@ -38,24 +37,50 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   });
 
-  // Action Logic
   async function handleStatusUpdate(status) {
-    if (!currentUserId) return;
-    const response = await fetch(`/employee/accounts/${currentUserId}/update-status`, {
-      method: 'POST',
-      // Inside your handleStatusUpdate function:
-      headers: {
-        'Content-Type': 'application/json',
-        'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-      },
-      body: JSON.stringify({ status: status })
-    });
-    const data = await response.json();
-    if (data.success) { alert(data.message); location.reload(); }
+    if (!currentUserId) {
+      console.log('No currentUserId');
+      return;
+    }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]');
+    if (!csrf) {
+      console.log('Missing csrf meta tag');
+      return;
+    }
+
+    window.showEmailToast && window.showEmailToast('sending');
+
+    try {
+      const response = await fetch(`/employee/accounts/${currentUserId}/update-status`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-TOKEN': csrf.getAttribute('content'),
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify({ status: status })
+      });
+
+      const data = await response.json();
+      console.log(data);
+
+      if (data.success) {
+        window.showEmailToast && window.showEmailToast('sent');
+        setTimeout(() => location.reload(), 2500);
+      }
+    } catch (error) {
+      console.error('Fetch error:', error);
+    }
   }
 
-  if (acceptBtn) acceptBtn.addEventListener('click', () => handleStatusUpdate('approved'));
-  if (declineBtn) declineBtn.addEventListener('click', () => handleStatusUpdate('declined'));
+  if (acceptBtn) {
+    acceptBtn.addEventListener('click', () => handleStatusUpdate('approved'));
+  }
+
+  if (declineBtn) {
+    declineBtn.addEventListener('click', () => handleStatusUpdate('declined'));
+  }
 
   if (exitApproveModal) {
     exitApproveModal.addEventListener('click', () => approveModal.classList.remove('active'));

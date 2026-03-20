@@ -41,10 +41,12 @@ class GuestCheckOutMail extends Mailable
 
     public function build()
     {
-        return $this->subject('Thank you for staying at Lantaka!')
+        return $this->subject('You\'ve Checked Out — Lantaka Reservation System')
                     ->view('emails.guest_checkout')
                     ->with([
                         'reservation' => $this->reservation,
+                        'type'        => $this->type,
+                        'foodTotal'   => $this->foodTotal,
                     ]);
     }
 

@@ -23,7 +23,7 @@ class Checkrole
         }
 
         // 2. Check if the user's role exists in the allowed roles array
-        if (!in_array(Auth::user()->role, $roles)) {
+        if (!in_array(Auth::user()->Account_Role, $roles)) {
             abort(403, 'You do not have permission to access this page.');
         }
 

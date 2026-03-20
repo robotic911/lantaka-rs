@@ -218,6 +218,9 @@
 }
 
 .venue-card {
+  display: flex;
+  justify-content: center;
+  align-items: center;
   background-color: var(--bg-white);
   border: 1px solid var(--border-color);
   border-radius: 6px;

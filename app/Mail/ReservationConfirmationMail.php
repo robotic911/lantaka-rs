@@ -34,9 +34,9 @@ class ReservationConfirmationMail extends Mailable
     public function build()
     {
         // Use our cross-model check for the name
-        $name = ($this->reservation->room) 
-                ? ($this->reservation->room->Room_Number ?? $this->reservation->room->room_number) 
-                : ($this->reservation->venue->Venue_Name ?? $this->reservation->venue->name);
+        $name = ($this->reservation->room)
+                ? ($this->reservation->room->Room_Number ?? 'Room')
+                : ($this->reservation->venue->Venue_Name ?? 'Venue');
 
         return $this->subject("Lantaka Online Reservation – Status Update for $name")
                     ->view('emails.reservation_confirmation');

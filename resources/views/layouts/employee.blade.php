@@ -27,5 +27,6 @@
       
         @yield('content')
     </main>
-</body> 
+    <x-toaster />
+</body>
 </html>

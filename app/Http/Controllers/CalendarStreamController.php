@@ -33,7 +33,7 @@ class CalendarStreamController extends Controller
                     $roomRes = RoomReservation::with(['room', 'user'])->get()->map(function ($item) {
                         return [
                             'id'        => $item->Room_Reservation_ID,
-                            'status'    => strtolower($item->status),
+                            'status'    => strtolower($item->Room_Reservation_Status),
                             'check_in'  => \Carbon\Carbon::parse($item->Room_Reservation_Check_In_Time)->format('Y-m-d'),
                             'check_out' => \Carbon\Carbon::parse($item->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
                             'user'      => $item->user,
@@ -46,7 +46,7 @@ class CalendarStreamController extends Controller
                     $venueRes = VenueReservation::with(['venue', 'user'])->get()->map(function ($item) {
                         return [
                             'id'        => $item->Venue_Reservation_ID,
-                            'status'    => strtolower($item->status),
+                            'status'    => strtolower($item->Venue_Reservation_Status),
                             'check_in'  => \Carbon\Carbon::parse($item->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
                             'check_out' => \Carbon\Carbon::parse($item->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
                             'user'      => $item->user,

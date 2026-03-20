@@ -8,7 +8,7 @@
 </head>
 <body>
     <div style="font-family: sans-serif; color: #333;">
-    <p>Dear {{ $user->name }},</p>
+    <p>Dear {{ $user->Account_Name }},</p>
     <p>Below are the details of your account registration:</p>
 
     <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">

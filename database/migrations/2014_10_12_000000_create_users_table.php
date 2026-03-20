@@ -15,15 +15,15 @@ return new class extends Migration
     {
         Schema::create('users', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); 
-            $table->string('username')->unique(); // From Migration 1
-            $table->string('email')->unique();
-            $table->string('password');
-            $table->string('phone');              // Required by Controller
+            $table->string('name');
+            $table->string('Account_Username')->unique(); // From Migration 1
+            $table->string('Account_Email')->unique();
+            $table->string('Account_Password');
+            $table->string('Account_Phone');              // Required by Controller
             $table->string('affiliation');        // Required by Controller
             $table->string('usertype')->nullable(); // From Migration 2
             $table->string('valid_id_path');      // Required by Controller
-            $table->string('role')->default('client'); // From Migration 1
+            $table->string('Account_Role')->default('client'); // From Migration 1
             $table->string('status')->default('pending');
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();

@@ -64,7 +64,7 @@ document.addEventListener("DOMContentLoaded", () => {
     roomForm.querySelector('input[name="internal_price"]').value = "";
     roomForm.querySelector('input[name="external_price"]').value = "";
     roomForm.querySelector('textarea[name="description"]').value = "";
-    roomForm.querySelector('select[name="status"]').value = "Available";
+    setModalImage('room', '');
   }
 
   function clearVenueForm() {
@@ -73,7 +73,25 @@ document.addEventListener("DOMContentLoaded", () => {
     venueForm.querySelector('input[name="internal_price"]').value = "";
     venueForm.querySelector('input[name="external_price"]').value = "";
     venueForm.querySelector('textarea[name="description"]').value = "";
-    venueForm.querySelector('select[name="status"]').value = "Available";
+    setModalImage('venue', '');
+  }
+
+  function setModalImage(type, src) {
+    const thumb  = document.getElementById(type === 'room' ? 'rvRoomImgPreviewThumb' : 'rvVenueImgPreviewThumb');
+    const none   = document.getElementById(type === 'room' ? 'rvRoomImgNone'         : 'rvVenueImgNone');
+    const badge  = document.getElementById(type === 'room' ? 'rvRoomImgNewBadge'     : 'rvVenueImgNewBadge');
+    const input  = document.getElementById(type === 'room' ? 'rvRoomImgInput'        : 'rvVenueImgInput');
+
+    if (input) input.value = '';   // clear any previous file selection
+
+    if (src) {
+      if (thumb) { thumb.src = src; thumb.style.display = 'block'; }
+      if (none)  none.style.display  = 'none';
+    } else {
+      if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
+      if (none)  none.style.display  = 'inline';
+    }
+    if (badge) badge.textContent = '📷 Replace photo';
   }
 
   roomCards.forEach(card => {
@@ -93,8 +111,9 @@ document.addEventListener("DOMContentLoaded", () => {
       roomForm.querySelector('input[name="capacity"]').value = data.capacity || "";
       roomForm.querySelector('input[name="internal_price"]').value = data.price || "";
       roomForm.querySelector('input[name="external_price"]').value = data.external_price || "";
-      roomForm.querySelector('textarea[name="description"]').value = data.description || "";
       roomForm.querySelector('select[name="status"]').value = data.status || "Available";
+      roomForm.querySelector('textarea[name="description"]').value = data.description || "";
+      setModalImage('room', data.image || '');
 
       openModal();
     });
@@ -117,8 +136,10 @@ document.addEventListener("DOMContentLoaded", () => {
       venueForm.querySelector('input[name="capacity"]').value = data.capacity || "";
       venueForm.querySelector('input[name="internal_price"]').value = data.price || "";
       venueForm.querySelector('input[name="external_price"]').value = data.external_price || "";
+      const venueStatusSelect = venueForm.querySelector('select[name="status"]');
+      if (venueStatusSelect) venueStatusSelect.value = data.status || "Available";
       venueForm.querySelector('textarea[name="description"]').value = data.description || "";
-      venueForm.querySelector('select[name="status"]').value = data.status || "Available";
+      setModalImage('venue', data.image || '');
 
       openModal();
     });

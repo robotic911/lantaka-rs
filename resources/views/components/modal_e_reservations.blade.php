@@ -110,10 +110,6 @@
 </div>
             </div>
 
-
-
-
-
             <input type="hidden" name="reservation_id" id="modalResId">
             <input type="hidden" name="res_type" id="modalResType">
 
@@ -125,11 +121,7 @@
 
 
             <div id="editSection">
-                <button type="button" id="editLink" class="check-out-btn" style="
-                width: fit-content;
-                align-self: flex-end;
-                font-size: 12px;
-                appearance: none;">
+                <button type="button" id="editLink" class="check-out-btn" style="margin-top:20px; width: fit-content; align-self: flex-end; font-size: 12px; appearance: none; justify-content: center;">
                   Edit
                 </button>
               </div>
@@ -211,7 +203,7 @@
                   <div style="width: 20vw;
                                 height: 4vh;
                                 padding: 6px; ">
-                    <span id="purpose_r" style="font-size:10px; color:#4a4a4a; ">Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. </span>
+                    <span id="purpose_r" style="font-size:10px; color:#4a4a4a; "></span>
                   </div>
                 </div>
               </div>
@@ -230,7 +222,7 @@
 
                 <div class="summary-item">
                   <p class="summary-label">Check-in Date:</p>
-                  <p class="summary-value" id="modalCheckIn">/p>
+                  <p class="summary-value" id="modalCheckIn"> </p>
                 </div>
 
                 <div class="summary-item">
@@ -290,7 +282,7 @@
             </div>
           </div>
 
-          <div class="modal-footer">
+          <div class="modal-footer" style="height: fit-content;">
             <form id="statusForm" action="" method="POST">
               @csrf
               <input type="hidden" name="status" id="statusInput" value="">
@@ -311,6 +303,26 @@
                 </button>
                 <button type="button" onclick="submitStatus('checked-out')" class="check-out-btn">CHECK-OUT</button>
               </div>
+
+              {{-- Checked-out + UNPAID: anyone can mark as paid --}}
+              <div id="checkedOutUnpaidActions" class="modal-actions" style="display: none; gap: 10px; align-items: center;">
+                <span class="unpaid-badge">⚠ UNPAID</span>
+                <button type="button" class="accept-btn" onclick="doMarkAsPaid()">
+                  MARK AS PAID
+                </button>
+              </div>
+
+              {{-- Checked-out + PAID: show badge; admin can revert to unpaid --}}
+              <div id="checkedOutPaidActions" class="modal-actions" style="display: none; gap: 10px; align-items: center;">
+                <span class="paid-badge">✓ PAID</span>
+                @if(auth()->user()->Account_Role === 'admin')
+                  <button type="button" class="reject-btn" onclick="doMarkAsUnpaid()"
+                          title="Revert payment status to unpaid">
+                    REVERT TO UNPAID
+                  </button>
+                @endif
+              </div>
+
           </div>
           </form>
         </div>
@@ -325,7 +337,6 @@
     const userIdInput = document.getElementById('userId');
 
     if (!soaLink || !userIdInput) return;
-
     userIdInput.value = clientId;
     soaLink.href = `/employee/SOA/${clientId}`;
 
@@ -334,6 +345,28 @@
 </script>
 
 <style>
+  /* ── Payment status badges (shown after checkout) ── */
+  .unpaid-badge,
+  .paid-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .unpaid-badge {
+    background: #fff7ed;
+    color: #c2410c;
+    border: 1.5px solid #fb923c;
+  }
+  .paid-badge {
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1.5px solid #86efac;
+  }
+
   .food-date {
     justify-content: flex-end;
     margin: 5px 0px;

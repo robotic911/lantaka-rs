@@ -8,14 +8,14 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('venue_reservations', function (Blueprint $table) {
+        Schema::table('Venue_Reservation', function (Blueprint $table) {
             $table->decimal('Venue_Reservation_Discount', 10, 2)->default(0);
         });
     }
 
     public function down(): void
     {
-        Schema::table('venue_reservations', function (Blueprint $table) {
+        Schema::table('Venue_Reservation', function (Blueprint $table) {
             $table->dropColumn('Venue_Reservation_Discount');
         });
     }

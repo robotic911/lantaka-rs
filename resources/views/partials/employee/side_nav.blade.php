@@ -10,19 +10,19 @@
                 </div>
             </div>
         </div>
-        
+
         <nav class="nav-menu">
         <a href="{{route('employee.dashboard')}}" class="nav-item {{ request()->routeIs('employee.dashboard') ? 'active' : '' }}">
             <span class="icon dashboard-icon"></span>
             <span>Dashboard</span>
         </a>
 
-        <a href="{{route('employee.reservations')}}" class="nav-item {{ request()->routeIs('employee.reservations') ? 'active' : '' }}">
+        <a href="{{route('employee.reservations')}}" class="nav-item {{ request()->routeIs('employee.reservations') || request()->routeIs('employee.reservations.specific') ? 'active' : '' }}">
             <span class="icon reservation-icon"></span>
             <span>Reservation</span>
         </a>
 
-        <a href="{{route('employee.guest')}}" class="nav-item {{ request()->routeIs('employee.guest') ? 'active' : '' }}">
+        <a href="{{route('employee.guest')}}" class="nav-item {{ request()->routeIs('employee.guest') || request()->routeIs('employee.guests.specific')? 'active' : '' }}">
             <span class="icon guest-icon"></span>
             <span>Guest</span>
         </a>
@@ -32,13 +32,13 @@
             <span>Rooms / Venue</span>
         </a>
 
-        @if(Auth::user()->role === 'admin')
+        @if(Auth::user()->Account_Role === 'admin')
         <a href="{{route('employee.accounts')}}" class="nav-item {{ request()->routeIs('employee.accounts') ? 'active' : '' }}">
             <span class="icon accounts-icon"></span>
             <span>Accounts</span>
         </a>
 
-        
+
 
         <a href="{{route('employee.eventlogs')}}" class="nav-item {{ request()->routeIs('employee.eventlogs') ? 'active' : '' }}">
             <span class="icon logs-icon"></span>

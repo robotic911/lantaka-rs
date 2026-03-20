@@ -9,9 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@200;300;400;500;600;700;800;900&family=Arsenal:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 </head>
 <body>
-    
+
     <div class="background-overlay"></div>
-    
+
     <main class="login-container">
         <div class="login-card">
             <!-- Logo Section -->
@@ -27,7 +27,7 @@
 
             <!-- Subtitle -->
             <p class="subtitle">Lantaka Online Room & Venue Reservation System</p>
-            
+
             <!-- Error Message -->
            @if(session('success'))
                 <div class="alert-message" style="color: #155724; background-color: #d4edda; border: 1px solid #c3e6cb; padding: 10px; border-radius: 5px; margin-bottom: 15px; text-align: center; font-size: 0.9rem;">
@@ -56,11 +56,11 @@
                         <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
                         <circle cx="12" cy="7" r="4"></circle>
                     </svg>
-                    <input 
-                        type="text" 
-                        name="username"
-                        class="form-input" 
-                        placeholder="Username" 
+                    <input
+                        type="text"
+                        name="Account_Username"
+                        class="form-input"
+                        placeholder="Username"
                         required
                     >
                 </div>
@@ -71,13 +71,19 @@
                         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                         <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                     </svg>
-                    <input 
-                        type="password" 
-                        name="password"
-                        class="form-input" 
-                        placeholder="Password" 
+                    <input
+                        type="password"
+                        id="password"   
+                        name="Account_Password"
+                        class="form-input"
+                        placeholder="Password"
                         required
                     >
+                    <button type="button" class="password-toggle" onclick="togglePassword(this)">
+                         <svg id="eye-password" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>
+                        </svg>
+                    </button>
                 </div>
 
                 <!-- Login Button -->
@@ -87,7 +93,7 @@
             <!-- Sign Up Link -->
             <p class="signup-text">
                 Don't have an account? <a href="{{ route('signup') }}" class="signup-link">Sign up</a>
-                <br>  
+                <br>
                 <br>
                 <!-- <a class="signup-link"> Employee Dashboard Page Test</a>
                 <br>
@@ -98,3 +104,12 @@
     </main>
 </body>
 </html>
+
+<script>
+  function togglePassword(btn) {
+  const input = btn.closest('.input-group').querySelector('input');
+  const isText = input.type === 'text';
+  input.type = isText ? 'password' : 'text';
+  btn.querySelector('svg').style.opacity = isText ? '1' : '0.4';
+}   
+</script>

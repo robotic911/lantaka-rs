@@ -6,7 +6,7 @@
       <button class="approval-close">&times;</button>
       <h2>Pending Client Details</h2>
       
-      <form class="approval-form">
+      <form class="approval-form" onsubmit="return false;">
         <div class="approval-row">
           <div class="approval-field">
             <label>Username</label>

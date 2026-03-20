@@ -3,7 +3,7 @@ import dayjs from 'dayjs';
 
 let view = dayjs();
 let reservationData = window.reservations || [];
-
+console.log(reservationData);
 const monthHeader = document.getElementById('calendar-month-header');
 const weekHeader = document.getElementById('calendar-week-header');
 
@@ -58,15 +58,14 @@ function paintReservationsMonth(data) {
     data.forEach(res => {
       const { status, redirect } = getRedirectAndStatus(res);
       const label = res.label || 'N/A';
-
       if (date >= res.check_in && date <= res.check_out && status) {
         container.innerHTML += `
-          <a href="${redirect}?search=${encodeURIComponent(res.id)}" class="event-label ${status}">
+          <a href="${redirect}/${encodeURIComponent(res.id)}?type=${encodeURIComponent(res.type)}" class="event-label ${status}">
             ${label} - ${res.user ? res.user.name : 'Unknown'}
           </a>
         `;
       }
-    });
+    })
   });
 }
 
@@ -188,6 +187,31 @@ function updateStats(stats) {
   if (checkOutsTodayEl) checkOutsTodayEl.textContent = stats.checkOutsTodayCount ?? 0;
 }
 
+function changeHtml(val, labelText) {
+  const v = Number(val ?? 0);
+  let badge = '';
+  if (v > 0)      badge = `<span class="chg-positive">↑ ${v}%</span>`;
+  else if (v < 0) badge = `<span class="chg-negative">↓ ${Math.abs(v)}%</span>`;
+  else            badge = `<span class="chg-neutral">—</span>`;
+  return `${badge} <span class="chg-label">${labelText}</span>`;
+}
+
+function updateChanges(changes) {
+  if (!changes) return;
+  const lbl = changes.lastMonthLabel || 'last month';
+  const map = {
+    changeTotalReservations: [changes.totalReservations, `vs ${lbl}`],
+    changeOccupancyRate:     [changes.occupancyRate,     'vs prev 30 days'],
+    changeRevenue:           [changes.revenue,            `vs ${lbl}`],
+    changeActiveGuests:      [changes.activeGuests,       `vs ${lbl}`],
+    changeCheckOuts:         [changes.checkOutsToday,     `vs ${lbl}`],
+  };
+  Object.entries(map).forEach(([id, [val, label]]) => {
+    const el = document.getElementById(id);
+    if (el) el.innerHTML = changeHtml(val, label);
+  });
+}
+
 refresh.addEventListener('click', () => {
   btnWeekly.classList.remove('active');
   btnMonthly.classList.add('active');
@@ -268,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       reservationData = data.reservations || [];
       updateStats(data.stats || {});
+      updateChanges(data.changes || window.statChanges || {});
 
       const weekVisible = !document.querySelector('.calendar-grid-week')?.classList.contains('hide');
 

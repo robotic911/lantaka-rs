@@ -32,14 +32,14 @@
         </div>
 
         <div class="tabs">
-          <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('role') ? 'active' : '' }}">All Accounts</a>
-          
-          <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
-          
+          <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('Account_Role') ? 'active' : '' }}">All Accounts</a>
+
+          <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('Account_Role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
+
           <a href="{{ route('employee.accounts', ['status' => 'approved']) }}" class="tab-btn {{ request('status') == 'approved' ? 'active' : '' }}">Approved Client Account</a>
-          
+
           <a href="{{ route('employee.accounts', ['status' => 'declined']) }}" class="tab-btn {{ request('status') == 'declined' ? 'active' : '' }}">Declined Client Account</a>
-          
+
           <a href="{{ route('employee.accounts', ['status' => 'pending']) }}" class="tab-btn {{ request('status') == 'pending' ? 'active' : '' }}">Pending Client Account</a>
           <a href="{{ route('employee.accounts', ['status' => 'deactivate']) }}" class="tab-btn {{ request('status') == 'deactivate' ? 'active' : '' }}">Deactivated Client Account</a>
         </div>
@@ -66,25 +66,25 @@
                       <span class="cell-icon">
                         <img src="{{ asset(path: 'images/logo/topnav/user-avatar.svg') }}" alt="reservations">
                       </span>
-                      <span>{{ $user->name }}</span>
+                      <span>{{ $user->Account_Name }}</span>
                     </div>
                   </td>
-                  <td>{{ ucfirst($user->role) }}</td>
-                  <td>{{ $user->email }}</td>
-                  <td>{{ $user->phone ?? 'N/A' }}</td>
+                  <td>{{ ucfirst($user->Account_Role) }}</td>
+                  <td>{{ $user->Account_Email }}</td>
+                  <td>{{ $user->Account_Phone ?? 'N/A' }}</td>
                   <td>
-                    @if($user->status == 'pending')
+                    @if($user->Account_Status == 'pending')
                         <span class="status-badge pending">Pending</span>
-                    @elseif($user->status == 'approved')
+                    @elseif($user->Account_Status == 'approved')
                         <span class="status-badge online">Approved</span>
-                    @elseif($user->status == 'declined')
+                    @elseif($user->Account_Status == 'declined')
                         <span class="status-badge declined">Declined</span>
-                    @elseif($user->status == 'deactivate')
+                    @elseif($user->Account_Status == 'deactivate')
                         <span class="status-badge deactivated">Deactivated</span>
                     @endif
                   </td>
                   <td>
-                    @if($user->status == 'pending')
+                    @if($user->Account_Status == 'pending')
                         <button class="action-btn-approve" data-user="{{ json_encode($user) }}">
                           <span class="icon-eye">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
@@ -92,7 +92,7 @@
                             </svg>
                           </span>
                         </button>
-                        @elseif($user->status == 'approved')
+                        @elseif($user->Account_Status != 'declined')
                           <button class="action-btn-view" data-user="{{ json_encode($user) }}">✎</button>
                         @else
 
@@ -101,7 +101,7 @@
                   </td>
                 </tr>
                 @empty
-                
+
                   <th style="display: flex; width: 150px; justify-content: center;">
                     Status
                   </th>
@@ -111,6 +111,9 @@
               @endforelse
             </tbody>
           </table>
+          <div style="margin-top: 16px;">
+            {{ $users->links('vendor.pagination.simple') }}
+          </div>
         </div>
       </div>
       <x-approve_account_modal/>

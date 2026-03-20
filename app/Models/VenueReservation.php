@@ -9,39 +9,40 @@ class VenueReservation extends Model
 {
     use HasFactory;
 
-    protected $table = 'venue_reservations';
+    protected $table = 'Venue_Reservation';
     protected $primaryKey = 'Venue_Reservation_ID';
 
     protected $fillable = [
-        'venue_id', 
+        'Venue_ID',                             // from'venue_id',
         'Client_ID',
         'Venue_Reservation_Date',
         'Venue_Reservation_Check_In_Time',
         'Venue_Reservation_Check_Out_Time',
-        'pax',
-        'purpose',
+        'Venue_Reservation_Pax',                // from 'pax',
+        'Venue_Reservation_Purpose',            // from 'purpose',
         'Venue_Reservation_Total_Price',
-        'status',
-        'Venue_Reservation_Additional_Fees', 
+        'Venue_Reservation_Status',             // from 'status',
+        'Venue_Reservation_Payment_Status',     // from 'payment_status',
+        'Venue_Reservation_Additional_Fees',
         'Venue_Reservation_Additional_Fees_Desc',
         'Venue_Reservation_Discount'
     ];
 
     public function venue() {
-        return $this->belongsTo(Venue::class, 'venue_id'); // Match lowercase
+        return $this->belongsTo(Venue::class, 'Venue_ID'); // Match lowercase
     }
 
     public function user() {
-        return $this->belongsTo(User::class, 'Client_ID');
+        return $this->belongsTo(Account::class, 'Client_ID');
     }
 
     public function foods()
     {
         return $this->belongsToMany(
-            Food::class, 
-            'food_reservations',    // Table name
-            'venue_reservation_id', // Foreign key for VenueReservation
-            'food_id'               // Foreign key for Food
-        )->withPivot('status', 'serving_time', 'meal_time', 'total_price');
+            Food::class,
+            'Food_Reservation',    // Table name
+            'Venue_Reservation_ID', // Foreign key for VenueReservation
+            'Food_ID'               // Foreign key for Food
+        )->withPivot('Food_Reservation_Status', 'Food_Reservation_Serving_Date', 'Food_Reservation_Meal_time', 'Food_Reservation_Total_Price');
     }
 }

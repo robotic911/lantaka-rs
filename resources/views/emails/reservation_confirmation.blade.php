@@ -17,14 +17,14 @@
 
         <div class="details">
             <strong>Reservation Information</strong><br>
-            Room/Venue: {{ $reservation->type === 'room' ? $reservation->room->room_number : ($reservation->venue->Venue_Name ?? $reservation->venue->name) }}<br>
+            Room/Venue: {{ $reservation->type === 'room' ? $reservation->room->Room_Number : ($reservation->venue->Venue_Name ?? 'Venue') }}<br>
             Date of Reservation: {{ now()->format('F j, Y') }}<br>
             Check-in Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_In_Time ?? $reservation->Venue_Reservation_Check_In_Time)->format('F j, Y') }}<br>
             Check-out Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_Out_Time ?? $reservation->Venue_Reservation_Check_Out_Time)->format('F j, Y') }}<br>
-            Number of Guests: {{ $reservation->pax }}<br>
+            Number of Guests: {{ $reservation->Room_Reservation_Pax ?? $reservation->Venue_Reservation_Pax }}<br>
             
             @if($reservation->foods->isNotEmpty())
-                Food Selection: {{ $reservation->foods->pluck('food_name')->implode(', ') }}
+                Food Selection: {{ $reservation->foods->pluck('Food_Name')->implode(', ') }}
             @endif
         </div>
 

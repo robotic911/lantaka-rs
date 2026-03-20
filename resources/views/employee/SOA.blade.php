@@ -15,7 +15,7 @@
     <div class="soa-left-section">
       <div class="soa-form-group">
         <label class="soa-form-label">To</label>
-        <input type="text" class="soa-form-input" value="{{ $client->name }}" readonly>
+        <input type="text" class="soa-form-input" value="{{ $client->Account_Name }}" readonly>
 
         <label class="soa-form-label">Date:</label>
         <input type="date" class="soa-form-input" value="{{ now()->format('Y-m-d') }}">
@@ -109,8 +109,7 @@
       <div class="soa-preview-list" id="soaPreviewList">
       </div>
 
-
-      <form id="soaExportForm" method="GET" action="{{ route('export.exportSOA', $client->id) }}">
+      <form id="soaExportForm" method="GET" action="{{ route('export.exportSOA', $client->Account_ID) }}">
         <input type="hidden" name="selected_items" id="selectedItemsInput">
         <button type="submit" class="soa-export-btn">
           EXPORT STATEMENT OF ACCOUNTS

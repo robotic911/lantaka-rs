@@ -14,12 +14,12 @@ return new class extends Migration
     public function up()
     {
         Schema::create('food', function (Blueprint $table) {
-            $table->id('food_id'); 
-            $table->unsignedBigInteger('admin_id')->nullable(); 
-            $table->string('food_name', 50);
-            $table->string('food_category', 50); // e.g., breakfast, lunch, snack
-            $table->decimal('food_price', 10, 2);
-            $table->string('status', 20)->default('available'); // Add this line!
+            $table->id('Food_ID');
+            $table->unsignedBigInteger('admin_id')->nullable();
+            $table->string('Food_Name', 50);
+            $table->string('Food_Category', 50); // e.g., breakfast, lunch, snack
+            $table->decimal('Food_Price', 10, 2);
+            $table->string('Food_Availability', 20)->default('available'); // Add this line!
             $table->timestamps();
         });
     }

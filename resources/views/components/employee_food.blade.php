@@ -1,313 +1,401 @@
 <link rel="stylesheet" href="{{ asset('css/employee_food.css') }}">
 
+@php
+  $isAdmin = auth()->user()->Account_Role === 'admin';
+  $categories = [
+    'rice'       => 'Rice',
+    'set_viand'  => 'Set Viand',
+    'sidedish'   => 'Side Dish',
+    'drinks'     => 'Drinks',
+    'desserts'   => 'Desserts',
+    'snacks'     => 'Snacks',
+    'other_viand'=> 'Other Viand',
+  ];
+@endphp
+
+{{-- Pass role to JS --}}
+<script>window._foodIsAdmin = {{ $isAdmin ? 'true' : 'false' }};</script>
+
 <div class="food-modal-overlay" id="foodModalOverlay">
   <div class="food-modal" id="foodModal">
-    <!-- <button class="food-modal-close" id="foodModalClose">&times;</button> -->
 
-    <main class="food-main-content toggle">
-      <div class="reservation-card">
-        <div class="card-header food-card-header">
-          <h2>Food Menu</h2>
-          <button class="add-food-button" id="add_food_button">Add Food</button>
-        </div>
-
-        @php
-          $categories = [
-            'rice' => 'Rice',
-            'set_viand' => 'Set Viand',
-            'sidedish' => 'Sidedish',
-            'drinks' => 'Drinks',
-            'desserts' => 'Desserts',
-            'other_viand' => 'Other Viand',
-            'snacks' => 'Snack',
-          ];
-        @endphp
-
-        <div class="meals-container">
-          @foreach($categories as $key => $label)
-            <div class="meal-section">
-              <div class="meal-header">
-                <span class="meal-name">{{ $label }}</span>
-                <span class="meal-count">{{ isset($foods[$key]) ? $foods[$key]->count() : 0 }} items</span>
-              </div>
-
-              <div class="food-items">
-                @if(isset($foods[$key]) && $foods[$key]->count() > 0)
-                  @foreach($foods[$key] as $food)
-                    <div
-                      class="food-item {{ $food->status === 'unavailable' ? 'unavailable' : '' }}"
-                      data-id="{{ $food->food_id }}"
-                      data-name="{{ $food->food_name }}"
-                      data-status="{{ $food->status }}"
-                      data-type="{{ $food->food_category }}"
-                      data-price="{{ $food->food_price }}"
-                    >
-                      <div class="food-name">{{ $food->food_name }}</div>
-
-                      <div class="food-meta">
-                        <div class="food-price">₱ {{ number_format($food->food_price, 2) }}</div>
-
-                        @if($food->status === 'unavailable')
-                          <span class="food-badge unavailable-badge">Unavailable</span>
-                        @else
-                          <span class="food-badge available-badge">Available</span>
-                        @endif
-                      </div>
-                    </div>
-                  @endforeach
-                @else
-                  <p class="empty-food-msg">No {{ strtolower($label) }} items added yet.</p>
-                @endif
-              </div>
-            </div>
-          @endforeach
+    {{-- Header --}}
+    <div class="fm-header">
+      <div class="fm-header-left">
+        <span class="fm-icon">🍽</span>
+        <div>
+          <h2 class="fm-title">Food Menu</h2>
+          <p class="fm-subtitle">{{ $foods->sum(fn($g) => $g->count()) }} items available</p>
         </div>
       </div>
-    </main>
+      <div class="fm-header-right">
+        @if($isAdmin)
+          <button class="fm-add-btn" id="add_food_button">+ Add Food</button>
+        @endif
+        <button class="fm-close-btn" id="foodModalClose">✕</button>
+      </div>
+    </div>
+
+    {{-- Category Tabs --}}
+    <div class="fm-tabs" id="fmTabs">
+      <button class="fm-tab active" data-cat="all">All</button>
+      @foreach($categories as $key => $label)
+        @if(isset($foods[$key]) && $foods[$key]->count() > 0)
+          <button class="fm-tab" data-cat="{{ $key }}">
+            {{ $label }}
+            <span class="fm-tab-count">{{ $foods[$key]->count() }}</span>
+          </button>
+        @endif
+      @endforeach
+    </div>
+
+    {{-- Menu Body --}}
+    <div class="fm-body" id="fmBody">
+      @foreach($categories as $key => $label)
+        <div class="fm-section" data-section="{{ $key }}">
+          <div class="fm-section-title">
+            <span>{{ $label }}</span>
+            <span class="fm-section-count">{{ isset($foods[$key]) ? $foods[$key]->count() : 0 }} items</span>
+          </div>
+
+          @if(isset($foods[$key]) && $foods[$key]->count() > 0)
+            <div class="fm-list">
+              @foreach($foods[$key] as $food)
+                <div
+                  class="fm-item {{ $food->Food_Status === 'unavailable' ? 'fm-item--unavailable' : '' }} {{ $isAdmin ? 'fm-item--editable' : '' }}"
+                  data-id="{{ $food->Food_ID }}"
+                  data-name="{{ $food->Food_Name }}"
+                  data-status="{{ $food->Food_Status }}"
+                  data-type="{{ $food->Food_Category }}"
+                  data-price="{{ $food->Food_Price }}"
+                >
+                  <div class="fm-item-left">
+                    <span class="fm-item-dot {{ $food->Food_Status === 'unavailable' ? 'dot--off' : 'dot--on' }}"></span>
+                    <span class="fm-item-name">{{ $food->Food_Name }}</span>
+                  </div>
+                  <div class="fm-item-right">
+                    <span class="fm-item-price">₱ {{ number_format($food->Food_Price, 2) }}</span>
+                    @if($food->Food_Status === 'unavailable')
+                      <span class="fm-badge fm-badge--off">Unavailable</span>
+                    @else
+                      <span class="fm-badge fm-badge--on">Available</span>
+                    @endif
+                    @if($isAdmin)
+                      <span class="fm-edit-hint">Edit ›</span>
+                    @endif
+                  </div>
+                </div>
+              @endforeach
+            </div>
+          @else
+            <p class="fm-empty">No items in this category yet.</p>
+          @endif
+        </div>
+      @endforeach
+    </div>
+
   </div>
 </div>
 
-<x-employee_add_food />
-<x-employee_update_food />
+@if($isAdmin)
+  <x-employee_add_food />
+  <x-employee_update_food />
+@endif
 
 
 <style>
-  .food-modal {
-  width: 95%;
-  max-width: 1200px;
-  max-height: 92vh;
-  background: #F3F5EB;
-  border-radius: 18px;
-  overflow: auto;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.25);
-  position: relative;
-  transform: scale(0.96);
-  opacity: 0;
-  transition: transform .25s ease, opacity .25s ease;
-}
-
-.reservation-card {
-  background-color: var(--white);
-  border-radius: 16px;
-  padding: 28px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.food-card-header {
-  display: flex;
-  flex-direction: row;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 28px;
-  padding-bottom: 18px;
-  border-bottom: 2px solid var(--light-gray);
-  gap: 16px;
-}
-
-.food-card-header h2 {
-  font-size: 24px;
-  font-weight: 700;
-  margin: 0;
-  justify-content: flex-start;
-}
-
-.add-food-button {
-  display: inline-flex;
+/* ================================
+   FOOD MENU OVERLAY + MODAL
+================================ */
+.food-modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 1000;
   align-items: center;
   justify-content: center;
-  min-width: 120px;
-  padding: 10px 18px;
-  border: none;
-  color: #fff;
-  background-color: var(--primary-blue);
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  transition: all 0.3s ease;
+}
+.food-modal-overlay.show {
+  display: flex;
 }
 
-.add-food-button:hover {
-  background-color: var(--dark-blue);
-}
-
-.meals-container {
+.food-modal {
+  width: 94%;
+  max-width: 780px;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 16px;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.18);
+  transform: translateY(12px);
+  opacity: 0;
+  transition: transform .22s ease, opacity .22s ease;
+}
+.food-modal.show {
+  transform: translateY(0);
+  opacity: 1;
 }
 
-.meal-section {
+/* ================================
+   HEADER
+================================ */
+.fm-header {
   display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 18px;
-  border: 1px solid var(--border-gray);
-  border-radius: 14px;
-  background: #fcfcf8;
-}
-
-.meal-header {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
-  min-width: unset;
+  justify-content: space-between;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  flex-shrink: 0;
+}
+.fm-header-left {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #ece8e1;
 }
-
-.meal-name {
+.fm-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.fm-title {
+  margin: 0;
+  font-size: 20px;
   font-weight: 700;
-  font-size: 17px;
-  text-decoration: none;
-  color: var(--dark-blue);
+  color: #1e3a5f;
+  line-height: 1.2;
 }
-
-.meal-count {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-light);
-  background: #eef1f7;
-  padding: 6px 10px;
-  border-radius: 999px;
+.fm-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: #888;
+  font-weight: 400;
 }
-
-.food-items {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 14px;
-}
-
-.food-item {
-  padding: 14px;
-  border: 1.5px solid var(--border-gray);
-  border-radius: 12px;
-  cursor: pointer;
-  transition: all 0.25s ease;
-  background-color: var(--white);
-  text-align: left;
-  min-height: 95px;
+.fm-header-right {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.food-item:hover {
-  border-color: var(--light-blue);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 18px rgba(44, 62, 127, 0.08);
-}
-
-.food-item.selected {
-  border-color: var(--primary-blue);
-  background-color: #f4f7ff;
-}
-
-.food-item.unavailable {
-  background-color: #f3f3f3;
-  color: var(--disabled-gray);
-  cursor: not-allowed;
-  border-color: #e3e3e3;
-  box-shadow: none;
-  transform: none;
-}
-
-.food-item.unavailable:hover {
-  border-color: #e3e3e3;
-  transform: none;
-  box-shadow: none;
-}
-
-.food-name {
-  font-weight: 700;
-  font-size: 14px;
-  margin-bottom: 10px;
-  line-height: 1.35;
-  color: var(--text-dark);
-}
-
-.food-item.unavailable .food-name {
-  color: #8d8d8d;
-}
-
-.food-meta {
-  display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
 }
-
-.food-price {
+.fm-add-btn {
+  padding: 8px 16px;
+  background: #1e3a5f;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
   font-size: 13px;
-  color: var(--primary-blue);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .2s;
+}
+.fm-add-btn:hover { background: #162d4a; }
+.fm-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f5f5f5;
+  border-radius: 8px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .2s, color .2s;
+}
+.fm-close-btn:hover { background: #ffe0e0; color: #c00; }
+
+/* ================================
+   CATEGORY TABS
+================================ */
+.fm-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 12px 24px 0;
+  overflow-x: auto;
+  flex-shrink: 0;
+  scrollbar-width: none;
+  border-bottom: 1px solid #f0f0f0;
+}
+.fm-tabs::-webkit-scrollbar { display: none; }
+
+.fm-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px 10px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #888;
+  cursor: pointer;
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color .18s, border-color .18s;
+}
+.fm-tab:hover { color: #1e3a5f; }
+.fm-tab.active {
+  color: #1e3a5f;
   font-weight: 700;
+  border-bottom-color: #1e3a5f;
 }
-
-.food-item.unavailable .food-price {
-  color: #9b9b9b;
-}
-
-.food-badge {
+.fm-tab-count {
+  background: #eef2ff;
+  color: #1e3a5f;
+  border-radius: 999px;
+  padding: 1px 7px;
   font-size: 11px;
   font-weight: 700;
-  border-radius: 999px;
-  padding: 5px 9px;
-  white-space: nowrap;
+}
+.fm-tab.active .fm-tab-count {
+  background: #1e3a5f;
+  color: #fff;
 }
 
-.available-badge {
-  background: #e9f7ee;
-  color: #1b7a3d;
+/* ================================
+   MENU BODY + SECTIONS
+================================ */
+.fm-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 28px;
 }
 
-.unavailable-badge {
-  background: #fdecec;
-  color: #c62828;
+.fm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fm-section.hidden { display: none; }
+
+.fm-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #aaa;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #f2f2f2;
+}
+.fm-section-count {
+  font-weight: 500;
+  font-size: 11px;
+  color: #bbb;
+  text-transform: none;
+  letter-spacing: 0;
 }
 
-.empty-food-msg {
-  padding: 18px;
-  color: #777;
+/* ================================
+   FOOD ITEMS (LIST ROWS)
+================================ */
+.fm-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fm-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 8px;
+  transition: background .15s;
+  gap: 12px;
+}
+.fm-item--editable {
+  cursor: pointer;
+}
+.fm-item--editable:hover {
+  background: #f5f8ff;
+}
+.fm-item--unavailable {
+  opacity: 0.5;
+}
+.fm-item--unavailable.fm-item--editable:hover {
   background: #fafafa;
-  border: 1px dashed #d8d8d8;
-  border-radius: 10px;
-  text-align: center;
-  font-size: 14px;
 }
 
-@media (max-width: 768px) {
-  .food-modal {
-    width: 100%;
-    max-width: 100%;
-    border-radius: 14px;
-  }
+.fm-item-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.fm-item-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot--on  { background: #22c55e; }
+.dot--off { background: #d1d5db; }
 
-  .reservation-card {
-    padding: 18px;
-  }
+.fm-item-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: #1a202c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fm-item--unavailable .fm-item-name { color: #9ca3af; }
 
-  .food-card-header {
-    flex-direction: column;
-    align-items: stretch;
-  }
+.fm-item-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+.fm-item-price {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e3a5f;
+}
+.fm-item--unavailable .fm-item-price { color: #9ca3af; }
 
-  .food-card-header h2 {
-    justify-content: center;
-    text-align: center;
-  }
+.fm-badge {
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+.fm-badge--on  { background: #dcfce7; color: #166534; }
+.fm-badge--off { background: #fee2e2; color: #991b1b; }
 
-  .add-food-button {
-    width: 100%;
-  }
+.fm-edit-hint {
+  font-size: 11px;
+  color: #9ca3af;
+  font-weight: 500;
+  opacity: 0;
+  transition: opacity .15s;
+}
+.fm-item--editable:hover .fm-edit-hint { opacity: 1; }
 
-  .meal-header {
-    flex-direction: column;
-    align-items: flex-start;
-  }
+.fm-empty {
+  font-size: 13px;
+  color: #bbb;
+  padding: 10px 0 4px;
+  font-style: italic;
+}
 
-  .food-items {
-    grid-template-columns: 1fr;
-  }
+/* ================================
+   RESPONSIVE
+================================ */
+@media (max-width: 600px) {
+  .fm-header { padding: 16px 16px 12px; }
+  .fm-tabs   { padding: 10px 16px 0; }
+  .fm-body   { padding: 16px; gap: 22px; }
+  .fm-badge  { display: none; }
+  .food-modal { max-width: 100%; border-radius: 12px 12px 0 0; align-self: flex-end; max-height: 85vh; }
 }
 </style>

@@ -1,8 +1,8 @@
 @extends('layouts.employee')
   <title>Rooms / Venue - Lantaka</title>
   <link rel="stylesheet" href="{{asset('css/employee_room_venue.css')}}">
-  
-  
+
+
   @vite('resources/js/employee_food.js')
   @vite('resources/js/employee_add_food.js')
   @vite('resources/js/employee/create_reservation.js')
@@ -18,8 +18,8 @@
         <!-- Top Controls -->
         <div class="controls-section">
         <form class="search-bar" method="GET" action="{{ route('employee.room_venue') }}">
-          <input 
-              type="text" 
+          <input
+              type="text"
               name="search"
               value="{{ request('search') }}"
               placeholder="Search room or venue"
@@ -41,10 +41,12 @@
             </option>
           </select>
         </form>
-        
+
           <div class="button-section">
             <button class="btn btn-secondary" id="food_button">Food Menu</button>
-            <button class="btn btn-primary" id="add_room_venue_button">Add Room/Venue</button>
+            @if(auth()->user()->Account_Role === 'admin')
+              <button class="btn btn-primary" id="add_room_venue_button">Add Room/Venue</button>
+            @endif
           </div>
         </div>
 
@@ -52,25 +54,26 @@
 
           <!-- Div Content for both Rooms and Venues -->
           <div class="room-venue-content">
-            
+
             <!-- Rooms Section -->
             <section class="rooms-section">
               <h2 class="section-title">Room</h2>
               <div class="rooms-grid">
 
               @foreach($rooms as $room)
-                <div class="room-card {{ strtolower($room->status) }}">
-                  {{ $room->room_number }}
+                <div class="room-card {{ strtolower($room->Room_Status) }}">
+                  {{ $room->Room_Number }}
 
                   <input type="hidden" class="room-details"
-                        data-id="{{ $room->id }}"
-                        data-name="{{ $room->room_number }}"
-                        data-type="{{ $room->room_type }}"
-                        data-capacity="{{ $room->capacity }}"
-                        data-price="{{ $room->price }}"
-                        data-external_price="{{ $room->external_price }}"
-                        data-status="{{ $room->status }}"
-                        data-description="{{ $room->description }}">
+                        data-id="{{ $room->Room_ID }}"
+                        data-name="{{ $room->Room_Number }}"
+                        data-type="{{ $room->Room_Type }}"
+                        data-capacity="{{ $room->Room_Capacity }}"
+                        data-price="{{ $room->Room_Internal_Price }}"
+                        data-external_price="{{ $room->Room_External_Price }}"
+                        data-status="{{ $room->Room_Status }}"
+                        data-description="{{ $room->Room_Description }}"
+                        data-image="{{ $room->Room_Image ? asset('storage/' . $room->Room_Image) : '' }}">
                 </div>
               @endforeach
 
@@ -80,24 +83,25 @@
               </div>
             </section>
 
-            
+
 
             <!-- Venues Section -->
             <section class="venues-section">
               <h2 class="section-title">Venue</h2>
               <div class="venue-grid">
               @foreach($venues as $venue)
-                <div class="venue-card {{ strtolower($venue->status) }}">
-                  {{ $venue->name }}
+                <div class="venue-card {{ strtolower($venue->Venue_Status) }}">
+                  {{ $venue->Venue_Name }}
 
                   <input type="hidden" class="venue-details"
-                        data-id="{{ $venue->id }}"
-                        data-name="{{ $venue->name }}"
-                        data-capacity="{{ $venue->capacity }}"
-                        data-price="{{ $venue->price }}"
-                        data-external_price="{{ $venue->external_price }}"
-                        data-status="{{ $venue->status }}"
-                        data-description="{{ $venue->description }}">
+                        data-id="{{ $venue->Venue_ID }}"
+                        data-name="{{ $venue->Venue_Name }}"
+                        data-capacity="{{ $venue->Venue_Capacity }}"
+                        data-price="{{ $venue->Venue_Internal_Price }}"
+                        data-external_price="{{ $venue->Venue_External_Price }}"
+                        data-status="{{ $venue->Venue_Status }}"
+                        data-description="{{ $venue->Venue_Description }}"
+                        data-image="{{ $venue->Venue_Image ? asset('storage/' . $venue->Venue_Image) : '' }}">
                 </div>
               @endforeach
 
@@ -106,7 +110,7 @@
                   @endif
               </div>
             </section>
-          </div> 
+          </div>
           </div>
       </div>
   <!-- Add Room Venue Modal -->

@@ -32,23 +32,25 @@
         <h1 class="page-title">Checkout</h1>
     </div>
 
-    <div class="checkout-container" style="display: flex;"> 
+    <div class="checkout-container" style="display: flex;">
         <section class="cart-items" style="flex: 3;">
             @forelse($processedItems as $item)
+
                 <div class="cart-item"
-                data-name="{{ $item['name'] }}"
-                data-total="{{ $item['base_total'] }}"
-                data-base="{{ $item['price'] }}"
-                data-id="{{ $item['id'] }}"
-                data-type="{{ $item['type'] }}"
-                data-in="{{ $item['check_in_raw'] }}"
-                data-out="{{ $item['check_out_raw'] }}"
-                data-pax="{{ $item['pax'] }}"
-                data-food='@json($item['selected_foods'] ?? [])'
-                data-food-enabled='@json($item['food_enabled'] ?? [])'
-                data-meal-enabled='@json($item['meal_enabled'] ?? [])'
-                data-food-selections='@json($item['food_selections'] ?? [])'
-                data-purpose="{{ $item['purpose'] ?? '' }}"
+                        data-name="{{ $item['name'] }}"
+                        data-total="{{ $item['base_total'] }}"
+                        data-base="{{ $item['price'] }}"
+                        data-id="{{ $item['id'] }}"
+                        data-type="{{ $item['type'] }}"
+                        data-in="{{ $item['check_in_raw'] }}"
+                        data-out="{{ $item['check_out_raw'] }}"
+                        data-pax="{{ $item['pax'] }}"
+                        data-food='@json($item['selected_foods'] ?? [])'
+                        data-food-enabled='@json($item['food_enabled'] ?? [])'
+                        data-meal-enabled='@json($item['meal_enabled'] ?? [])'
+                        data-food-selections='@json($item['food_selections'] ?? [])'
+                        data-purpose="{{ $item['purpose'] ?? '' }}"
+                        
                     style="cursor: pointer;">
 
                     <div class="item-image">
@@ -66,7 +68,7 @@
 
                         <p class="item-guests">👥 {{ $item['pax'] }} Guests</p>
                         <p class="item-dates">
-                            {{ $item['check_in'] }} • {{ $item['check_out'] }}
+                            {{ $item['check_in'] }} -> {{ $item['check_out'] }}
                             @if($item['type'] == 'room')
                                 <br>
                                 <small>({{ $item['days'] ?? 0 }} Night{{ ($item['days'] ?? 0) > 1 ? 's' : '' }})</small>
@@ -80,6 +82,7 @@
                             $item['selected_foods']->isNotEmpty()
                         )
                             @php
+
                                 $foodsByDate = [];
                                 foreach ($item['food_selections'] as $date => $meals) {
                                     if (($item['food_enabled'][$date] ?? '1') != '1') continue;
@@ -88,8 +91,8 @@
                                         if (!is_array($categories)) continue;
                                         foreach ($categories as $category => $foodId) {
                                             if (empty($foodId)) continue;
-                                            $food = $item['selected_foods']->firstWhere('food_id', (int) $foodId);
-                                            if ($food) $foodsByDate[$date][] = $food->food_name;
+                                            $food = $item['selected_foods']->firstWhere('Food_ID', (int) $foodId);
+                                            if ($food) $foodsByDate[$date][] = $food->Food_Name;
                                         }
                                     }
                                 }
