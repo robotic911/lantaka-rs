@@ -6,37 +6,26 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
-        Schema::create('venues', function (Blueprint $table) {
-            $table->id(); // This creates 'id'
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            // ATTRIBUTES
-            $table->string('name');              // Venue Name (e.g., "Hall A")
-            $table->string('image')->nullable();
-            $table->integer('capacity');
-            $table->string('status')->default('Available');
-            $table->decimal('price', 10, 2);
-            $table->decimal('external_price', 10, 2);
+        Schema::create('Venue', function (Blueprint $table) {
+            $table->bigIncrements('Venue_ID');
+            $table->unsignedBigInteger('user_id');
+            $table->foreign('user_id')->references('Account_ID')->on('Account')->onDelete('cascade');
 
-            $table->text('description')->nullable();
-            
+            $table->string('Venue_Name');
+            $table->string('Venue_Image')->nullable();
+            $table->integer('Venue_Capacity');
+            $table->string('Venue_Status')->default('Available');
+            $table->decimal('Venue_Internal_Price', 10, 2);
+            $table->decimal('Venue_External_Price', 10, 2);
+            $table->text('Venue_Description')->nullable();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('venues');
+        Schema::dropIfExists('Venue');
     }
 };

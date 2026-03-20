@@ -6,51 +6,46 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
-        Schema::create('room_reservations', function (Blueprint $table) {
-            // Match ERD PK name
-            $table->id('Room_Reservation_ID'); 
+        Schema::create('Room_Reservation', function (Blueprint $table) {
+            $table->bigIncrements('Room_Reservation_ID');
 
-            // Foreign Keys exactly as per ERD
-            $table->foreignId('room_id')->constrained('rooms', 'id')->onDelete('cascade');
-            $table->foreignId('Admin_ID')->nullable()->constrained('users');
-            $table->foreignId('Client_ID')->constrained('users')->onDelete('cascade');
-            $table->foreignId('Staff_ID')->nullable()->constrained('users');
+            $table->unsignedBigInteger('Room_ID');
+            $table->foreign('Room_ID')->references('Room_ID')->on('Room')->onDelete('cascade');
 
-            // Reservation Details (Using ERD PascalCase names)
+            $table->unsignedBigInteger('Admin_ID')->nullable();
+            $table->foreign('Admin_ID')->references('Account_ID')->on('Account');
+
+            $table->unsignedBigInteger('Client_ID');
+            $table->foreign('Client_ID')->references('Account_ID')->on('Account')->onDelete('cascade');
+
+            $table->unsignedBigInteger('Staff_ID')->nullable();
+            $table->foreign('Staff_ID')->references('Account_ID')->on('Account');
+
             $table->timestamp('Room_Reservation_Date')->useCurrent();
             $table->dateTime('Room_Reservation_Check_In_Time');
             $table->dateTime('Room_Reservation_Check_Out_Time');
             $table->dateTime('Room_Reservation_Actual_Check_Out')->nullable();
-            
-            // Financials and Logic
-            $table->decimal('Room_Discount', 5, 2)->default(0.00);
+
+            $table->decimal('Room_Reservation_Discount', 5, 2)->default(0.00);
             $table->integer('Room_Reservation_Quantity')->default(1);
-            $table->integer('pax'); // Note: 'pax' is in your code but not explicitly in this ERD snippet
+            $table->integer('Room_Reservation_Pax');
             $table->decimal('Room_Reservation_Total_Price', 10, 2);
-            
-            // Fees Section
+
             $table->decimal('Room_Reservation_Additional_Fees', 10, 2)->nullable();
             $table->string('Room_Reservation_Additional_Fees_Desc', 255)->nullable();
-            
-            $table->string('status')->default('Pending');
+
+            $table->string('Room_Reservation_Status')->default('Pending');
             $table->timestamps();
+
+            $table->text('Room_Reservation_Purpose')->nullable();
+            $table->string('Room_Reservation_Payment_Status')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('room_reservations');
+        Schema::dropIfExists('Room_Reservation');
     }
 };

@@ -6,38 +6,27 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
-        Schema::create('rooms', function (Blueprint $table) {
-            $table->id(); 
-            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
-            
-            $table->string('room_number');       // <--- LOWERCASE
-            $table->string('room_type');         // <--- LOWERCASE
-            $table->string('image')->nullable(); 
-            $table->integer('capacity');         
-            $table->string('status')->default('Available');
-            
-            $table->decimal('price', 10, 2);          
-            $table->decimal('external_price', 10, 2); // <--- Ensure this is here
-            
-            $table->text('description')->nullable(); 
+        Schema::create('Room', function (Blueprint $table) {
+            $table->bigIncrements('Room_ID');
+            $table->unsignedBigInteger('user_id');
+            $table->foreign('user_id')->references('Account_ID')->on('Account')->onDelete('cascade');
+
+            $table->string('Room_Number');
+            $table->string('Room_Type');
+            $table->string('Room_Image')->nullable();
+            $table->integer('Room_Capacity');
+            $table->string('Room_Status')->default('Available');
+            $table->decimal('Room_Internal_Price', 10, 2);
+            $table->decimal('Room_External_Price', 10, 2);
+            $table->text('Room_Description')->nullable();
             $table->timestamps();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('rooms');
+        Schema::dropIfExists('Room');
     }
 };

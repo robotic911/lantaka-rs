@@ -6,43 +6,29 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * The event_logs table serves TWO purposes:
-     *   1. Audit trail  — every system action is recorded (user_id = actor)
-     *   2. Notifications — entries with notifiable_user_id set surface in the
-     *                      client notification bell and employee badge.
-     */
-    public function up()
+    public function up(): void
     {
-        Schema::create('event_logs', function (Blueprint $table) {
-            $table->id();
+        Schema::create('Event_Logs', function (Blueprint $table) {
+            $table->bigIncrements('Event_Logs_ID');
 
-            // Who performed the action (admin / staff / client)
             $table->unsignedBigInteger('user_id')->nullable();
-            $table->foreign('user_id')->references('id')->on('users')->onDelete('set null');
+            $table->foreign('user_id')->references('Account_ID')->on('Account')->onDelete('set null');
 
-            // Who should see this as a notification (nullable — null = audit-only)
-            $table->unsignedBigInteger('notifiable_user_id')->nullable();
-            $table->foreign('notifiable_user_id')->references('id')->on('users')->onDelete('cascade');
+            $table->unsignedBigInteger('Event_Logs_Notifiable_User_ID')->nullable();
+            $table->foreign('Event_Logs_Notifiable_User_ID')->references('Account_ID')->on('Account')->onDelete('cascade');
 
-            // Audit / notification content
-            $table->string('action');                   // e.g. 'reservation_confirmed', 'account_approved'
-            $table->string('title')->nullable();        // Short heading shown in notification bell
-            $table->text('message');                    // Human-readable detail
-            $table->string('type')->nullable();         // Dot colour key: confirmed, cancelled, rejected …
-            $table->string('link')->nullable();         // URL to navigate to on click
-
-            // Notification read state (only meaningful when notifiable_user_id is set)
-            $table->boolean('is_read')->default(false);
-
-            $table->timestamps();                       // created_at doubles as Event_Logs_DateTime
+            $table->string('Event_Logs_Action');
+            $table->string('Event_Logs_Title')->nullable();
+            $table->text('Event_Logs_Message');
+            $table->string('Event_Logs_Type')->nullable();
+            $table->string('Event_Logs_Link')->nullable();
+            $table->boolean('Event_Logs_isRead')->default(false);
+            $table->timestamps();
         });
     }
 
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('event_logs');
+        Schema::dropIfExists('Event_Logs');
     }
 };

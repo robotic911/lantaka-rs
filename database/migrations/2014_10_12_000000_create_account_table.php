@@ -1,7 +1,6 @@
 <?php
 
-// Intentionally empty — Venue_Reservation_Discount is now defined in
-// 2026_03_08_152933_create_venue_reservations_table.php
+// Intentionally empty — Account table is created in 2014_10_12_000000_create_users_table.php
 
 use Illuminate\Database\Migrations\Migration;
 

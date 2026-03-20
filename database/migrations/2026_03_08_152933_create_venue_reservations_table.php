@@ -6,49 +6,50 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
         Schema::create('Venue_Reservation', function (Blueprint $table) {
-            $table->id('Venue_Reservation_ID'); // Matches ERD PK
+            $table->bigIncrements('Venue_Reservation_ID');
 
-            // Foreign Keys
-            $table->foreignId('venue_id')->constrained('venues', 'id')->onDelete('cascade');
-            $table->foreignId('Admin_ID')->nullable()->constrained('users');
-            $table->foreignId('Client_ID')->constrained('users')->onDelete('cascade');
-            $table->foreignId('Staff_ID')->nullable()->constrained('users');
+            $table->unsignedBigInteger('Venue_ID');
+            $table->foreign('Venue_ID')->references('Venue_ID')->on('Venue')->onDelete('cascade');
 
-            // The Missing Date and Time Details
+            $table->unsignedBigInteger('Admin_ID')->nullable();
+            $table->foreign('Admin_ID')->references('Account_ID')->on('Account');
+
+            $table->unsignedBigInteger('Client_ID');
+            $table->foreign('Client_ID')->references('Account_ID')->on('Account')->onDelete('cascade');
+
+            $table->unsignedBigInteger('Staff_ID')->nullable();
+            $table->foreign('Staff_ID')->references('Account_ID')->on('Account');
+
             $table->timestamp('Venue_Reservation_Date')->useCurrent();
             $table->dateTime('Venue_Reservation_Check_In_Time');
             $table->dateTime('Venue_Reservation_Check_Out_Time');
             $table->dateTime('Venue_Reservation_Actual_Check_Out')->nullable();
 
-            // Financials
             $table->decimal('Venue_Reservation_Total_Price', 10, 2);
             $table->decimal('Venue_Reservation_Additional_Fees', 10, 2)->nullable();
             $table->string('Venue_Reservation_Additional_Fees_Desc', 255)->nullable();
-            $table->decimal('Venue_Reservation_Discount', 10, 2)->default(0)->after('Venue_Reservation_Additional_Fees_Desc');
-            $table->integer('pax'); // Included for your controller logic
-            $table->string('status')->default('Pending');
+
+            $table->integer('Venue_Reservation_Pax');
+            $table->string('Venue_Reservation_Status')->default('Pending');
             $table->timestamps();
+
+            $table->decimal('Venue_Reservation_Discount', 10, 2)->default(0.00);
+
+            // NOTE: The local DB has a TYPO here ('Purppse' — double p).
+            // This migration uses the CORRECT spelling to match the PHP code.
+            // You must also fix the column name in your local DB:
+            //   ALTER TABLE "Venue_Reservation" RENAME COLUMN "Venue_Reservation_Purppse" TO "Venue_Reservation_Purpose";
+            $table->text('Venue_Reservation_Purpose')->nullable();
+
+            $table->string('Venue_Reservation_Payment_Status')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        Schema::table('Venue_Reservation', function (Blueprint $table) {
-            // Drops the column if you ever need to rollback
-            $table->dropColumn('Venue_Reservation_Discount');
-        });
+        Schema::dropIfExists('Venue_Reservation');
     }
 };

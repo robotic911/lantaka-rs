@@ -6,38 +6,30 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     *
-     * @return void
-     */
-    public function up()
+    public function up(): void
     {
-        Schema::create('users', function (Blueprint $table) {
-            $table->id();
-            $table->string('name');
-            $table->string('Account_Username')->unique(); // From Migration 1
+        Schema::create('Account', function (Blueprint $table) {
+            $table->bigIncrements('Account_ID');
+            $table->string('Account_Name');
+            $table->string('Account_Username')->unique();
             $table->string('Account_Email')->unique();
-            $table->string('Account_Password');
-            $table->string('Account_Phone');              // Required by Controller
-            $table->string('affiliation');        // Required by Controller
-            $table->string('usertype')->nullable(); // From Migration 2
-            $table->string('valid_id_path');      // Required by Controller
-            $table->string('Account_Role')->default('client'); // From Migration 1
-            $table->string('status')->default('pending');
+            $table->string('Account_Password')->nullable();
+            $table->string('Account_Phone');
+            $table->string('Account_Affiliation');
+            $table->string('Account_Type')->nullable();
+            $table->string('valid_id_path');
+            $table->string('Account_Role')->default('client');
+            $table->string('Account_Status')->default('pending');
             $table->timestamp('email_verified_at')->nullable();
             $table->rememberToken();
             $table->timestamps();
+            $table->timestamp('password_set_at')->nullable();
+            $table->timestamp('last_login_at')->nullable();
         });
     }
 
-    /**
-     * Reverse the migrations.
-     *
-     * @return void
-     */
-    public function down()
+    public function down(): void
     {
-        Schema::dropIfExists('users');
+        Schema::dropIfExists('Account');
     }
 };

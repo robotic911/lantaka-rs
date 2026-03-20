@@ -5,7 +5,7 @@
     "keywords": ["framework", "laravel"],
     "license": "MIT",
     "require": {
-        "php": "^8.3",
+        "php": "^8.4",
         "guzzlehttp/guzzle": "^7.2",
         "laravel/framework": "^9.19",
         "laravel/sanctum": "^3.0",
@@ -54,6 +54,17 @@
         }
     },
     "config": {
+        "platform": {
+            "php": "8.4.4",
+            "ext-gd": "1",
+            "ext-pgsql": "1",
+            "ext-pdo_pgsql": "1",
+            "ext-zip": "1",
+            "ext-mbstring": "1",
+            "ext-xml": "1",
+            "ext-bcmath": "1",
+            "ext-intl": "1"
+        },
         "optimize-autoloader": true,
         "preferred-install": "dist",
         "sort-packages": true,
