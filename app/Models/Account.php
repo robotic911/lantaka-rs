@@ -22,15 +22,15 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'password_set_at',
+        'last_login_at',
         'phone',
         'valid_id_path',
         'role',
         'status',
         'affiliation',
         'usertype',
-        'id_info', // Add this if you want to save the textarea data
-
-        
+        'id_info',
     ];
 
     /**
@@ -50,6 +50,8 @@ class User extends Authenticatable
      */
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'password_set_at'   => 'datetime',
+        'last_login_at'     => 'datetime',
     ];
 
     public function logs()
