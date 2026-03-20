@@ -31,19 +31,26 @@
           </form>
         </div>
 
-        <div class="tabs">
-          <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('Account_Role') ? 'active' : '' }}">All Accounts</a>
+        <div class="tabs-container" style="display: flex; flex-direction: row; justify-content:space-between; ">
+          <div class="tabs" style="margin-bottom: 10px;">
+            <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('Account_Role') ? 'active' : '' }}">All Accounts</a>
 
-          <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('Account_Role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
+            <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('Account_Role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
 
-          <a href="{{ route('employee.accounts', ['status' => 'approved']) }}" class="tab-btn {{ request('status') == 'approved' ? 'active' : '' }}">Approved Client Account</a>
+            <a href="{{ route('employee.accounts', ['status' => 'approved']) }}" class="tab-btn {{ request('status') == 'approved' ? 'active' : '' }}">Approved Client Account</a>
 
-          <a href="{{ route('employee.accounts', ['status' => 'declined']) }}" class="tab-btn {{ request('status') == 'declined' ? 'active' : '' }}">Declined Client Account</a>
+            <a href="{{ route('employee.accounts', ['status' => 'declined']) }}" class="tab-btn {{ request('status') == 'declined' ? 'active' : '' }}">Declined Client Account</a>
 
-          <a href="{{ route('employee.accounts', ['status' => 'pending']) }}" class="tab-btn {{ request('status') == 'pending' ? 'active' : '' }}">Pending Client Account</a>
-          <a href="{{ route('employee.accounts', ['status' => 'deactivate']) }}" class="tab-btn {{ request('status') == 'deactivate' ? 'active' : '' }}">Deactivated Client Account</a>
+            <a href="{{ route('employee.accounts', ['status' => 'pending']) }}" class="tab-btn {{ request('status') == 'pending' ? 'active' : '' }}">Pending Client Account</a>
+            <a href="{{ route('employee.accounts', ['status' => 'deactivate']) }}" class="tab-btn {{ request('status') == 'deactivate' ? 'active' : '' }}">Deactivated Client Account</a>
+          </div>
+
+          <div style="margin-bottom: 10px;">
+            <button class="create-account-btn" style="display:flex; padding: 6px 10px; border:none; background-color: rgb(77, 105, 154); border-radius: 5px; color:white; cursor:pointer;">
+                +
+            </button>
+          </div>
         </div>
-
         <div class="table-container">
           <table class="accounts-table">
             <thead>

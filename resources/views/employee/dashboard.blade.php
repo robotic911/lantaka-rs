@@ -95,7 +95,8 @@
                 </div>
                 <div class="stat-value" id="totalRevenueValue">₱{{ number_format($totalRevenue ?? 0) }}</div>
                 <div class="stat-change" id="changeRevenue">
-                    @php $c = $changes['revenue'] ?? 0; @endphp
+                    @php
+                    $c = $changes['revenue'] ?? 0; @endphp
                     @if($c > 0)<span class="chg-positive">↑ {{ $c }}%</span>
                     @elseif($c < 0)<span class="chg-negative">↓ {{ abs($c) }}%</span>
                     @else<span class="chg-neutral">—</span>@endif

@@ -48,6 +48,11 @@ h2 {
   margin-bottom: 24px;
   text-align: center;
 }
+#updateAccountForm{
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
 
 .account-form {
   display: flex;
@@ -73,7 +78,7 @@ h2 {
 label {
   font-weight: 600;
   font-size: 14px;
-  margin-bottom: 8px;
+  margin: 8px 0px;
   color: #1a1a1a;
 }
 

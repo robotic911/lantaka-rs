@@ -80,7 +80,6 @@
                 <option value="">Enter Affiliation</option>
                 <option value="student" {{ old('affiliation') == 'student' ? 'selected' : '' }}>Student</option>
                 <option value="faculty" {{ old('affiliation') == 'faculty' ? 'selected' : '' }}>Faculty</option>
-                <option value="staff" {{ old('affiliation') == 'staff' ? 'selected' : '' }}>Staff</option>
                 <option value="student" {{ old('affiliation') == 'organization' ? 'selected' : '' }}>Organization</option>
                 <option value="external" {{ old('affiliation') == 'external' ? 'selected' : '' }}>External</option>
               </select>
