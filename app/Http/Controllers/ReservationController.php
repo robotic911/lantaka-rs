@@ -766,7 +766,7 @@ class ReservationController extends Controller
             
             $roomQuery->where(function ($q) use ($search) {
                 $q->whereHas('user', fn($u) => $u->where('Account_Name', 'ILIKE', "%{$search}%"))
-                    ->orWhere('Room_Reservation_ID', 'ILIKE', "%{$search}%")
+                    ->orWhereRaw('CAST("Room_Reservation_ID" AS TEXT) ILIKE ?', ["%{$search}%"])
                     ->orWhereHas('room', fn($r) => $r->where('Room_Number', 'ILIKE', "%{$search}%"));
             });
 
@@ -781,8 +781,8 @@ class ReservationController extends Controller
         if ($search) {
             $venueQuery->where(function ($q) use ($search) {
                 $q->whereHas('user', fn($u) => $u->where('Account_Name', 'LIKE', "%{$search}%"))
-                    ->orWhere('Venue_Reservation_ID', 'LIKE', "%{$search}%")
-                    // Using 'Venue_Name' for the Venue table search
+                    ->orWhereRaw('CAST("Venue_Reservation_ID" AS TEXT) ILIKE ?', ["%{$search}%"])
+                // Using 'Venue_Name' for the Venue table search
                     ->orWhereHas('venue', fn($v) => $v->where('Venue_Name', 'LIKE', "%{$search}%"));
             });
         }
@@ -998,7 +998,10 @@ class ReservationController extends Controller
 
         // Checkout always starts as unpaid — payment is confirmed separately
         if (in_array($newStatus, ['checked-out', 'completed'])) {
-            $reservation->$paymentColumn = 'unpaid';
+            $currentPayment = $reservation->$paymentColumn;
+            if ($currentPayment !== 'paid') {
+                $reservation->$paymentColumn = 'unpaid';
+            }
         }
 
         $reservation->save();
@@ -1071,13 +1074,13 @@ class ReservationController extends Controller
         try {
             EventLog::create([
                 'user_id'            => Auth::id(),
-                'notifiable_user_id' => $user->Account_ID,
-                'action'             => "reservation_{$status}",
-                'title'              => $title,
-                'message'            => $msg,
-                'type'               => $status,
-                'link'               => '/client/my_reservations',
-                'is_read'            => false,
+                'Event_Logs_Notifiable_User_ID' => $user->Account_ID,
+                'Event_Logs_Action'             => "reservation_{$status}",
+                'Event_Logs_Title'              => $title,
+                'Event_Logs_Message'            => $msg,
+                'Event_Logs_Type'               => $status,
+                'Event_Logs_Link'               => '/client/my_reservations',
+                'Event_Logs_isRead'            => false,
             ]);
         } catch (\Throwable $e) {
             Log::error("EventLog notification create failed: " . $e->getMessage());
@@ -1298,17 +1301,23 @@ class ReservationController extends Controller
 
         $checkIn  = Carbon::parse($request->check_in);
         $checkOut = Carbon::parse($request->check_out);
-        $days = $checkIn->diffInDays($checkOut) ?: 1;
+        
+        if ($request->type === 'venue') {
+            $days = $checkIn->diffInDays($checkOut) + 1;
+        } else {
+            $days = $checkIn->diffInDays($checkOut) ?: 1;
+        }
+        
 
         if ($request->type === 'room') {
-            $room = \App\Models\Room::findOrFail($request->accommodation_id);
-            $client = \App\Models\Account::find($request->user_id);
+            $room = Room::findOrFail($request->accommodation_id);
+            $client = Account::find($request->user_id);
             $price = ($client && $client->Account_Type === 'Internal')
                 ? ($room->Room_Internal_Price ?? 0)
                 : ($room->Room_External_Price ?? 0);
             $totalAmount = $price * $days;
 
-            $reservation = \App\Models\RoomReservation::create([
+            $reservation = RoomReservation::create([
                 'Room_ID' => $request->accommodation_id,
                 'Client_ID' => $request->user_id,
                 'Room_Reservation_Date' => now(),
@@ -1324,16 +1333,16 @@ class ReservationController extends Controller
         } else {
             // Edit mode: reuse existing VenueReservation instead of creating a new one
             if ($request->filled('venue_reservation_id')) {
-                $reservation = \App\Models\VenueReservation::findOrFail($request->venue_reservation_id);
+                $reservation = VenueReservation::findOrFail($request->venue_reservation_id);
             } else {
-                $venue = \App\Models\Venue::findOrFail($request->accommodation_id);
-                $venueClient = \App\Models\Account::find($request->user_id);
+                $venue = Venue::findOrFail($request->accommodation_id);
+                $venueClient = Account::find($request->user_id);
                 $basePrice = ($venueClient && $venueClient->Account_Type === 'Internal')
                     ? ($venue->Venue_Internal_Price ?? 0)
                     : ($venue->Venue_External_Price ?? 0);
                 $totalAmount = $basePrice * $days;
 
-                $reservation = \App\Models\VenueReservation::create([
+                $reservation = VenueReservation::create([
                     'Venue_ID' => $request->accommodation_id,
                     'Client_ID' => $request->user_id,
                     'Venue_Reservation_Date' => now(),
@@ -1392,9 +1401,18 @@ class ReservationController extends Controller
     }
 
     private function sendConfirmationEmail($reservation)
-    {
-        return true;
+{
+    try {
+        $user = Account::find($reservation->Client_ID);
+        if ($user && $user->Account_Email) {
+            Mail::to($user->Account_Email)->send(
+                new \App\Mail\ReservationConfirmationMail([$reservation])
+            );
+        }
+    } catch (\Exception $e) {
+        Log::error('sendConfirmationEmail failed: ' . $e->getMessage());
     }
+}
 
     public function prepareEmployeeBooking(Request $request)
     {

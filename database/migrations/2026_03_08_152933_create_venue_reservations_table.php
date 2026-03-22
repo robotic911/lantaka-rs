@@ -30,10 +30,10 @@ return new class extends Migration
 
             $table->decimal('Venue_Reservation_Total_Price', 10, 2);
             $table->decimal('Venue_Reservation_Additional_Fees', 10, 2)->nullable();
-            $table->string('Venue_Reservation_Additional_Fees_Desc', 255)->nullable();
+            $table->string('Venue_Reservation_Additional_Fees_Desc')->nullable();
 
             $table->integer('Venue_Reservation_Pax');
-            $table->string('Venue_Reservation_Status')->default('Pending');
+            $table->string('Venue_Reservation_Status')->default('pending');
             $table->timestamps();
 
             $table->decimal('Venue_Reservation_Discount', 10, 2)->default(0.00);

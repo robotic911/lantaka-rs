@@ -105,7 +105,10 @@ Route::prefix('client')
        
         Route::get('/my_bookings', [ReservationController::class, 'checkout'])->name('my_bookings');
         Route::get('/my_reservations', [ReservationController::class, 'index'])->name('my_reservations');
-        Route::get('/food_option', function () {return view('food_option');})->name('food_option');
+        Route::get('/food_option', function () {
+            return view('client.food_option'); // ✓ matches resources/views/client/food_option.blade.php
+        })->name('food_option');
+        
         Route::post('/reservations/{id}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
 
         // Account page

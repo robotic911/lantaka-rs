@@ -34,7 +34,6 @@ class Account extends Authenticatable
         'valid_id_path',
         'password_set_at',
         'last_login_at',
-        'id_info',
     ];
 
     /**
@@ -60,6 +59,6 @@ class Account extends Authenticatable
 
     public function logs()
     {
-        return $this->hasMany(EventLog::class);
+        return $this->hasMany(EventLog::class, 'user_id');
     }
 }

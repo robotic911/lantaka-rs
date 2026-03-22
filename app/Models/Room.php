@@ -14,6 +14,7 @@ class Room extends Model
 
     // These must match your Migration columns exactly
     protected $fillable = [
+        'user_id',
         'Room_ID',              //from 'user_id'
         'Room_Number',          //from'room_number'
         'Room_Type',            // from 'room_type'

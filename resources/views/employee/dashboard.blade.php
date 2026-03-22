@@ -88,6 +88,7 @@
             </div>
 
             {{-- Revenue --}}
+            @if(auth()->user()->Account_Role == "admin")
             <div class="stat-card">
                 <div class="stat-header">
                     <h3>Revenue</h3>
@@ -103,7 +104,7 @@
                     <span class="chg-label">vs {{ $changes['lastMonthLabel'] ?? 'last month' }}</span>
                 </div>
             </div>
-
+            @endif
             {{-- Active Guests --}}
             <div class="stat-card">
                 <div class="stat-header">

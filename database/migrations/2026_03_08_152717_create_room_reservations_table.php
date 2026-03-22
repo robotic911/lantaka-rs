@@ -34,9 +34,9 @@ return new class extends Migration
             $table->decimal('Room_Reservation_Total_Price', 10, 2);
 
             $table->decimal('Room_Reservation_Additional_Fees', 10, 2)->nullable();
-            $table->string('Room_Reservation_Additional_Fees_Desc', 255)->nullable();
+            $table->string('Room_Reservation_Additional_Fees_Desc')->nullable();
 
-            $table->string('Room_Reservation_Status')->default('Pending');
+            $table->string('Room_Reservation_Status')->default('pending');
             $table->timestamps();
 
             $table->text('Room_Reservation_Purpose')->nullable();

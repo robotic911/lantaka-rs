@@ -290,11 +290,11 @@ a{
 }
 
 .event-label.confirmed {
-  background-color: #53e087;
+  background-color: #ffc107;
 }
 
 .event-label.checked-in {
-  background-color: #14b8a6;
+  background-color: #53e087;
 }
 
 .event-label.checked-out {
@@ -512,7 +512,7 @@ a{
 }
 
 .legend-dot.confirmed {
-  background-color: #22c55e;
+  background-color: #ffc107;
 }
 
 .legend-dot.completed {
@@ -524,7 +524,7 @@ a{
 }
 
 .legend-dot.checked-in {
-  background-color: #14b8a6;
+  background-color: #22c55e;
 }
 
 .legend-dot.checked-out {

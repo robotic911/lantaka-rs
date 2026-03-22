@@ -209,7 +209,7 @@ class RoomVenueController extends Controller
                 $data->image = $data->Room_Image;
 
                 // Use RoomReservation model
-                $reservations = RoomReservation::where('Room_Reservation_ID', $id)
+                $reservations = RoomReservation::where('Room_ID', $id)
                     ->whereIn('Room_Reservation_Status', ['pending', 'confirmed', 'checked-in'])
                     ->get();
 
