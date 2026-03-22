@@ -1,5 +1,5 @@
 # ============================================================
-# Stage 1 — Dependency install (composer)
+# Stage 1 — PHP dependencies (composer)
 # ============================================================
 FROM composer:2 AS vendor
 
@@ -19,7 +19,23 @@ RUN composer install \
     --ignore-platform-reqs
 
 # ============================================================
-# Stage 2 — Runtime image
+# Stage 2 — Frontend assets (Node/Vite)
+# ============================================================
+FROM node:20-bookworm-slim AS frontend
+
+WORKDIR /app
+
+COPY package.json package-lock.json* ./
+RUN npm ci --no-audit --prefer-offline 2>/dev/null || npm install --no-audit
+
+COPY vite.config.js ./
+COPY resources/ ./resources/
+COPY public/ ./public/
+
+RUN npm run build
+
+# ============================================================
+# Stage 3 — Runtime image
 # ============================================================
 FROM php:8.4-fpm-bookworm
 
@@ -83,6 +99,9 @@ COPY --from=vendor /app/vendor ./vendor
 
 # Copy application source
 COPY . .
+
+# Copy compiled frontend assets from Stage 2 (overwrites any placeholder public/build)
+COPY --from=frontend /app/public/build ./public/build
 
 # Run post-autoload-dump (package discovery) — no artisan calls yet,
 # DB isn't available at build time
