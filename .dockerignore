@@ -20,8 +20,7 @@ storage/framework/views/*
 bootstrap/cache/*.php
 
 # Build tools
-Dockerfile
-docker/
+
 .dockerignore
 
 # Editor / OS noise

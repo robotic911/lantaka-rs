@@ -24,6 +24,8 @@ RUN composer install \
 FROM php:8.4-fpm-bookworm
 
 # ── System packages ──────────────────────────────────────────
+# Includes: nginx, supervisor, GD libs (for phpspreadsheet/maatwebsite),
+# PostgreSQL libs, zip, xml/mbstring, intl, curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx \
     supervisor \
@@ -32,21 +34,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     unzip \
     zip \
     git \
-    # GD dependencies (required by phpoffice/phpspreadsheet via maatwebsite/excel)
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
     libwebp-dev \
-    # Zip
     libzip-dev \
-    # PostgreSQL
     libpq-dev \
-    # XML / mbstring
     libxml2-dev \
     libonig-dev \
-    # intl
     libicu-dev \
-    # curl
     libcurl4-openssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
