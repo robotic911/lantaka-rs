@@ -32,6 +32,9 @@ COPY vite.config.js ./
 COPY resources/ ./resources/
 COPY public/ ./public/
 
+# Ensure resources/css exists even if empty (git doesn't track empty dirs)
+RUN mkdir -p resources/css resources/js
+
 RUN npm run build
 
 # ============================================================
