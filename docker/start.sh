@@ -32,8 +32,18 @@ chmod -R 775 \
 
 # ── 4. App key guard ─────────────────────────────────────────
 if [ -z "$APP_KEY" ]; then
-    echo "[start] WARNING: APP_KEY is not set. Generating one now..."
-    php /var/www/html/artisan key:generate --force --ansi
+    echo ""
+    echo "================================================================"
+    echo "  ERROR: APP_KEY environment variable is not set."
+    echo ""
+    echo "  Run this locally to generate one:"
+    echo "    php artisan key:generate --show"
+    echo ""
+    echo "  Then add it to Railway:"
+    echo "    Railway dashboard → your service → Variables → APP_KEY"
+    echo "================================================================"
+    echo ""
+    exit 1
 fi
 
 # ── 5. Database migrations ───────────────────────────────────
