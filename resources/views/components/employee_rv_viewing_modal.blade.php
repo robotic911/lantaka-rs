@@ -8,7 +8,10 @@
   <div class="rv-modal-content">
 
     <div class="rv-modal-header">
-      <h2>@if(auth()->user()->Account_Role === 'admin') Edit Room / Venue Details @else Room / Venue Details @endif</h2>
+      <div class="rv-modal-header-left">
+        <h2>@if(auth()->user()->Account_Role === 'admin') Edit Room / Venue Details @else Room / Venue Details @endif</h2>
+        <span class="rv-status-badge" id="rvStatusBadge"></span>
+      </div>
       <button class="rv-close-btn" id="rvCloseModal" type="button">&times;</button>
     </div>
 
@@ -47,7 +50,7 @@
               <label>Status</label>
               <select name="status" class="form-input" {{ $isAdmin ? '' : 'disabled' }}>
                 <option value="Available">Available</option>
-                <option value="Unavailable">Unavailable</option>
+                <option value="UnderMaintenance">Under Maintenance</option>
               </select>
             </div>
 
@@ -75,7 +78,7 @@
               <div class="rv-img-upload-zone" id="rvRoomImgZone" onclick="document.getElementById('rvRoomImgInput').click()">
                 <input type="file" name="image" id="rvRoomImgInput" accept="image/jpeg,image/png,image/webp" style="display:none"
                        onchange="rvEditPreview(this,'rvRoomImgPreviewThumb','rvRoomImgNone','rvRoomImgNewBadge')">
-                <span class="rv-img-upload-label" id="rvRoomImgNewBadge">📷 Replace photo</span>
+                <span class="rv-img-upload-label" id="rvRoomImgNewBadge">Replace photo</span>
               </div>
             @endif
           </div>
@@ -106,7 +109,7 @@
                   <label>Status</label>
                   <select name="status" class="form-input" {{ $isAdmin ? '' : 'disabled' }}>
                     <option value="Available">Available</option>
-                    <option value="Unavailable">Unavailable</option>
+                    <option value="UnderMaintenance">Under Maintenance</option>
                   </select>
                 </div>
               @endif
@@ -165,6 +168,58 @@
 </div>
 
 <style>
+/* ── Modal header layout ── */
+.rv-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.rv-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Effective-status badge ── */
+.rv-status-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: capitalize;
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+
+.rv-status-badge.available {
+  background: #f0fdf4;
+  color: #166534;
+  border-color: #bbf7d0;
+}
+
+.rv-status-badge.occupied {
+  background: #53e087;
+  color: #064e23;
+  border-color: #34c96e;
+}
+
+.rv-status-badge.reserved {
+  background: #6199f3;
+  color: #0f2a6e;
+  border-color: #3b7bef;
+}
+
+.rv-status-badge.undermaintenance {
+  background: #d6d6d6;
+  color: #444;
+  border-color: #b0b0b0;
+}
+
 .rv-img-current {
   border-radius: 8px;
   overflow: hidden;

@@ -175,7 +175,7 @@
 
                       <td>
                           @if($reservation->status == 'checked-in')
-                              <span class="badge completed-badge">Completed</span>
+                              <span class="badge checked-in-badge">Checked-in</span>
                           @else
                               <span class="badge {{ strtolower($reservation->status) }}-badge">
                                   {{ ucfirst($reservation->status) }}

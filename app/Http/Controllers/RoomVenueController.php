@@ -106,25 +106,48 @@ class RoomVenueController extends Controller
 
     public function index(Request $request)
     {
+        $dateFrom = $request->date_from;
+        $dateTo   = $request->date_to;
+
+        // When a date range is given, exclude rooms/venues with overlapping reservations
+        $bookedRoomIds = collect();
+        $bookedVenueIds = collect();
+
+        if ($dateFrom && $dateTo) {
+            $checkFrom = \Carbon\Carbon::parse($dateFrom)->startOfDay();
+            $checkTo   = \Carbon\Carbon::parse($dateTo)->endOfDay();
+
+            $bookedRoomIds = RoomReservation::whereIn('Room_Reservation_Status', ['pending', 'confirmed', 'checked-in'])
+                ->where('Room_Reservation_Check_In_Time',  '<', $checkTo)
+                ->where('Room_Reservation_Check_Out_Time', '>', $checkFrom)
+                ->pluck('Room_ID')->unique();
+
+            $bookedVenueIds = VenueReservation::whereIn('Venue_Reservation_Status', ['pending', 'confirmed', 'checked-in'])
+                ->where('Venue_Reservation_Check_In_Time',  '<', $checkTo)
+                ->where('Venue_Reservation_Check_Out_Time', '>', $checkFrom)
+                ->pluck('Venue_ID')->unique();
+        }
+
         // 1. Get filtered Rooms
         $rooms = Room::query()
             ->when($request->capacity, function ($query, $capacity) {
                 if ($capacity == '50+') return $query->where('Room_Capacity', '>=', 50);
                 return $query->where('Room_Capacity', '>=', (int)$capacity);
             })
-            ->when($request->availability == 'Available Now', function ($query) {
-                return $query->where('Room_Status', 'Available');
+            ->when($dateFrom && $dateTo, function ($query) use ($bookedRoomIds) {
+                // Only show rooms not booked in the range AND not under maintenance
+                $query->whereNotIn('Room_ID', $bookedRoomIds)
+                      ->where('Room_Status', '!=', 'UnderMaintenance');
             })
             ->get()
-            ->map(function($room) {
-                $room->category = 'Room';
-                $room->id = $room->Room_ID;
-                $room->display_name = "Room " . $room->Room_Number . " (" . $room->Room_Type . ")";
-                $room->capacity = $room->Room_Capacity;
+            ->map(function ($room) {
+                $room->category      = 'Room';
+                $room->id            = $room->Room_ID;
+                $room->display_name  = "Room " . $room->Room_Number . " (" . $room->Room_Type . ")";
+                $room->capacity      = $room->Room_Capacity;
                 $room->internal_price = $room->Room_Internal_Price;
                 $room->external_price = $room->Room_External_Price;
-                $room->image = $room->Room_Image;
-
+                $room->image         = $room->Room_Image;
                 return $room;
             });
 
@@ -134,19 +157,19 @@ class RoomVenueController extends Controller
                 if ($capacity == '50+') return $query->where('Venue_Capacity', '>=', 50);
                 return $query->where('Venue_Capacity', '>=', (int)$capacity);
             })
-            ->when($request->availability == 'Available Now', function ($query) {
-                return $query->where('Venue_Status', 'Available');
+            ->when($dateFrom && $dateTo, function ($query) use ($bookedVenueIds) {
+                $query->whereNotIn('Venue_ID', $bookedVenueIds)
+                      ->where('Venue_Status', '!=', 'UnderMaintenance');
             })
             ->get()
-            ->map(function($venue) {
-                $venue->category = 'Venue';
-                $venue->id = $venue->Venue_ID;
-                $venue->display_name = $venue->Venue_Name;
-                $venue->capacity = $venue->Venue_Capacity;
+            ->map(function ($venue) {
+                $venue->category      = 'Venue';
+                $venue->id            = $venue->Venue_ID;
+                $venue->display_name  = $venue->Venue_Name;
+                $venue->capacity      = $venue->Venue_Capacity;
                 $venue->internal_price = $venue->Venue_Internal_Price;
                 $venue->external_price = $venue->Venue_External_Price;
-                $venue->image = $venue->Venue_Image;
-
+                $venue->image         = $venue->Venue_Image;
                 return $venue;
             });
 
@@ -159,40 +182,116 @@ class RoomVenueController extends Controller
         } else {
             $all_accommodations = $rooms->concat($venues);
         }
-        //  dd($all_accommodations);
 
-        return view('client.room_venue', compact('all_accommodations'));
+        return view('client.room_venue', compact('all_accommodations', 'dateFrom', 'dateTo'));
     }
     public function adminIndex(Request $request)
     {
-        $search = $request->search;
-        $status = $request->status;
+        $search       = $request->search;
+        $statusFilter = $request->status;
+        $dateFrom     = $request->date_from;
+        $dateTo       = $request->date_to;
 
+        // Window to compute effective status — defaults to today
+        $checkFrom = $dateFrom
+            ? \Carbon\Carbon::parse($dateFrom)->startOfDay()
+            : \Carbon\Carbon::now()->startOfDay();
+        $checkTo   = $dateTo
+            ? \Carbon\Carbon::parse($dateTo)->endOfDay()
+            : \Carbon\Carbon::now()->endOfDay();
+
+        // ── Rooms ──────────────────────────────────────────────────────
         $rooms = Room::query()
-            ->when($search, function ($query) use ($search) {
-                $query->where('Room_Number', 'ilike', "%{$search}%")
-                    ->orWhere('Room_Type', 'ilike', "%{$search}%");
-            })
-            ->when($status, function ($query) use ($status) {
-                $query->where('Room_Status', $status);
+            ->when($search, function ($q) use ($search) {
+                $q->where('Room_Number', 'ilike', "%{$search}%")
+                  ->orWhere('Room_Type', 'ilike', "%{$search}%");
             })
             ->get();
 
+        // IDs that are checked-in during the window
+        $occupiedRoomIds = RoomReservation::where('Room_Reservation_Status', 'checked-in')
+            ->where('Room_Reservation_Check_In_Time',  '<', $checkTo)
+            ->where('Room_Reservation_Check_Out_Time', '>', $checkFrom)
+            ->pluck('Room_ID')->unique();
+
+        // IDs that are pending/confirmed during the window
+        $reservedRoomIds = RoomReservation::whereIn('Room_Reservation_Status', ['pending', 'confirmed'])
+            ->where('Room_Reservation_Check_In_Time',  '<', $checkTo)
+            ->where('Room_Reservation_Check_Out_Time', '>', $checkFrom)
+            ->pluck('Room_ID')->unique();
+
+        $rooms = $rooms->map(function ($room) use ($occupiedRoomIds, $reservedRoomIds) {
+            $raw = strtolower(str_replace([' ', '_'], '', $room->Room_Status));
+            if ($raw === 'undermaintenance') {
+                // Admin-set maintenance always wins
+                $room->effective_status = 'undermaintenance';
+            } elseif ($occupiedRoomIds->contains($room->Room_ID)) {
+                // Active checked-in reservation takes priority
+                $room->effective_status = 'occupied';
+            } elseif ($reservedRoomIds->contains($room->Room_ID)) {
+                // Pending/confirmed reservation takes priority
+                $room->effective_status = 'reserved';
+            } elseif ($raw === 'occupied') {
+                // Admin manually marked as occupied (no reservation record)
+                $room->effective_status = 'occupied';
+            } elseif ($raw === 'reserved') {
+                // Admin manually marked as reserved (no reservation record)
+                $room->effective_status = 'reserved';
+            } else {
+                $room->effective_status = 'available';
+            }
+            return $room;
+        });
+
+        if ($statusFilter) {
+            $rooms = $rooms->filter(fn ($r) => $r->effective_status === strtolower($statusFilter));
+        }
+
+        // ── Venues ─────────────────────────────────────────────────────
         $venues = Venue::query()
-            ->when($search, function ($query) use ($search) {
-                $query->where('Venue_Name', 'ilike', "%{$search}%");
-            })
-            ->when($status, function ($query) use ($status) {
-                $query->where('Venue_Status', $status);
+            ->when($search, function ($q) use ($search) {
+                $q->where('Venue_Name', 'ilike', "%{$search}%");
             })
             ->get();
 
-        // FIX: Group the food items by category and make keys lowercase
-        $foods = Food::all()->groupBy(function($item) {
+        $occupiedVenueIds = VenueReservation::where('Venue_Reservation_Status', 'checked-in')
+            ->where('Venue_Reservation_Check_In_Time',  '<', $checkTo)
+            ->where('Venue_Reservation_Check_Out_Time', '>', $checkFrom)
+            ->pluck('Venue_ID')->unique();
+
+        $reservedVenueIds = VenueReservation::whereIn('Venue_Reservation_Status', ['pending', 'confirmed'])
+            ->where('Venue_Reservation_Check_In_Time',  '<', $checkTo)
+            ->where('Venue_Reservation_Check_Out_Time', '>', $checkFrom)
+            ->pluck('Venue_ID')->unique();
+
+        $venues = $venues->map(function ($venue) use ($occupiedVenueIds, $reservedVenueIds) {
+            $raw = strtolower(str_replace([' ', '_'], '', $venue->Venue_Status));
+            if ($raw === 'undermaintenance') {
+                $venue->effective_status = 'undermaintenance';
+            } elseif ($occupiedVenueIds->contains($venue->Venue_ID)) {
+                $venue->effective_status = 'occupied';
+            } elseif ($reservedVenueIds->contains($venue->Venue_ID)) {
+                $venue->effective_status = 'reserved';
+            } elseif ($raw === 'occupied') {
+                $venue->effective_status = 'occupied';
+            } elseif ($raw === 'reserved') {
+                $venue->effective_status = 'reserved';
+            } else {
+                $venue->effective_status = 'available';
+            }
+            return $venue;
+        });
+
+        if ($statusFilter) {
+            $venues = $venues->filter(fn ($v) => $v->effective_status === strtolower($statusFilter));
+        }
+
+        // Group food by category
+        $foods = Food::all()->groupBy(function ($item) {
             return strtolower($item->Food_Category);
         });
 
-        return view('employee.room_venue', compact('rooms', 'venues', 'foods'));
+        return view('employee.room_venue', compact('rooms', 'venues', 'foods', 'dateFrom', 'dateTo'));
         }
         public function show($category, $id)
         {
@@ -281,7 +380,7 @@ class RoomVenueController extends Controller
             'internal_price' => 'required|numeric',
             'external_price' => 'required|numeric',
             'capacity'       => 'required|integer',
-            'status'         => 'required|in:Available,Unavailable',
+            'status'         => 'required|in:Available,Occupied,UnderMaintenance,Reserved',
             'type'           => 'nullable|string',
             'description'    => 'nullable|string',
             'image'          => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',

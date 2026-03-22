@@ -35,7 +35,7 @@
           <div class="tabs" style="margin-bottom: 10px;">
             <a href="{{ route('employee.accounts') }}" class="tab-btn {{ !request('status') && !request('Account_Role') ? 'active' : '' }}">All Accounts</a>
 
-            <a href="{{ route('employee.accounts', ['role' => 'employee']) }}" class="tab-btn {{ request('Account_Role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
+            <a href="{{ route('employee.accounts', ['Account_Role' => 'employee']) }}" class="tab-btn {{ request('Account_Role') == 'employee' ? 'active' : '' }}">Employee Accounts</a>
 
             <a href="{{ route('employee.accounts', ['status' => 'approved']) }}" class="tab-btn {{ request('status') == 'approved' ? 'active' : '' }}">Approved Client Account</a>
 
@@ -44,12 +44,13 @@
             <a href="{{ route('employee.accounts', ['status' => 'pending']) }}" class="tab-btn {{ request('status') == 'pending' ? 'active' : '' }}">Pending Client Account</a>
             <a href="{{ route('employee.accounts', ['status' => 'deactivate']) }}" class="tab-btn {{ request('status') == 'deactivate' ? 'active' : '' }}">Deactivated Client Account</a>
           </div>
-
+          @if(auth()->user()->Account_Role === 'admin')
           <div style="margin-bottom: 10px;">
-            <button class="create-account-btn" style="display:flex; padding: 6px 10px; border:none; background-color: rgb(77, 105, 154); border-radius: 5px; color:white; cursor:pointer;">
-                +
+            <button id="openCreateAccountBtn" class="create-account-btn" style="display:flex; align-items:center; gap:5px; padding: 7px 14px; border:none; background-color: rgb(77, 105, 154); border-radius: 5px; color:white; cursor:pointer; font-size:14px; font-weight:600;">
+                + Create Account
             </button>
           </div>
+          @endif
         </div>
         <div class="table-container">
           <table class="accounts-table">
@@ -125,5 +126,8 @@
       </div>
       <x-approve_account_modal/>
       <x-view_account_modal/>
+      @if(auth()->user()->Account_Role === 'admin')
+          <x-create_account_modal/>
+      @endif
 
     @endsection

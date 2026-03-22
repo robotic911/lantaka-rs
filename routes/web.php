@@ -26,7 +26,7 @@ Route::get('/signup', [SignupController::class, 'showSignupForm'])->name('signup
 Route::post('/signup', [SignupController::class, 'store'])->name('register.post');
 
 /* Room/Venue browsing — public (no login required) */
-Route::get('client.room_venue', [RoomVenueController::class, 'index'])->name('client.room_venue');
+Route::get('/client/room-venue', [RoomVenueController::class, 'index'])->name('client.room_venue');
 Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('client.index');
 
 // Route::get('/checkout/{category}/{id}', [RoomVenueController::class, 'show'])->name('client.show');
@@ -59,7 +59,7 @@ Route::prefix('employee')
         Route::get('/guest', [ReservationController::class, 'showGuests'])->name('guest');
         Route::put('/guest', [ReservationController::class, 'updateGuests'])->name('updateGuests');
         Route::get('/SOA/{clientId}', [ReservationController::class, 'showSOA'])->name('SOA');
-        Route::post('/reservations/store', [ReservationController::class, 'storeReservation'])->name('reservations.store');
+        // Route::post('/reservations/store', [ReservationController::class, 'storeReservation'])->name('reservations.store');
         Route::get('/eventlogs', [EventLogController::class, 'index'])->name('eventlogs');
         Route::get('/room_venue', [RoomVenueController::class, 'adminIndex'])->name('room_venue');
 
@@ -70,6 +70,7 @@ Route::prefix('employee')
         // Graceful fallback: redirect stray GET requests back to the accounts list
         Route::get('/accounts/{id}/update-status', fn($id) => redirect()->route('employee.accounts'));
         Route::put('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
+        Route::post('/accounts/create', [AccountController::class, 'adminCreateAccount'])->name('accounts.create');
         // Revert a paid reservation back to unpaid — admin only
         Route::post('/reservations/{id}/mark-unpaid', [ReservationController::class, 'markAsUnpaid'])->name('reservations.markUnpaid');
         });
@@ -92,8 +93,8 @@ Route::middleware(['role:admin,staff'])->group(function () {
         Route::put('/employee/room-venue/update', [RoomVenueController::class, 'update'])->name('room_venue.update');
         Route::post('/employee/room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
         Route::post('/employee/food/store', [FoodController::class, 'store'])->name('admin.food.store');
-        Route::put('/employee/room_venue/{id}', [FoodController::class, 'update'])->name('admin.food.update');
-        Route::get('/employee/room_venue/{id}/delete', [FoodController::class, 'destroy']);
+        Route::put('/employee/food/{id}', [FoodController::class, 'update'])->name('admin.food.update');
+        Route::delete('/employee/food/{id}', [FoodController::class, 'destroy'])->name('admin.food.destroy');
     });
 });
 

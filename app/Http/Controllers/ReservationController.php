@@ -276,13 +276,10 @@ class ReservationController extends Controller
                 return back()->with('error', 'No selected items found.');
             }
 
-            \Log::info('Selected items received:', $selectedItems);
-
             $savedReservations = [];
 
             DB::transaction(function () use ($selectedItems, &$savedReservations) {
                 foreach ($selectedItems as $index => $item) {
-                    \Log::info("Processing item #{$index}", $item);
 
                     if (
                         empty($item['id']) ||
@@ -308,8 +305,6 @@ class ReservationController extends Controller
                             'Room_Reservation_Status' => 'pending',
                         ]);
 
-                        \Log::info("Saved room reservation #{$reservation->getKey()} for item #{$index}");
-
                         $savedReservations[] = $reservation;
                     }
 
@@ -325,8 +320,6 @@ class ReservationController extends Controller
                             'Venue_Reservation_Total_Price' => $item['total_amount'],
                             'Venue_Reservation_Status' => 'pending',
                         ]);
-
-                        \Log::info("Saved venue reservation #{$reservation->Venue_Reservation_ID} for item #{$index}");
 
                         $foodSelections = $item['food_selections'] ?? [];
 
@@ -588,15 +581,15 @@ class ReservationController extends Controller
 
         // 3. Filter by Date
         if ($dateFilter) {
-            $days = match ($dateFilter) {
-                'last_week' => 7,
-                'last_month' => 30,
-                'last_year' => 365,
-                default => 0
+            $threshold = match ($dateFilter) {
+                'last_week'  => now()->subDays(7),
+                'last_month' => now()->subDays(30),
+                'last_year'  => now()->startOfYear(),
+                default      => null,
             };
-            if ($days > 0) {
-                $roomQuery->where('created_at', '>=', now()->subDays($days));
-                $venueQuery->where('created_at', '>=', now()->subDays($days));
+            if ($threshold) {
+                $roomQuery->where('created_at', '>=', $threshold);
+                $venueQuery->where('created_at', '>=', $threshold);
             }
         }
 
@@ -724,7 +717,8 @@ class ReservationController extends Controller
                 VenueReservation::select('Venue_Reservation_Status as status')->get()
             );
 
-        if($allReservations[0]->status == 'pending' || $allReservations[0]->status == 'confirmed'){
+        $firstRes = $allReservations->first();
+        if($firstRes && ($firstRes->status == 'pending' || $firstRes->status == 'confirmed')){
             return view('employee.reservations', compact('reservations', 'allForCounts'));
         }else{
             return view('employee.guest', compact('reservations', 'allForCounts'));
@@ -808,7 +802,6 @@ class ReservationController extends Controller
         });
 
         $venues = ($accommodationType === 'room') ? collect() : $venueQuery->get()->map(function ($item) {
-            \Log::info('Venue reservation ID ' . $item->Venue_Reservation_ID . ' discount: ' . ($item->discount ?? 'null'));
             $item->display_type = 'venue';
             $item->type = 'venue';
             $item->status = $item->Venue_Reservation_Status;
@@ -818,8 +811,8 @@ class ReservationController extends Controller
             $item->id = $item->Venue_Reservation_ID;
             $item->pax = $item->Venue_Reservation_Pax ?? 0;
             $item->discount = $item->Venue_Reservation_Discount ?? 0;
-            $item->additional_fees = $item->additional_fees ?? 0;
-            $item->additional_fees_desc = $item->additional_fees_desc ?? '';
+            $item->additional_fees = $item->Venue_Reservation_Additional_Fees ?? 0;
+            $item->additional_fees_desc = $item->Venue_Reservation_Additional_Fees_Desc ?? '';
             $item->food_total = $item->foods->sum('pivot.Food_Reservation_Total_Price') ?? 0;
             return $item;
         });
@@ -1205,13 +1198,17 @@ class ReservationController extends Controller
 
         $thisMonthStart = Carbon::now()->startOfMonth();
         $thisMonthEnd   = Carbon::now()->endOfMonth();
-        $totalReservations = RoomReservation::whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count()
-                           + VenueReservation::whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $totalReservations = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                                ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count()
+                           + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                                ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
 
-        $roomRevenue = RoomReservation::where('Room_Reservation_Payment_Status', 'paid')
+        $roomRevenue = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+            ->where('Room_Reservation_Payment_Status', 'paid')
             ->sum('Room_Reservation_Total_Price');
 
-        $venueRevenue = VenueReservation::where('Venue_Reservation_Payment_Status', 'paid')
+        $venueRevenue = VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+            ->where('Venue_Reservation_Payment_Status', 'paid')
             ->sum('Venue_Reservation_Total_Price');
 
         $totalRevenue = $roomRevenue + $venueRevenue;
@@ -1463,7 +1460,7 @@ class ReservationController extends Controller
     {
         $checkIn  = \Carbon\Carbon::parse($request->check_in);
         $checkOut = \Carbon\Carbon::parse($request->check_out);
-        $days     = $checkIn->diffInDays($checkOut) ?: 1;
+        $days     = $checkIn->diffInDays($checkOut);
 
         if ($request->type === 'room') {
             $reservation = \App\Models\RoomReservation::findOrFail($request->reservation_id);
@@ -2059,13 +2056,17 @@ class ReservationController extends Controller
 
         $thisMonthStart = Carbon::now()->startOfMonth();
         $thisMonthEnd   = Carbon::now()->endOfMonth();
-        $totalReservations = RoomReservation::whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count()
-                           + VenueReservation::whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
+        $totalReservations = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                                ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count()
+                           + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                                ->whereBetween('created_at', [$thisMonthStart, $thisMonthEnd])->count();
 
-        $roomRevenue = RoomReservation::where('Room_Reservation_Payment_Status', 'paid')
+        $roomRevenue = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+            ->where('Room_Reservation_Payment_Status', 'paid')
             ->sum('Room_Reservation_Total_Price');
 
-        $venueRevenue = VenueReservation::where('Venue_Reservation_Payment_Status', 'paid')
+        $venueRevenue = VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+            ->where('Venue_Reservation_Payment_Status', 'paid')
             ->sum('Venue_Reservation_Total_Price');
 
         $totalRevenue = $roomRevenue + $venueRevenue;
@@ -2151,18 +2152,19 @@ class ReservationController extends Controller
             return round((($cur - $prev) / $prev) * 100, 1);
         };
 
-        // ── Summary ──
-        $roomCount      = RoomReservation::whereBetween('created_at', [$start, $end])->count();
-        $venueCount     = VenueReservation::whereBetween('created_at', [$start, $end])->count();
-        $prevRoomCount  = RoomReservation::whereBetween('created_at', [$prevStart, $prevEnd])->count();
-        $prevVenueCount = VenueReservation::whereBetween('created_at', [$prevStart, $prevEnd])->count();
+        // ── Summary (checked-out only) ──
+        $roomCount      = RoomReservation::where('Room_Reservation_Status', 'checked-out')->whereBetween('created_at', [$start, $end])->count();
+        $venueCount     = VenueReservation::where('Venue_Reservation_Status', 'checked-out')->whereBetween('created_at', [$start, $end])->count();
+        $prevRoomCount  = RoomReservation::where('Room_Reservation_Status', 'checked-out')->whereBetween('created_at', [$prevStart, $prevEnd])->count();
+        $prevVenueCount = VenueReservation::where('Venue_Reservation_Status', 'checked-out')->whereBetween('created_at', [$prevStart, $prevEnd])->count();
         $totalRes       = $roomCount + $venueCount;
         $prevTotalRes   = $prevRoomCount + $prevVenueCount;
 
-        $roomRevThis    = (float) RoomReservation::whereBetween('created_at', [$start, $end])->sum('Room_Reservation_Total_Price');
-        $venueRevThis   = (float) VenueReservation::whereBetween('created_at', [$start, $end])->sum('Venue_Reservation_Total_Price');
-        $roomRevPrev    = (float) RoomReservation::whereBetween('created_at', [$prevStart, $prevEnd])->sum('Room_Reservation_Total_Price');
-        $venueRevPrev   = (float) VenueReservation::whereBetween('created_at', [$prevStart, $prevEnd])->sum('Venue_Reservation_Total_Price');
+        // ── Revenue (checked-out + paid) ──
+        $roomRevThis    = (float) RoomReservation::where('Room_Reservation_Status', 'checked-out')->where('Room_Reservation_Payment_Status', 'paid')->whereBetween('created_at', [$start, $end])->sum('Room_Reservation_Total_Price');
+        $venueRevThis   = (float) VenueReservation::where('Venue_Reservation_Status', 'checked-out')->where('Venue_Reservation_Payment_Status', 'paid')->whereBetween('created_at', [$start, $end])->sum('Venue_Reservation_Total_Price');
+        $roomRevPrev    = (float) RoomReservation::where('Room_Reservation_Status', 'checked-out')->where('Room_Reservation_Payment_Status', 'paid')->whereBetween('created_at', [$prevStart, $prevEnd])->sum('Room_Reservation_Total_Price');
+        $venueRevPrev   = (float) VenueReservation::where('Venue_Reservation_Status', 'checked-out')->where('Venue_Reservation_Payment_Status', 'paid')->whereBetween('created_at', [$prevStart, $prevEnd])->sum('Venue_Reservation_Total_Price');
         $totalRevenue   = $roomRevThis + $venueRevThis;
         $prevRevenue    = $roomRevPrev + $venueRevPrev;
 
@@ -2179,13 +2181,15 @@ class ReservationController extends Controller
             $statusBreakdown[$s] = ($roomStatuses[$s] ?? 0) + ($venueStatuses[$s] ?? 0);
         }
 
-        // ── Daily Breakdown ──
+        // ── Daily Breakdown (checked-out only; revenue = checked-out + paid) ──
         $daysInMonth = $end->day;
-        $roomDaily   = RoomReservation::whereBetween('created_at', [$start, $end])
-                        ->selectRaw('EXTRACT(DAY FROM created_at)::int as day, count(*) as cnt, sum("Room_Reservation_Total_Price") as rev')
+        $roomDaily   = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->selectRaw('EXTRACT(DAY FROM created_at)::int as day, count(*) as cnt, sum(CASE WHEN "Room_Reservation_Payment_Status" = \'paid\' THEN "Room_Reservation_Total_Price" ELSE 0 END) as rev')
                         ->groupByRaw('EXTRACT(DAY FROM created_at)')->get()->keyBy('day');
-        $venueDaily  = VenueReservation::whereBetween('created_at', [$start, $end])
-                        ->selectRaw('EXTRACT(DAY FROM created_at)::int as day, count(*) as cnt, sum("Venue_Reservation_Total_Price") as rev')
+        $venueDaily  = VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$start, $end])
+                        ->selectRaw('EXTRACT(DAY FROM created_at)::int as day, count(*) as cnt, sum(CASE WHEN "Venue_Reservation_Payment_Status" = \'paid\' THEN "Venue_Reservation_Total_Price" ELSE 0 END) as rev')
                         ->groupByRaw('EXTRACT(DAY FROM created_at)')->get()->keyBy('day');
 
         $dailyData = [];
@@ -2197,22 +2201,24 @@ class ReservationController extends Controller
             ];
         }
 
-        // ── Top Rooms ──
+        // ── Top Rooms (checked-out only; revenue = paid only) ──
         $topRooms = RoomReservation::with('room')
+            ->where('Room_Reservation_Status', 'checked-out')
             ->whereBetween('created_at', [$start, $end])
-            ->selectRaw('"Room_ID", count(*) as bookings, sum("Room_Reservation_Total_Price") as revenue')
-            ->groupBy('Room_ID')->orderByDesc('revenue')->limit(5)->get()
+            ->selectRaw('"Room_ID", count(*) as bookings, sum(CASE WHEN "Room_Reservation_Payment_Status" = \'paid\' THEN "Room_Reservation_Total_Price" ELSE 0 END) as revenue')
+            ->groupBy('Room_ID')->orderByDesc('bookings')->limit(5)->get()
             ->map(fn($r) => [
                 'name'     => $r->room ? 'Room ' . $r->room->Room_Number : 'Room #' . $r->Room_ID,
                 'bookings' => (int)$r->bookings,
                 'revenue'  => (float)$r->revenue,
             ]);
 
-        // ── Top Venues ──
+        // ── Top Venues (checked-out only; revenue = paid only) ──
         $topVenues = VenueReservation::with('venue')
+            ->where('Venue_Reservation_Status', 'checked-out')
             ->whereBetween('created_at', [$start, $end])
-            ->selectRaw('"Venue_ID", count(*) as bookings, sum("Venue_Reservation_Total_Price") as revenue')
-            ->groupBy('Venue_ID')->orderByDesc('revenue')->limit(5)->get()
+            ->selectRaw('"Venue_ID", count(*) as bookings, sum(CASE WHEN "Venue_Reservation_Payment_Status" = \'paid\' THEN "Venue_Reservation_Total_Price" ELSE 0 END) as revenue')
+            ->groupBy('Venue_ID')->orderByDesc('bookings')->limit(5)->get()
             ->map(fn($r) => [
                 'name'     => $r->venue ? $r->venue->Venue_Name : 'Venue #' . $r->Venue_ID,
                 'bookings' => (int)$r->bookings,
@@ -2246,22 +2252,30 @@ class ReservationController extends Controller
         $lastStart = Carbon::now()->subMonth()->startOfMonth();
         $lastEnd   = Carbon::now()->subMonth()->endOfMonth();
 
-        // ── Reservations created this month vs last month ──
-        $resThis = RoomReservation::whereBetween('created_at', [$thisStart, $thisEnd])->count()
-                 + VenueReservation::whereBetween('created_at', [$thisStart, $thisEnd])->count();
+        // ── Checked-out reservations this month vs last month ──
+        $resThis = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$thisStart, $thisEnd])->count()
+                 + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$thisStart, $thisEnd])->count();
 
-        $resLast = RoomReservation::whereBetween('created_at', [$lastStart, $lastEnd])->count()
-                 + VenueReservation::whereBetween('created_at', [$lastStart, $lastEnd])->count();
+        $resLast = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$lastStart, $lastEnd])->count()
+                 + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                        ->whereBetween('created_at', [$lastStart, $lastEnd])->count();
 
-        // ── Revenue (paid only) this month vs last month ──
-        $revThis = RoomReservation::where('Room_Reservation_Payment_Status', 'paid')
+        // ── Revenue (checked-out + paid) this month vs last month ──
+        $revThis = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                        ->where('Room_Reservation_Payment_Status', 'paid')
                         ->whereBetween('created_at', [$thisStart, $thisEnd])->sum('Room_Reservation_Total_Price')
-                 + VenueReservation::where('Venue_Reservation_Payment_Status', 'paid')
+                 + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                        ->where('Venue_Reservation_Payment_Status', 'paid')
                         ->whereBetween('created_at', [$thisStart, $thisEnd])->sum('Venue_Reservation_Total_Price');
 
-        $revLast = RoomReservation::where('Room_Reservation_Payment_Status', 'paid')
+        $revLast = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+                        ->where('Room_Reservation_Payment_Status', 'paid')
                         ->whereBetween('created_at', [$lastStart, $lastEnd])->sum('Room_Reservation_Total_Price')
-                 + VenueReservation::where('Venue_Reservation_Payment_Status', 'paid')
+                 + VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+                        ->where('Venue_Reservation_Payment_Status', 'paid')
                         ->whereBetween('created_at', [$lastStart, $lastEnd])->sum('Venue_Reservation_Total_Price');
 
         // ── Occupancy: previous 30-60 day rolling window (night-sum, same method as current) ──

@@ -26,9 +26,19 @@ document.addEventListener("DOMContentLoaded", () => {
     modal.classList.add("active");
   }
 
-  function closeModal() {
+  function closeModal(revertCard = true) {
     overlay.classList.remove("active");
     modal.classList.remove("active");
+    // Revert card colour if the admin cancelled without saving
+    if (revertCard && activeCard) {
+      const details = activeCard.querySelector('.room-details, .venue-details');
+      if (details) {
+        const originalStatus = details.dataset.effective_status || 'available';
+        activeCard.classList.remove(...ALL_STATUS_CLASSES);
+        activeCard.classList.add(originalStatus);
+      }
+    }
+    activeCard = null;
   }
 
   function enableRoomForm() {
@@ -76,6 +86,45 @@ document.addEventListener("DOMContentLoaded", () => {
     setModalImage('venue', '');
   }
 
+  // Status label map for the badge
+  const STATUS_LABELS = {
+    available:        'Available',
+    occupied:         'Occupied',
+    reserved:         'Reserved',
+    undermaintenance: 'Under Maintenance',
+  };
+
+  // Map the DB-stored select value to the CSS key
+  const DB_STATUS_TO_KEY = {
+    'Available':        'available',
+    'Occupied':         'occupied',
+    'Reserved':         'reserved',
+    'UnderMaintenance': 'undermaintenance',
+  };
+
+  const ALL_STATUS_CLASSES = ['available', 'occupied', 'reserved', 'undermaintenance'];
+
+  // Currently active card (room or venue element)
+  let activeCard = null;
+
+  function setStatusBadge(effectiveStatus) {
+    const badge = document.getElementById('rvStatusBadge');
+    if (!badge) return;
+    badge.classList.remove(...ALL_STATUS_CLASSES);
+    const key = (effectiveStatus || 'available').toLowerCase().replace(/[\s_]/g, '');
+    badge.classList.add(key);
+    badge.textContent = STATUS_LABELS[key] || effectiveStatus;
+  }
+
+  // Update the card color AND badge live when the admin changes the dropdown
+  function applyCardStatusPreview(selectEl) {
+    if (!activeCard) return;
+    const key = DB_STATUS_TO_KEY[selectEl.value] || 'available';
+    activeCard.classList.remove(...ALL_STATUS_CLASSES);
+    activeCard.classList.add(key);
+    setStatusBadge(key);
+  }
+
   function setModalImage(type, src) {
     const thumb  = document.getElementById(type === 'room' ? 'rvRoomImgPreviewThumb' : 'rvVenueImgPreviewThumb');
     const none   = document.getElementById(type === 'room' ? 'rvRoomImgNone'         : 'rvVenueImgNone');
@@ -94,6 +143,18 @@ document.addEventListener("DOMContentLoaded", () => {
     if (badge) badge.textContent = '📷 Replace photo';
   }
 
+  // Wire up live status preview on the room status select
+  const roomStatusSelect = roomForm.querySelector('select[name="status"]');
+  if (roomStatusSelect) {
+    roomStatusSelect.addEventListener('change', () => applyCardStatusPreview(roomStatusSelect));
+  }
+
+  // Wire up live status preview on the venue status select
+  const venueStatusSelect = venueForm.querySelector('select[name="status"]');
+  if (venueStatusSelect) {
+    venueStatusSelect.addEventListener('change', () => applyCardStatusPreview(venueStatusSelect));
+  }
+
   roomCards.forEach(card => {
     card.addEventListener("click", () => {
       const details = card.querySelector(".room-details");
@@ -101,6 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = details.dataset;
 
+      activeCard = card;
       clearRoomForm();
       clearVenueForm();
       enableRoomForm();
@@ -111,9 +173,10 @@ document.addEventListener("DOMContentLoaded", () => {
       roomForm.querySelector('input[name="capacity"]').value = data.capacity || "";
       roomForm.querySelector('input[name="internal_price"]').value = data.price || "";
       roomForm.querySelector('input[name="external_price"]').value = data.external_price || "";
-      roomForm.querySelector('select[name="status"]').value = data.status || "Available";
+      if (roomStatusSelect) roomStatusSelect.value = data.status || "Available";
       roomForm.querySelector('textarea[name="description"]').value = data.description || "";
       setModalImage('room', data.image || '');
+      setStatusBadge(data.effective_status || 'available');
 
       openModal();
     });
@@ -126,6 +189,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       const data = details.dataset;
 
+      activeCard = card;
       clearRoomForm();
       clearVenueForm();
       enableVenueForm();
@@ -136,10 +200,10 @@ document.addEventListener("DOMContentLoaded", () => {
       venueForm.querySelector('input[name="capacity"]').value = data.capacity || "";
       venueForm.querySelector('input[name="internal_price"]').value = data.price || "";
       venueForm.querySelector('input[name="external_price"]').value = data.external_price || "";
-      const venueStatusSelect = venueForm.querySelector('select[name="status"]');
       if (venueStatusSelect) venueStatusSelect.value = data.status || "Available";
       venueForm.querySelector('textarea[name="description"]').value = data.description || "";
       setModalImage('venue', data.image || '');
+      setStatusBadge(data.effective_status || 'available');
 
       openModal();
     });
@@ -154,8 +218,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
+  // Form submit (Save) — don't revert the card; page will reload with the saved status
+  updateForm?.addEventListener("submit", () => {
+    activeCard = null;
+  });
+
   createReservationBtn?.addEventListener("click", () => {
-    closeModal();
+    closeModal(false);
   });
 
   // safe default

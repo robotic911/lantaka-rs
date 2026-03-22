@@ -143,7 +143,7 @@
 
                   <td>
                     @if($res->status === 'confirmed')
-                      <span class="badge pending-badge">Pending</span>
+                      <span class="badge confirmed-badge">Confirmed</span>
                     @else
                       <span class="badge {{ strtolower($res->status) }}-badge">
                         {{ ucfirst($res->status) }}

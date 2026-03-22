@@ -18,6 +18,9 @@
         <!-- Top Controls -->
         <div class="controls-section">
         <form class="search-bar" method="GET" action="{{ route('employee.room_venue') }}">
+          {{-- preserve date range when searching --}}
+          @if($dateFrom)<input type="hidden" name="date_from" value="{{ $dateFrom }}">@endif
+          @if($dateTo)<input type="hidden" name="date_to" value="{{ $dateTo }}">@endif
           <input
               type="text"
               name="search"
@@ -29,16 +32,16 @@
         </form>
 
         <form class="filters-actions" method="GET" action="{{ route('employee.room_venue') }}">
+          {{-- preserve date range when filtering by status --}}
+          @if($dateFrom)<input type="hidden" name="date_from" value="{{ $dateFrom }}">@endif
+          @if($dateTo)<input type="hidden" name="date_to" value="{{ $dateTo }}">@endif
+          @if(request('search'))<input type="hidden" name="search" value="{{ request('search') }}">@endif
           <select name="status" class="status-filter" onchange="this.form.submit()">
-            <option value="">Status</option>
-
-            <option value="Available" {{ request('status') == 'Available' ? 'selected' : '' }}>
-              Available
-            </option>
-
-            <option value="Unavailable" {{ request('status') == 'Unavailable' ? 'selected' : '' }}>
-              Unavailable
-            </option>
+            <option value="">All Status</option>
+            <option value="available"       {{ request('status') == 'available'       ? 'selected' : '' }}>Available</option>
+            <option value="occupied"        {{ request('status') == 'occupied'        ? 'selected' : '' }}>Occupied</option>
+            <option value="undermaintenance"{{ request('status') == 'undermaintenance'? 'selected' : '' }}>Under Maintenance</option>
+            <option value="reserved"        {{ request('status') == 'reserved'        ? 'selected' : '' }}>Reserved</option>
           </select>
         </form>
 
@@ -48,6 +51,54 @@
               <button class="btn btn-primary" id="add_room_venue_button">Add Room/Venue</button>
             @endif
           </div>
+        </div>
+
+        <!-- Date Range Availability Picker -->
+        <div class="availability-picker-wrap">
+          <form method="GET" action="{{ route('employee.room_venue') }}" class="availability-form" id="availabilityForm">
+            @if(request('search'))
+              <input type="hidden" name="search" value="{{ request('search') }}">
+            @endif
+            @if(request('status'))
+              <input type="hidden" name="status" value="{{ request('status') }}">
+            @endif
+
+            <span class="availability-label">View Status For:</span>
+
+            <div class="date-range-group">
+              <label class="date-label" for="dateFrom">From</label>
+              <input type="date" name="date_from" id="dateFrom"
+                     class="date-input"
+                     value="{{ $dateFrom ?? '' }}">
+            </div>
+
+            <div class="date-range-group">
+              <label class="date-label" for="dateTo">To</label>
+              <input type="date" name="date_to" id="dateTo"
+                     class="date-input"
+                     value="{{ $dateTo ?? '' }}">
+            </div>
+
+            <button type="submit" class="btn btn-check-avail">Apply</button>
+
+            @if($dateFrom && $dateTo)
+              <a href="{{ route('employee.room_venue', array_filter(['search' => request('search'), 'status' => request('status')])) }}"
+                 class="btn btn-clear-dates">Clear</a>
+            @endif
+          </form>
+
+          @if($dateFrom && $dateTo)
+            <div class="availability-result-label">
+              Showing Room &amp; Venue status from
+              <strong>{{ \Carbon\Carbon::parse($dateFrom)->format('M j, Y') }}</strong>
+              to
+              <strong>{{ \Carbon\Carbon::parse($dateTo)->format('M j, Y') }}</strong>
+            </div>
+          @else
+            <div class="availability-result-label availability-result-label--today">
+              Showing status for Today
+            </div>
+          @endif
         </div>
 
         <div class="room-venue-divider">
@@ -61,7 +112,7 @@
               <div class="rooms-grid">
 
               @foreach($rooms as $room)
-                <div class="room-card {{ strtolower($room->Room_Status) }}">
+                <div class="room-card {{ $room->effective_status }}">
                   {{ $room->Room_Number }}
 
                   <input type="hidden" class="room-details"
@@ -72,25 +123,24 @@
                         data-price="{{ $room->Room_Internal_Price }}"
                         data-external_price="{{ $room->Room_External_Price }}"
                         data-status="{{ $room->Room_Status }}"
+                        data-effective_status="{{ $room->effective_status }}"
                         data-description="{{ $room->Room_Description }}"
                         data-image="{{ $room->Room_Image ? asset('storage/' . $room->Room_Image) : '' }}">
                 </div>
               @endforeach
 
                 @if($rooms->isEmpty())
-                  <p style="color: #666; font-style: italic;">No rooms searched or added yet.</p>
+                  <p style="color: #666; font-style: italic;">No rooms found.</p>
                 @endif
               </div>
             </section>
-
-
 
             <!-- Venues Section -->
             <section class="venues-section">
               <h2 class="section-title">Venue</h2>
               <div class="venue-grid">
               @foreach($venues as $venue)
-                <div class="venue-card {{ strtolower($venue->Venue_Status) }}">
+                <div class="venue-card {{ $venue->effective_status }}">
                   {{ $venue->Venue_Name }}
 
                   <input type="hidden" class="venue-details"
@@ -100,18 +150,42 @@
                         data-price="{{ $venue->Venue_Internal_Price }}"
                         data-external_price="{{ $venue->Venue_External_Price }}"
                         data-status="{{ $venue->Venue_Status }}"
+                        data-effective_status="{{ $venue->effective_status }}"
                         data-description="{{ $venue->Venue_Description }}"
                         data-image="{{ $venue->Venue_Image ? asset('storage/' . $venue->Venue_Image) : '' }}">
                 </div>
               @endforeach
 
                   @if($venues->isEmpty())
-                    <p>No venues searched or added yet.</p>
+                    <p style="color: #666; font-style: italic;">No venues found.</p>
                   @endif
               </div>
             </section>
           </div>
           </div>
+
+        <!-- Status Legend -->
+        <div class="status-legend">
+          <div class="legend-items">
+            <div class="legend-item">
+              <span class="legend-swatch legend-available"></span>
+              <span>Available</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch legend-occupied"></span>
+              <span>Occupied (Checked-in)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch legend-reserved"></span>
+              <span>Reserved (Pending / Confirmed)</span>
+            </div>
+            <div class="legend-item">
+              <span class="legend-swatch legend-undermaintenance"></span>
+              <span>Under Maintenance</span>
+            </div>
+          </div>
+        </div>
+
       </div>
   <!-- Add Room Venue Modal -->
       <!-- Modal Content -->
@@ -119,5 +193,20 @@
       <x-create_reservation_modal/>
       <x-employee_rv_viewing_modal/>
       <x-employee_food :foods="$foods" />
+
+<script>
+  (function () {
+    const fromInput = document.getElementById('dateFrom');
+    const toInput   = document.getElementById('dateTo');
+    if (!fromInput || !toInput) return;
+
+    fromInput.addEventListener('change', function () {
+      toInput.min = this.value;
+      if (toInput.value && toInput.value < this.value) {
+        toInput.value = this.value;
+      }
+    });
+  })();
+</script>
 
 @endsection

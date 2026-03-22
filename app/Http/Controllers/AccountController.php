@@ -212,8 +212,12 @@ class AccountController extends Controller
         {
             $search = $request->search;
 
-            $users = Account::where('Account_Name','ilike',"%{$search}%")
-                ->orWhere('Account_Email','ilike',"%{$search}%")
+            $users = Account::where('Account_Role', 'client')
+                ->where('Account_Status', 'approved')
+                ->where(function ($q) use ($search) {
+                    $q->where('Account_Name', 'ilike', "%{$search}%")
+                      ->orWhere('Account_Email', 'ilike', "%{$search}%");
+                })
                 ->limit(10)
                 ->get(['Account_ID','Account_Name','Account_Email'])
                 ->map(fn($u) => [
@@ -224,6 +228,58 @@ class AccountController extends Controller
 
             return response()->json($users);
         }
+
+    /* ────────────────────────────────────────────────
+     *  Admin: Manually Create Account
+     * ──────────────────────────────────────────────── */
+    public function adminCreateAccount(Request $request)
+    {
+        $request->validate([
+            'firstName'   => 'required|string|max:100',
+            'lastName'    => 'required|string|max:100',
+            'username'    => 'required|string|max:50|unique:Account,Account_Username',
+            'email'       => 'required|email|unique:Account,Account_Email',
+            'phone'       => ['required', 'regex:/^0[0-9]{10}$/'],
+            'affiliation' => 'required|string|in:student,faculty,organization,external,staff',
+            'password'    => 'required|string|min:8|confirmed',
+            'validId'     => 'nullable|image|max:4096',
+        ]);
+
+        $isStaff = $request->affiliation === 'staff';
+        $role    = $isStaff ? 'staff' : 'client';
+        $type    = in_array($request->affiliation, ['student', 'faculty', 'organization', 'staff'])
+                     ? 'Internal'
+                     : 'External';
+
+        $fullName = trim($request->firstName . ' ' . $request->lastName);
+
+        $idPath = $request->hasFile('validId')
+            ? $request->file('validId')->store('ids', 'public')
+            : null;
+
+        Account::create([
+            'Account_Name'        => $fullName,
+            'Account_Username'    => $request->username,
+            'Account_Email'       => $request->email,
+            'Account_Phone'       => $request->phone,
+            'Account_Password'    => Hash::make($request->password),
+            'Account_Affiliation' => $request->affiliation,
+            'Account_Type'        => $type,
+            'Account_Role'        => $role,
+            'Account_Status'      => 'approved',
+            'valid_id_path'       => $idPath,
+        ]);
+
+        EventLogController::log(
+            'account_created',
+            "Account manually created by admin for {$fullName} ({$request->email}) as {$role}."
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => "Account for {$fullName} created successfully.",
+        ]);
+    }
 
     /* ────────────────────────────────────────────────
      *  Client Account Page

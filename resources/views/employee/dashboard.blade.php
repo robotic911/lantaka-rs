@@ -412,16 +412,16 @@
             }, 620, 500);
         }
 
-        /* ── Grouped Bar: Rooms vs Venues ── */
+        /* ── Grouped Bar: Rooms vs Venues (reservations only) ── */
         async function buildComparisonChart(data) {
             return chartToImage({
                 type: 'bar',
                 data: {
-                    labels: ['Total Bookings', 'Revenue (÷1,000 ₱)'],
+                    labels: ['Checked-out Bookings'],
                     datasets: [
                         {
                             label: 'Rooms',
-                            data: [data.roomCount, Math.round(data.roomRevenue / 1000)],
+                            data: [data.roomCount],
                             backgroundColor: 'rgba(99,153,243,0.82)',
                             borderColor: '#6199f3',
                             borderWidth: 1.5,
@@ -429,7 +429,7 @@
                         },
                         {
                             label: 'Venues',
-                            data: [data.venueCount, Math.round(data.venueRevenue / 1000)],
+                            data: [data.venueCount],
                             backgroundColor: 'rgba(163,148,234,0.82)',
                             borderColor: '#a394ea',
                             borderWidth: 1.5,
@@ -445,7 +445,7 @@
                         legend: { position: 'top', labels: { font: { size: 12, weight: '600' }, padding: 14, usePointStyle: true } },
                         title: {
                             display: true,
-                            text: 'Rooms vs. Venues Comparison',
+                            text: 'Rooms vs. Venues — Checked-out Reservations',
                             font: { size: 14, weight: 'bold' },
                             color: '#1a3a7a',
                             padding: { top: 4, bottom: 10 }
@@ -455,7 +455,8 @@
                         y: {
                             beginAtZero: true,
                             grid: { color: 'rgba(0,0,0,0.06)' },
-                            ticks: { font: { size: 10 } }
+                            ticks: { precision: 0, font: { size: 10 } },
+                            title: { display: true, text: 'Reservations', font: { size: 11 }, color: '#555' }
                         },
                         x: { grid: { display: false }, ticks: { font: { size: 11 } } }
                     }
