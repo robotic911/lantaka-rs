@@ -133,7 +133,7 @@ function calendarRender() {
 
   let html = ''
 
-  for (let i = 0; i < 35; i++) {
+  for (let i = 0; i < 42; i++) {
     const cellDate = gridStart.add(i, 'day')
     const dateStr = iso(cellDate)
     const dayNum = cellDate.date()

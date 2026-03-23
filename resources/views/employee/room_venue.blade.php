@@ -93,6 +93,7 @@
         <thead>
           <tr>
             <th>#</th>
+            <th class="rv-th-photo">Photo</th>
             <th>Room Number</th>
             <th>Type</th>
             <th>Capacity</th>
@@ -112,6 +113,7 @@
                 'undermaintenance' => 'Under Maintenance',
                 default            => ucfirst($es),
               };
+              $imgSrc = $room->Room_Image ? media_url($room->Room_Image) : asset('images/placeholder_room.svg');
             @endphp
             <tr class="room-card {{ $es }}">
               <td class="rv-idx">{{ $i + 1 }}
@@ -126,7 +128,10 @@
                        data-status="{{ $room->Room_Status }}"
                        data-effective_status="{{ $room->effective_status }}"
                        data-description="{{ $room->Room_Description }}"
-                       data-image="{{ $room->Room_Image ? media_url($room->Room_Image) : asset('images/placeholder_room.svg') }}">
+                       data-image="{{ $imgSrc }}">
+              </td>
+              <td class="rv-td-photo">
+                <img src="{{ $imgSrc }}" alt="{{ $room->Room_Number }}" class="rv-thumb">
               </td>
               <td><strong>{{ $room->Room_Number }}</strong></td>
               <td>{{ $room->Room_Type ?? '—' }}</td>
@@ -137,7 +142,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="7" style="text-align:center; color:#999; font-style:italic; padding:24px;">
+              <td colspan="8" style="text-align:center; color:#999; font-style:italic; padding:24px;">
                 No rooms found.
               </td>
             </tr>
@@ -156,6 +161,7 @@
         <thead>
           <tr>
             <th>#</th>
+            <th class="rv-th-photo">Photo</th>
             <th>Venue Name</th>
             <th>Capacity</th>
             <th>Internal Price / day</th>
@@ -174,6 +180,7 @@
                 'undermaintenance' => 'Under Maintenance',
                 default            => ucfirst($es),
               };
+              $imgSrc = $venue->Venue_Image ? media_url($venue->Venue_Image) : asset('images/placeholder_venue.svg');
             @endphp
             <tr class="venue-card {{ $es }}">
               <td class="rv-idx">{{ $i + 1 }}
@@ -187,7 +194,10 @@
                        data-status="{{ $venue->Venue_Status }}"
                        data-effective_status="{{ $venue->effective_status }}"
                        data-description="{{ $venue->Venue_Description }}"
-                       data-image="{{ $venue->Venue_Image ? media_url($venue->Venue_Image) : asset('images/placeholder_venue.svg') }}">
+                       data-image="{{ $imgSrc }}">
+              </td>
+              <td class="rv-td-photo">
+                <img src="{{ $imgSrc }}" alt="{{ $venue->Venue_Name }}" class="rv-thumb">
               </td>
               <td><strong>{{ $venue->Venue_Name }}</strong></td>
               <td>{{ $venue->Venue_Capacity ?? '—' }}</td>
@@ -197,7 +207,7 @@
             </tr>
           @empty
             <tr>
-              <td colspan="6" style="text-align:center; color:#999; font-style:italic; padding:24px;">
+              <td colspan="7" style="text-align:center; color:#999; font-style:italic; padding:24px;">
                 No venues found.
               </td>
             </tr>
