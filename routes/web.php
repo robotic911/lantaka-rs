@@ -94,7 +94,7 @@ Route::middleware(['role:admin,staff'])->group(function () {
         Route::post('/employee/room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
         Route::post('/employee/food/store', [FoodController::class, 'store'])->name('admin.food.store');
         Route::put('/employee/food/{id}', [FoodController::class, 'update'])->name('admin.food.update');
-        Route::delete('/employee/food/{id}', [FoodController::class, 'destroy'])->name('admin.food.destroy');
+        Route::delete('/employee/food/{id}/delete', [FoodController::class, 'destroy'])->name('admin.food.destroy');
     });
 });
 
