@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const typeSelect = document.getElementById('updateFoodType');
     if (typeSelect) typeSelect.value = type;
-    updateFoodForm.action = `/employee/room_venue/${id}`
+    updateFoodForm.action = `/employee/food/${id}`
     showUpdateFoodModal()
     })
   })
@@ -34,6 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const id = updateFoodId.value
     
     if(!id) return
-    window.location.href = `/employee/room_venue/${id}/delete`
+    window.location.href = `/employee/food/${id}/delete`
     })
   })
