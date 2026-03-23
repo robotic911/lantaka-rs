@@ -987,6 +987,81 @@ class ReservationController extends Controller
         $statusColumn  = $type === 'room' ? 'Room_Reservation_Status'        : 'Venue_Reservation_Status';
         $paymentColumn = $type === 'room' ? 'Room_Reservation_Payment_Status' : 'Venue_Reservation_Payment_Status';
 
+        // ── Double-booking guard ──────────────────────────────────────────────
+        // Before confirming, check that no other confirmed/checked-in reservation
+        // already occupies the same room/venue on an overlapping date range.
+        // Wrapped in a DB transaction with a row-level lock so two simultaneous
+        // approvals for the same slot cannot both slip through.
+        if ($newStatus === 'confirmed') {
+            $conflict = DB::transaction(function () use ($type, $reservation, $statusColumn, $paymentColumn, $newStatus) {
+
+                if ($type === 'room') {
+                    $checkIn  = $reservation->Room_Reservation_Check_In_Time;
+                    $checkOut = $reservation->Room_Reservation_Check_Out_Time;
+                    $roomId   = $reservation->Room_ID;
+                    $resId    = $reservation->getKey();
+
+                    // Lock this row so a concurrent request waits
+                    RoomReservation::where($reservation->getKeyName(), $resId)->lockForUpdate()->first();
+
+                    $overlap = RoomReservation::where('Room_ID', $roomId)
+                        ->where($reservation->getKeyName(), '!=', $resId)
+                        ->whereIn('Room_Reservation_Status', ['confirmed', 'checked-in'])
+                        ->where('Room_Reservation_Check_In_Time',  '<', $checkOut)
+                        ->where('Room_Reservation_Check_Out_Time', '>', $checkIn)
+                        ->with('user')
+                        ->first();
+
+                } else {
+                    $checkIn  = $reservation->Venue_Reservation_Check_In_Time;
+                    $checkOut = $reservation->Venue_Reservation_Check_Out_Time;
+                    $venueId  = $reservation->Venue_ID;
+                    $resId    = $reservation->getKey();
+
+                    VenueReservation::where($reservation->getKeyName(), $resId)->lockForUpdate()->first();
+
+                    $overlap = VenueReservation::where('Venue_ID', $venueId)
+                        ->where($reservation->getKeyName(), '!=', $resId)
+                        ->whereIn('Venue_Reservation_Status', ['confirmed', 'checked-in'])
+                        ->where('Venue_Reservation_Check_In_Time',  '<', $checkOut)
+                        ->where('Venue_Reservation_Check_Out_Time', '>', $checkIn)
+                        ->with('user')
+                        ->first();
+                }
+
+                if ($overlap) {
+                    return $overlap; // signal: conflict found
+                }
+
+                // No conflict — safe to approve
+                $reservation->$statusColumn = $newStatus;
+                $reservation->save();
+
+                return null; // signal: all good
+            });
+
+            if ($conflict) {
+                $conflictClient = optional($conflict->user)->Account_Name ?? 'another client';
+                $accName = $type === 'room'
+                    ? 'Room ' . ($reservation->room->Room_Number ?? $id)
+                    : ($reservation->venue->Venue_Name ?? 'Venue');
+
+                return redirect()->back()->with(
+                    'error',
+                    "Cannot confirm: {$accName} is already confirmed for {$conflictClient} on an overlapping date. " .
+                    "Please reject or reschedule one of the reservations first."
+                );
+            }
+
+            // Already saved inside the transaction — skip the save below
+            $this->notifyClientOnStatusChange($reservation, $type, $newStatus);
+
+            return redirect()->back()
+                ->with('success', 'Status updated to Confirmed successfully.')
+                ->with('email_sent', true);
+        }
+        // ── End double-booking guard ──────────────────────────────────────────
+
         $reservation->$statusColumn = $newStatus;
 
         // Checkout always starts as unpaid — payment is confirmed separately
