@@ -331,8 +331,16 @@ class AccountController extends Controller
             ->take(5)
             ->values();
 
+        // Compute initials from the account name (e.g. "Juan dela Cruz" → "JD")
+        $nameParts = array_filter(explode(' ', $user->Account_Name));
+        $initials   = strtoupper(
+            (isset($nameParts[0]) ? $nameParts[0][0] : '') .
+            (count($nameParts) > 1 ? end($nameParts)[0] : '')
+        );
+
         return view('client.account', compact(
             'user',
+            'initials',
             'totalCount',
             'pendingCount',
             'confirmedCount',
