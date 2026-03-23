@@ -32,6 +32,7 @@
             <option value="checked-in" {{ request('status') == 'checked-in' ? 'selected' : '' }}>Checked-in</option>
             <option value="checked-out" {{ request('status') == 'checked-out' ? 'selected' : '' }}>Checked-out</option>
             <option value="cancelled" {{ request('status') == 'cancelled' ? 'selected' : '' }}>Cancelled</option>
+            <option value="rejected" {{ request('status') == 'rejected' ? 'selected' : '' }}>Rejected</option>
         </select>
     </div>
 </form>

@@ -408,7 +408,7 @@ class ReservationController extends Controller
 
             // Client Type Filter
             if ($clientType) {
-                $query->whereHas('user', fn($q) => $q->where('Account_Type', $clientType));
+                $query->whereHas('Account', fn($q) => $q->where('Account_Type', $clientType));
             }
 
             // Date Filter (This was missing!)
@@ -453,9 +453,9 @@ class ReservationController extends Controller
             
                         $q->orWhereRaw('EXISTS (
                             SELECT 1
-                            FROM "users" u
+                            FROM "Account" u 
                             JOIN "Room" r ON r."Room_ID" = "Room_Reservation"."Room_ID"
-                            WHERE u."id" = "Room_Reservation"."Client_ID"
+                            WHERE u."Account_ID" = "Room_Reservation"."Client_ID"
                             AND CONCAT(
                                 COALESCE(u."Account_Name", \'\'),
                                 \' \',
@@ -479,9 +479,9 @@ class ReservationController extends Controller
             
                         $q->orWhereRaw('EXISTS (
                             SELECT 1
-                            FROM "users" u
+                            FROM "Account" u
                             JOIN "Venue" v ON v."Venue_ID" = "Venue_Reservation"."Venue_ID"
-                            WHERE u."id" = "Venue_Reservation"."Client_ID"
+                            WHERE u."Account_ID" = "Venue_Reservation"."Client_ID"
                             AND CONCAT(
                                 COALESCE(u."Account_Name", \'\'),
                                 \' \',

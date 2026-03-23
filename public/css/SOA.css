@@ -66,20 +66,77 @@
 .soa-preview-row {
   display: flex;
   justify-content: space-between;
+  align-items: flex-start;
   gap: 10px;
 }
 
+.soa-preview-room-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .soa-preview-room {
-  font-weight: bold;
+  font-weight: 600;
+  font-size: 14px;
 }
 
 .soa-preview-duration {
-  font-size: 13px;
-  color: #666;
+  font-size: 12px;
+  color: #888;
 }
 
 .soa-preview-price {
-  font-weight: bold;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Fee / discount sub-rows */
+.soa-preview-subrow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 3px 0 3px 12px;
+  font-size: 12px;
+  color: #555;
+}
+
+.soa-preview-sublabel {
+  flex: 1;
+}
+
+.soa-preview-subprice {
+  white-space: nowrap;
+}
+
+.soa-preview-discount {
+  color: #c0392b;
+}
+
+/* Per-item subtotal */
+.soa-preview-item-total {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed #ddd;
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+/* Grand total */
+.soa-preview-grand-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 12px 10px;
+  background: #1e3a5f;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 700;
 }
 
 .soa-export-btn {
