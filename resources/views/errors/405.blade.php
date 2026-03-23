@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>500 — Server Error | Lantaka Reservation System</title>
+  <title>405 — Method Not Allowed | Lantaka Reservation System</title>
   <link href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;600;700;800;900&display=swap" rel="stylesheet">
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -53,11 +53,11 @@
       width: 80px;
       height: 80px;
       border-radius: 50%;
-      background: #fee2e2;
+      background: #fef3c7;
       margin: 0 auto 24px;
     }
 
-    .error-icon svg { color: #dc2626; }
+    .error-icon svg { color: #b45309; }
 
     .error-code {
       font-size: 5rem;
@@ -135,25 +135,6 @@
 
     .btn-secondary:hover { background: #e5e7eb; }
 
-    .error-detail {
-      margin-top: 20px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 14px 18px;
-      font-size: 0.78rem;
-      color: #6b7280;
-      text-align: left;
-      line-height: 1.5;
-    }
-
-    .error-detail strong {
-      display: block;
-      color: #374151;
-      font-weight: 700;
-      margin-bottom: 2px;
-    }
-
     .brand-footer {
       margin-top: 32px;
       font-size: 0.75rem;
@@ -169,7 +150,7 @@
 
   {{-- Resolve the correct "safe" destination based on the logged-in role --}}
   @php
-    $dashboardUrl = url('/');
+    $dashboardUrl = url('/'); // default: guests go to home
 
     if (auth()->check()) {
       $role = auth()->user()->Account_Role;
@@ -186,24 +167,16 @@
     <div class="error-icon">
       <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
         <circle cx="12" cy="12" r="10"/>
-        <line x1="12" y1="8" x2="12" y2="12"/>
-        <line x1="12" y1="16" x2="12.01" y2="16"/>
+        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
       </svg>
     </div>
 
-    <div class="error-code">500</div>
-    <div class="error-title">Internal Server Error</div>
+    <div class="error-code">405</div>
+    <div class="error-title">Method Not Allowed</div>
     <p class="error-message">
-      Something went wrong on our end. Our team has been notified.<br>
-      Please try again in a moment.
+      That action isn't permitted here. You may have submitted<br>
+      a form incorrectly or followed an invalid link.
     </p>
-
-    @if(isset($exception) && config('app.debug') && $exception->getMessage())
-    <div class="error-detail">
-      <strong>Debug Info</strong>
-      {{ $exception->getMessage() }}
-    </div>
-    @endif
 
     <hr class="divider">
 
@@ -221,10 +194,8 @@
         @auth
           @if(in_array(auth()->user()->Account_Role, ['admin', 'staff', 'Admin', 'Staff']))
             Go to Dashboard
-          @elseif(auth()->user()->Account_Role === 'client')
-            Go to My Reservations
           @else
-            Go to Home
+            Go to My Reservations
           @endif
         @else
           Go to Home
