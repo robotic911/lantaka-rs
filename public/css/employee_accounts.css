@@ -180,6 +180,19 @@ a{
   font-size: 12px;
 }
 
+/* ID Thumbnail Column */
+.acc-th-photo { width: 80px; min-width: 80px; }
+.acc-td-photo { padding: 8px 12px; width: 80px; min-width: 80px; }
+.acc-id-thumb {
+  display: block;
+  width: 56px;
+  height: 40px;
+  object-fit: cover;
+  border-radius: 5px;
+  border: 1px solid #e5e7eb;
+  background: #f1f3f5;
+}
+
 /* Action Button */
 
 .action-btn-approve {

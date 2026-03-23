@@ -180,7 +180,7 @@
       // Validate after assignment
       if (!hiddenCheckIn.value || !hiddenCheckOut.value) {
         e.preventDefault();
-        alert('Please select both a check-in and check-out date.');
+        window.showToast('Please select both a check-in and check-out date.');
         return;
       }
 

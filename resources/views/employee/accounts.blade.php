@@ -60,6 +60,7 @@
                 <th>Role</th>
                 <th>Email</th>
                 <th>Phone no.</th>
+                <th class="acc-th-photo">ID Photo</th>
                 <th style="display: flex; width: 150px; justify-content: center;">
                   Status/Last Online
                 </th>
@@ -68,6 +69,11 @@
             </thead>
             <tbody>
               @forelse($users as $user)
+                @php
+                  $idThumbSrc = $user->valid_id_path
+                    ? media_url($user->valid_id_path)
+                    : asset('images/placeholder_id.svg');
+                @endphp
                 <tr>
                   <td>
                     <div class="cell-with-icon">
@@ -80,6 +86,12 @@
                   <td>{{ ucfirst($user->Account_Role) }}</td>
                   <td>{{ $user->Account_Email }}</td>
                   <td>{{ $user->Account_Phone ?? 'N/A' }}</td>
+                  <td class="acc-td-photo">
+                    <img src="{{ $idThumbSrc }}"
+                         alt="ID"
+                         class="acc-id-thumb"
+                         onerror="this.src='{{ asset('images/placeholder_id.svg') }}'">
+                  </td>
                   <td>
                     @if($user->Account_Status == 'pending')
                         <span class="status-badge pending">Pending</span>
@@ -114,7 +126,7 @@
                     Status
                   </th>
                 <tr>
-                    <td colspan="6" style="text-align: center; padding: 20px;">No accounts found.</td>
+                    <td colspan="7" style="text-align: center; padding: 20px;">No accounts found.</td>
                 </tr>
               @endforelse
             </tbody>

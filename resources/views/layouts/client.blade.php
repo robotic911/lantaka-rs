@@ -23,5 +23,6 @@
     <main class="main-container">
         @yield('content')
     </main>
+    <x-toaster />
 </body>
 </html>

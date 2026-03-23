@@ -31,8 +31,9 @@
     transform: translateY(0);
     opacity: 1;
   }
-  #emailToaster.state-sent  { background: #166534; }
-  #emailToaster.state-error { background: #991b1b; }
+  #emailToaster.state-sent    { background: #166534; }
+  #emailToaster.state-error   { background: #991b1b; }
+  #emailToaster.state-warning { background: #92400e; }
 
   .toaster-spinner {
     width: 16px;
@@ -51,6 +52,23 @@
 
   (function () {
     let _dismissTimer = null;
+
+    // Generic toast: showToast(message, type) where type = 'warning'|'error'|'success'
+    window.showToast = function (message, type) {
+      const toast = document.getElementById('emailToaster');
+      const icon  = document.getElementById('toasterIcon');
+      const text  = document.getElementById('toasterText');
+      if (!toast) return;
+
+      clearTimeout(_dismissTimer);
+      toast.classList.remove('show', 'state-sent', 'state-error', 'state-warning');
+
+      const stateClass = type === 'error' ? 'state-error' : type === 'success' ? 'state-sent' : 'state-warning';
+      icon.innerHTML   = type === 'success' ? '&#10003;' : '&#9888;';
+      text.textContent = message;
+      toast.classList.add('show', stateClass);
+      _dismissTimer = setTimeout(() => toast.classList.remove('show'), 4000);
+    };
 
     window.showEmailToast = function (state) {
       const toast = document.getElementById('emailToaster');

@@ -48,22 +48,15 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('view_email').value = user.Account_Email || '';
       document.getElementById('view_phone').value = user.Account_Phone || '';
 
-      const idPreview     = document.getElementById('view_id_preview');
-      const idPlaceholder = document.getElementById('view_id_placeholder');
-      const idFileInput   = document.getElementById('view_id_file');
+      const idPreview   = document.getElementById('view_id_preview');
+      const idFileInput = document.getElementById('view_id_file');
 
       if (idFileInput) idFileInput.value = '';
 
-      if (idPreview && idPlaceholder) {
-        if (user.valid_id_path) {
-          idPreview.src = '/storage/' + user.valid_id_path;
-          idPreview.style.display = 'block';
-          idPlaceholder.style.display = 'none';
-        } else {
-          idPreview.src = '';
-          idPreview.style.display = 'none';
-          idPlaceholder.style.display = 'inline';
-        }
+      if (idPreview) {
+        const placeholder = idPreview.dataset.placeholder || '';
+        idPreview.src = user.valid_id_url || placeholder;
+        idPreview.style.display = 'block';
       }
 
       viewModal.classList.add('active');

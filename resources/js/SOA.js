@@ -106,7 +106,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       if (!selectedItemsInput.value || selectedItemsInput.value === '[]') {
         e.preventDefault();
-        alert('Please select at least one reservation to export.');
+        window.showToast('Please select at least one reservation to export.');
       }
     });
   }

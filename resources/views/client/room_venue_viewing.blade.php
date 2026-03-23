@@ -111,13 +111,13 @@
 
         if (!checkIn || !checkOut) {
           e.preventDefault();
-          alert('Please select both check-in and check-out dates.');
+          window.showToast('Please select both check-in and check-out dates.');
           return;
         }
 
         if (checkIn === checkOut) {
           e.preventDefault();
-          alert('Check-in and check-out dates cannot be the same.');
+          window.showToast('Check-in and check-out dates cannot be the same.');
           return;
         }
       });

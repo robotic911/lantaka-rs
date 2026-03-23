@@ -310,7 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       if (Object.keys(cart).length === 0) {
         e.preventDefault();
-        alert('Please select at least one item to confirm.');
+        window.showToast('Please select at least one item to confirm.');
       }
     });
   }

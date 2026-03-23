@@ -48,9 +48,11 @@
         <div class="account-field full-width">
           <label>Valid ID</label>
           <div style="margin-bottom:8px;">
-            <img id="view_id_preview" src="" alt="Valid ID"
-              style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #ddd; display:none; object-fit:contain;">
-            <span id="view_id_placeholder" style="color:#aaa; font-size:13px;">No ID uploaded.</span>
+            <img id="view_id_preview"
+                 src="{{ asset('images/placeholder_id.svg') }}"
+                 data-placeholder="{{ asset('images/placeholder_id.svg') }}"
+                 alt="Valid ID"
+                 style="max-width:100%; max-height:220px; border-radius:6px; border:1px solid #ddd; display:block; object-fit:contain;">
           </div>
           <input type="file" id="view_id_file" name="valid_id" accept="image/*" style="font-size:13px;">
         </div>
