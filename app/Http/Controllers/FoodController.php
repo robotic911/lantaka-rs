@@ -74,7 +74,7 @@ class FoodController extends Controller
         $food->delete();
 
         return back()->with('success','Food deleted successfully');
-    }
+}
 
 
     public function getFoodsAjax()
