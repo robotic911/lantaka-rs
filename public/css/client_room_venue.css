@@ -380,14 +380,55 @@ form#filterform{
   }
 }
 
-/* ── Room-type sub-filter tabs ─────────────────────── */
-.room-type-tabs {
-  flex-wrap: wrap;
-  gap: 10px;
+/* ── Rooms button wrapper & dropdown ───────────────── */
+.rooms-btn-wrap {
+  position: relative;
 }
 
-.tab-btn--sm {
-  padding: 7px 18px;
+
+/* Room type row — flat row of buttons anchored below the Rooms button */
+.room-type-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 200;
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 8px;
+
+  /* Hidden state */
+  opacity: 0;
+  transform: translateY(-4px);
+  pointer-events: none;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.room-type-dropdown.visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+/* Room type buttons — same look as the main .tab-btn */
+.rt-btn {
+  padding: 10px 24px;
+  border: none;
+  background-color: #e8e6e3;
+  color: #333;
   font-size: 13px;
+  font-weight: 600;
+  font-family: "Alexandria", sans-serif;
   border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background-color 0.2s ease;
+}
+
+.rt-btn:hover {
+  background-color: #f0ebe7;
+}
+
+.rt-btn.active {
+  background-color: #ffc107;
+  color: #000;
 }

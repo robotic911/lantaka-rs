@@ -15,25 +15,28 @@
         <input type="hidden" name="room_type" id="roomTypeInput"  value="{{ request('room_type', '') }}">
         <input type="hidden" name="date_from" id="dateFromHidden" value="{{ $dateFrom ?? '' }}">
         <input type="hidden" name="date_to"   id="dateToHidden"   value="{{ $dateTo ?? '' }}">
-
         <div class="filter-tabs">
-          <button type="button" class="tab-btn {{ request('type', 'All') == 'All'   ? 'active' : '' }}" onclick="filterTab('All')">All</button>
-          <button type="button" class="tab-btn {{ request('type') == 'Rooms'        ? 'active' : '' }}" onclick="filterTab('Rooms')">Rooms</button>
-          <button type="button" class="tab-btn {{ request('type') == 'Venue'        ? 'active' : '' }}" onclick="filterTab('Venue')">Venue</button>
-        </div>
+          <button type="button" class="tab-btn {{ request('type', 'All') == 'All' ? 'active' : '' }}" onclick="filterTab('All')">All</button>
 
-        {{-- Room-type sub-filter: hidden by default, shown via JS when "Rooms" tab is active --}}
-        @if($roomTypes->isNotEmpty())
-          <div class="filter-tabs room-type-tabs"
-               id="roomTypeTabs"
-               style="{{ request('type') === 'Rooms' ? 'display:flex;' : 'display:none;' }} margin-top: 10px;">
-            @foreach($roomTypes as $rt)
-              <button type="button"
-                      class="tab-btn tab-btn--sm {{ request('room_type') === $rt ? 'active' : '' }}"
-                      onclick="filterRoomType('{{ $rt }}')">{{ $rt }}</button>
-            @endforeach
+          {{-- Rooms button with anchored dropdown --}}
+          <div class="rooms-btn-wrap">
+            <button type="button" class="tab-btn {{ request('type') == 'Rooms' ? 'active' : '' }}" onclick="filterTab('Rooms')">Rooms</button>
+
+            @if($roomTypes->isNotEmpty())
+              <div id="roomTypeTabs" class="room-type-dropdown {{ request('type') === 'Rooms' ? 'visible' : '' }}">
+                @foreach($roomTypes as $rt)
+                  <button type="button"
+                          class="rt-btn {{ request('room_type') === $rt ? 'active' : '' }}"
+                          onclick="filterRoomType('{{ $rt }}')">
+                    {{ $rt }}
+                  </button>
+                @endforeach
+              </div>
+            @endif
           </div>
-        @endif
+
+          <button type="button" class="tab-btn {{ request('type') == 'Venue' ? 'active' : '' }}" onclick="filterTab('Venue')">Venue</button>
+        </div>
 
         <div class="filter-dropdowns">
           <select name="capacity" class="dropdown" onchange="this.form.submit()">
@@ -101,13 +104,11 @@
     <script>
       function filterTab(type) {
         document.getElementById('typeInput').value = type;
-        // Clear room type sub-filter when switching away from Rooms
         if (type !== 'Rooms') {
           document.getElementById('roomTypeInput').value = '';
         }
-        // Show/hide the room-type sub-row immediately before submit
         var rtTabs = document.getElementById('roomTypeTabs');
-        if (rtTabs) rtTabs.style.display = (type === 'Rooms') ? 'flex' : 'none';
+        if (rtTabs) rtTabs.classList.toggle('visible', type === 'Rooms');
         document.getElementById('filterForm').submit();
       }
 
