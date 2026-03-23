@@ -31,7 +31,13 @@
     <div class="profile-card-banner"></div>
     <div class="profile-card-body">
 
+      {{-- Avatar / Initials --}}
+      <div class="profile-avatar-wrap">
+        <span class="profile-avatar-initials">{{ $initials }}</span>
+      </div>
+
       <p class="profile-name">{{ $user->Account_Name }}</p>
+      <span class="profile-username">@{{ $user->Account_Username }}</span>
       <span class="profile-status-badge {{ $statusClass }}">{{ ucfirst($statusClass) }}</span>
 
       <hr class="profile-divider">
