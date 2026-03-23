@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f1f3f5"/>
+
+  <!-- Ground line -->
+  <rect x="76" y="224" width="248" height="8" rx="4" fill="#d1d5db"/>
+
+  <!-- Main building body -->
+  <rect x="112" y="108" width="176" height="118" fill="#d1d5db"/>
+
+  <!-- Roof / pediment triangle -->
+  <polygon points="90,110 200,58 310,110" fill="#c4c9d4"/>
+
+  <!-- Left column -->
+  <rect x="120" y="108" width="12" height="118" rx="3" fill="#c4c9d4"/>
+  <!-- Right column -->
+  <rect x="268" y="108" width="12" height="118" rx="3" fill="#c4c9d4"/>
+
+  <!-- Window left -->
+  <rect x="128" y="128" width="38" height="34" rx="4" fill="#e5e7eb"/>
+  <!-- Window right -->
+  <rect x="234" y="128" width="38" height="34" rx="4" fill="#e5e7eb"/>
+
+  <!-- Door -->
+  <rect x="174" y="170" width="52" height="56" rx="5" fill="#e5e7eb"/>
+  <!-- Door knob -->
+  <circle cx="219" cy="199" r="4" fill="#c4c9d4"/>
+</svg>

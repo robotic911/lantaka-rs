@@ -125,6 +125,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setStatusBadge(key);
   }
 
+  // Placeholder paths for rooms and venues (static public assets, always available)
+  const PLACEHOLDER = {
+    room:  '/images/placeholder_room.svg',
+    venue: '/images/placeholder_venue.svg',
+  };
+
   function setModalImage(type, src) {
     const thumb  = document.getElementById(type === 'room' ? 'rvRoomImgPreviewThumb' : 'rvVenueImgPreviewThumb');
     const none   = document.getElementById(type === 'room' ? 'rvRoomImgNone'         : 'rvVenueImgNone');
@@ -133,14 +139,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (input) input.value = '';   // clear any previous file selection
 
-    if (src) {
-      if (thumb) { thumb.src = src; thumb.style.display = 'block'; }
-      if (none)  none.style.display  = 'none';
-    } else {
-      if (thumb) { thumb.src = ''; thumb.style.display = 'none'; }
-      if (none)  none.style.display  = 'inline';
-    }
-    if (badge) badge.textContent = '📷 Replace photo';
+    const displaySrc = src || PLACEHOLDER[type] || '';
+    if (thumb) { thumb.src = displaySrc; thumb.style.display = 'block'; }
+    if (none)  none.style.display = 'none';
+    if (badge) badge.textContent = src ? '📷 Replace photo' : '📷 Add photo';
   }
 
   // Wire up live status preview on the room status select

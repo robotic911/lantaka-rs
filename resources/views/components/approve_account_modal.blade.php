@@ -45,8 +45,10 @@
         <div class="approval-field full-width">
             <label>ID / Proof of Identity</label>
             <div class="id-preview-container">
-                <img id="approve_id_image" src="" alt="Valid ID">
-                <p id="approve_no_id" style="color: #999;">No image available</p>
+                <img id="approve_id_image"
+                     src="{{ asset('images/placeholder_id.svg') }}"
+                     data-placeholder="{{ asset('images/placeholder_id.svg') }}"
+                     alt="Valid ID">
             </div>
         </div>
         

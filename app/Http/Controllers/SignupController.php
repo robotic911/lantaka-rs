@@ -26,7 +26,7 @@ class SignupController extends Controller
             'validId'     => 'required|image|max:2048',
         ]);
 
-        $path = $request->file('validId')->store('ids', 'public');
+        $path = $request->file('validId')->store('ids', media_disk());
 
         $mappedUserType = match($request->affiliation) {
             'student', 'faculty', 'staff' => 'Internal',

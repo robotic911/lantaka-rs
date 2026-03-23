@@ -183,42 +183,7 @@
   flex-wrap: wrap;
 }
 
-/* ── Effective-status badge ── */
-.rv-status-badge {
-  display: inline-block;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: capitalize;
-  border: 1px solid transparent;
-  white-space: nowrap;
-}
 
-.rv-status-badge.available {
-  background: #f0fdf4;
-  color: #166534;
-  border-color: #bbf7d0;
-}
-
-.rv-status-badge.occupied {
-  background: #53e087;
-  color: #064e23;
-  border-color: #34c96e;
-}
-
-.rv-status-badge.reserved {
-  background: #6199f3;
-  color: #0f2a6e;
-  border-color: #3b7bef;
-}
-
-.rv-status-badge.undermaintenance {
-  background: #d6d6d6;
-  color: #444;
-  border-color: #b0b0b0;
-}
 
 .rv-img-current {
   border-radius: 8px;

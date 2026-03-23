@@ -3,8 +3,9 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth; // Needed to get the logged-in user
-use App\Models\RoomReservation; // Add this
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Storage;
+use App\Models\RoomReservation;
 use App\Models\VenueReservation;
 use App\Models\Room;
 use App\Models\Venue;
@@ -15,8 +16,11 @@ use Carbon\CarbonPeriod;
 class RoomVenueController extends Controller
 {
     /**
-     * Resize + compress an uploaded image with GD. Always saves as JPEG.
-     * Max output 1200×900 px, 82% quality. Never upscales.
+     * Resize + compress an uploaded image with GD, then store it on the
+     * configured media disk (local 'public' disk or S3 in production).
+     *
+     * Always outputs JPEG, max 1200×900 px at 82% quality, never upscales.
+     * Returns the stored path (relative to the disk root), e.g. "rooms/abc123.jpg".
      */
     private function processAndStoreImage($file, string $folder): string
     {
@@ -29,12 +33,15 @@ class RoomVenueController extends Controller
             default => imagecreatefromjpeg($sourcePath),
         };
 
-        if (!$src) {
+        // If GD can't decode it, fall back to storing the original file as-is.
+        if (! $src) {
             $name = uniqid() . '.jpg';
-            $file->storeAs('public/' . $folder, $name);
-            return $folder . '/' . $name;
+            $path = $folder . '/' . $name;
+            Storage::disk(media_disk())->putFileAs($folder, $file, $name, 'public');
+            return $path;
         }
 
+        // Resize (never upscale)
         $origW = imagesx($src);
         $origH = imagesy($src);
         $ratio = min(1200 / $origW, 900 / $origH, 1.0);
@@ -47,14 +54,18 @@ class RoomVenueController extends Controller
         imagecopyresampled($dst, $src, 0, 0, 0, 0, $newW, $newH, $origW, $origH);
         imagedestroy($src);
 
-        $dir = storage_path('app/public/' . $folder);
-        if (!file_exists($dir)) mkdir($dir, 0755, true);
-
-        $filename = $folder . '/' . uniqid() . '.jpg';
-        imagejpeg($dst, storage_path('app/public/' . $filename), 82);
+        // Write to a PHP temp file, then stream it to the media disk.
+        $tmpPath = tempnam(sys_get_temp_dir(), 'lrs_img_') . '.jpg';
+        imagejpeg($dst, $tmpPath, 82);
         imagedestroy($dst);
 
-        return $filename;
+        $storedName = uniqid() . '.jpg';
+        $storedPath = $folder . '/' . $storedName;
+        Storage::disk(media_disk())->putFileAs($folder, new \Illuminate\Http\File($tmpPath), $storedName, 'public');
+
+        @unlink($tmpPath); // clean up the local temp file
+
+        return $storedPath;
     }
 
     public function store(Request $request)
@@ -128,11 +139,22 @@ class RoomVenueController extends Controller
                 ->pluck('Venue_ID')->unique();
         }
 
+        // Distinct room types for the dynamic filter buttons (always from all rooms)
+        $roomTypes = Room::query()
+            ->whereNotNull('Room_Type')
+            ->where('Room_Type', '!=', '')
+            ->distinct()
+            ->orderBy('Room_Type')
+            ->pluck('Room_Type');
+
         // 1. Get filtered Rooms
         $rooms = Room::query()
             ->when($request->capacity, function ($query, $capacity) {
                 if ($capacity == '50+') return $query->where('Room_Capacity', '>=', 50);
                 return $query->where('Room_Capacity', '>=', (int)$capacity);
+            })
+            ->when($request->room_type, function ($query, $roomType) {
+                $query->where('Room_Type', $roomType);
             })
             ->when($dateFrom && $dateTo, function ($query) use ($bookedRoomIds) {
                 // Only show rooms not booked in the range AND not under maintenance
@@ -183,7 +205,7 @@ class RoomVenueController extends Controller
             $all_accommodations = $rooms->concat($venues);
         }
 
-        return view('client.room_venue', compact('all_accommodations', 'dateFrom', 'dateTo'));
+        return view('client.room_venue', compact('all_accommodations', 'dateFrom', 'dateTo', 'roomTypes'));
     }
     public function adminIndex(Request $request)
     {
@@ -400,10 +422,9 @@ class RoomVenueController extends Controller
             ];
 
             if ($request->hasFile('image') && $request->file('image')->isValid()) {
-                // Delete old image file if it exists
+                // Delete old image from the media disk (works for both local and S3)
                 if ($room->Room_Image) {
-                    $old = storage_path('app/public/' . $room->Room_Image);
-                    if (file_exists($old)) @unlink($old);
+                    Storage::disk(media_disk())->delete($room->Room_Image);
                 }
                 $data['Room_Image'] = $this->processAndStoreImage($request->file('image'), 'rooms');
             }
@@ -424,8 +445,7 @@ class RoomVenueController extends Controller
 
             if ($request->hasFile('image') && $request->file('image')->isValid()) {
                 if ($venue->Venue_Image) {
-                    $old = storage_path('app/public/' . $venue->Venue_Image);
-                    if (file_exists($old)) @unlink($old);
+                    Storage::disk(media_disk())->delete($venue->Venue_Image);
                 }
                 $data['Venue_Image'] = $this->processAndStoreImage($request->file('image'), 'venues');
             }

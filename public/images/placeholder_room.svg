@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f1f3f5"/>
+
+  <!-- Headboard -->
+  <rect x="110" y="105" width="180" height="46" rx="10" fill="#d1d5db"/>
+  <!-- Left pillow -->
+  <rect x="123" y="114" width="65" height="30" rx="6" fill="#e5e7eb"/>
+  <!-- Right pillow -->
+  <rect x="212" y="114" width="65" height="30" rx="6" fill="#e5e7eb"/>
+
+  <!-- Bed frame / mattress -->
+  <rect x="110" y="147" width="180" height="72" rx="8" fill="#d1d5db"/>
+  <!-- Blanket fold top edge -->
+  <rect x="110" y="147" width="180" height="14" rx="0" fill="#c4c9d4"/>
+  <rect x="110" y="147" width="180" height="4" rx="0" fill="#c4c9d4"/>
+
+  <!-- Left leg -->
+  <rect x="117" y="217" width="14" height="22" rx="4" fill="#c4c9d4"/>
+  <!-- Right leg -->
+  <rect x="269" y="217" width="14" height="22" rx="4" fill="#c4c9d4"/>
+</svg>

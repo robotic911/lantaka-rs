@@ -183,7 +183,7 @@ class AccountController extends Controller
         $user->Account_Phone    = $request->phone_no;
 
         if ($request->hasFile('valid_id')) {
-            $path = $request->file('valid_id')->store('ids', 'public');
+            $path = $request->file('valid_id')->store('ids', media_disk());
             $user->valid_id_path = $path;
         }
 
@@ -254,7 +254,7 @@ class AccountController extends Controller
         $fullName = trim($request->firstName . ' ' . $request->lastName);
 
         $idPath = $request->hasFile('validId')
-            ? $request->file('validId')->store('ids', 'public')
+            ? $request->file('validId')->store('ids', media_disk())
             : null;
 
         Account::create([

@@ -22,15 +22,11 @@ document.addEventListener('DOMContentLoaded', function () {
       document.getElementById('approve_email').value = user.Account_Email || '';
 
       const imgElement = document.getElementById('approve_id_image');
-      const noIdText = document.getElementById('approve_no_id');
+      const placeholder = imgElement ? imgElement.dataset.placeholder : '';
 
-      if (user.valid_id_path) {
-        imgElement.src = `/storage/${user.valid_id_path}`;
+      if (imgElement) {
+        imgElement.src = user.valid_id_url || placeholder;
         imgElement.style.display = 'block';
-        if (noIdText) noIdText.style.display = 'none';
-      } else {
-        imgElement.style.display = 'none';
-        if (noIdText) noIdText.style.display = 'block';
       }
 
       approveModal.classList.add('active');

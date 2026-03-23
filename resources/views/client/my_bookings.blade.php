@@ -54,7 +54,7 @@
                     style="cursor: pointer;">
 
                     <div class="item-image">
-                        <img src="{{ $item['img'] ? asset('storage/' . $item['img']) : asset('images/adzu_logo.png') }}"
+                        <img src="{{ $item['img'] ? media_url($item['img']) : asset('images/' . ($item['type'] === 'room' ? 'placeholder_room' : 'placeholder_venue') . '.svg') }}"
                             alt="{{ $item['name'] }}">
                     </div>
 

@@ -6,7 +6,7 @@
         <div class="card">
           
           <div class="card-image">
-             <img src="{{ $item->image ? asset('storage/' . $item->image) : 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500' }}" alt="{{ $item->display_name }}">
+             <img src="{{ $item->image ? media_url($item->image) : 'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=500' }}" alt="{{ $item->display_name }}">
           </div>
 
           <div class="card-content">

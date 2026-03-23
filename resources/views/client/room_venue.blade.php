@@ -11,7 +11,8 @@
 
     <section class="filters-section">
       <form action="{{ route('client.index') }}" method="GET" id="filterForm">
-        <input type="hidden" name="type"     id="typeInput"     value="{{ request('type', 'All') }}">
+        <input type="hidden" name="type"      id="typeInput"      value="{{ request('type', 'All') }}">
+        <input type="hidden" name="room_type" id="roomTypeInput"  value="{{ request('room_type', '') }}">
         <input type="hidden" name="date_from" id="dateFromHidden" value="{{ $dateFrom ?? '' }}">
         <input type="hidden" name="date_to"   id="dateToHidden"   value="{{ $dateTo ?? '' }}">
 
@@ -20,6 +21,19 @@
           <button type="button" class="tab-btn {{ request('type') == 'Rooms'        ? 'active' : '' }}" onclick="filterTab('Rooms')">Rooms</button>
           <button type="button" class="tab-btn {{ request('type') == 'Venue'        ? 'active' : '' }}" onclick="filterTab('Venue')">Venue</button>
         </div>
+
+        {{-- Room-type sub-filter: hidden by default, shown via JS when "Rooms" tab is active --}}
+        @if($roomTypes->isNotEmpty())
+          <div class="filter-tabs room-type-tabs"
+               id="roomTypeTabs"
+               style="{{ request('type') === 'Rooms' ? 'display:flex;' : 'display:none;' }} margin-top: 10px;">
+            @foreach($roomTypes as $rt)
+              <button type="button"
+                      class="tab-btn tab-btn--sm {{ request('room_type') === $rt ? 'active' : '' }}"
+                      onclick="filterRoomType('{{ $rt }}')">{{ $rt }}</button>
+            @endforeach
+          </div>
+        @endif
 
         <div class="filter-dropdowns">
           <select name="capacity" class="dropdown" onchange="this.form.submit()">
@@ -33,9 +47,10 @@
 
       {{-- Date range picker (its own form so it can submit independently) --}}
       <form action="{{ route('client.index') }}" method="GET" id="dateRangeForm" class="date-range-form">
-        {{-- preserve type & capacity --}}
-        <input type="hidden" name="type"     value="{{ request('type', 'All') }}">
-        <input type="hidden" name="capacity" value="{{ request('capacity') }}">
+        {{-- preserve type, capacity & room_type --}}
+        <input type="hidden" name="type"      value="{{ request('type', 'All') }}">
+        <input type="hidden" name="capacity"  value="{{ request('capacity') }}">
+        <input type="hidden" name="room_type" value="{{ request('room_type') }}">
 
         <div class="date-range-wrap">
           <div class="date-field">
@@ -86,7 +101,18 @@
     <script>
       function filterTab(type) {
         document.getElementById('typeInput').value = type;
-        // Keep the current date range when switching tabs
+        // Clear room type sub-filter when switching away from Rooms
+        if (type !== 'Rooms') {
+          document.getElementById('roomTypeInput').value = '';
+        }
+        // Show/hide the room-type sub-row immediately before submit
+        var rtTabs = document.getElementById('roomTypeTabs');
+        if (rtTabs) rtTabs.style.display = (type === 'Rooms') ? 'flex' : 'none';
+        document.getElementById('filterForm').submit();
+      }
+
+      function filterRoomType(roomType) {
+        document.getElementById('roomTypeInput').value = roomType;
         document.getElementById('filterForm').submit();
       }
 
@@ -111,7 +137,7 @@
                 <div class="accommodations-grid">
                     <div class="card">
                         <div class="card-image">
-                            <img src="{{ $item->image ? asset('storage/' . $item->image) : asset('images/adzu_logo.png') }}"
+                            <img src="{{ $item->image ? media_url($item->image) : asset('images/' . ($item->category === 'Room' ? 'placeholder_room' : 'placeholder_venue') . '.svg') }}"
                                 alt="{{ $item->display_name }}">
                         </div>
 

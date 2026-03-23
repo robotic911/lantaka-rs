@@ -2,7 +2,15 @@
 
 /* ── Date Range Availability Picker ─────────────────────────── */
 .availability-picker-wrap {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 20px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 14px 18px;
 }
 
 .availability-form {
@@ -10,10 +18,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 12px;
-  background: #fff;
-  border: 1px solid #e0e0e0;
-  border-radius: 8px;
-  padding: 14px 18px;
+ 
 }
 
 .availability-label {
@@ -90,10 +95,9 @@
 }
 
 .availability-result-label {
-  margin-top: 10px;
   padding: 10px 16px;
   background: #eef4ff;
-  border-left: 4px solid #2c3e8f;
+  border-right: 4px solid #2c3e8f;
   border-radius: 4px;
   font-size: 14px;
   color: #1e2d6e;
@@ -274,7 +278,7 @@
   justify-content: center;
   align-items: center;
   background-color: var(--bg-white);
-  border: 1px solid var(--border-color);
+  border: none;
   border-radius: 6px;
   padding: 20px;
   text-align: center;
@@ -841,7 +845,7 @@ body {
 .legend-available       { background-color: #fff; border-color: #ccc; }
 .legend-occupied        { background-color: #53e087; border-color: #34c96e; }
 .legend-reserved        { background-color: #6199f3; border-color: #3b7bef; }
-.legend-undermaintenance{ background-color: #d6d6d6; border-color: #b0b0b0; }
+.legend-undermaintenance{ background-color: #d6d6d6; border-color: #717171; }
 
 /* "today" variant of the result label (slightly muted) */
 .availability-result-label--today {
@@ -849,3 +853,109 @@ body {
   border-left-color: #999;
   color: #555;
 }
+
+/* ══════════════════════════════════════════════════════════
+   Room / Venue — Tabular Layout
+   ══════════════════════════════════════════════════════════ */
+
+/* Fix: .room-card / .venue-card were flex containers (for old card layout).
+   When those classes are on <tr> elements the flex overrides display:table-row
+   and collapses all cells. Force table-row here. */
+tr.room-card,
+tr.venue-card {
+  display: table-row !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* ── Section header ───────────────────────────────────── */
+.rv-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 8px;
+  margin-bottom: 10px;
+}
+.rv-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+.rv-count-badge {
+  font-size: 12px;
+  background: #eef0fb;
+  color: #2c3e8f;
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-weight: 600;
+}
+
+/* ── Table wrapper ────────────────────────────────────── */
+.rv-table-wrapper {
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,.05);
+  margin-bottom: 24px;
+}
+
+/* ── Table base ───────────────────────────────────────── */
+.rv-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto;
+}
+.rv-table thead {
+  background: #f9f9f9;
+  border-bottom: 2px solid #e0e0e0;
+}
+.rv-table th {
+  font-weight: bold;
+  padding: 14px 16px;
+  text-align: center;
+  font-weight: 900;
+  font-size: 12px;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+  white-space: nowrap;
+}
+.rv-table tbody tr {
+  border-bottom: 1px solid #f0f0f0;
+  transition: background-color .2s;
+  cursor: pointer;
+}
+.rv-table tbody tr:hover {
+  background: #f5f7ff !important;
+}
+.rv-table td {
+  padding: 14px 16px;
+  font-size: 13px;
+  color: #555;
+}
+
+/* ── Row tints by status ──────────────────────────────── */
+.rv-table tbody tr.occupied         { background: #f0fdf4; }
+.rv-table tbody tr.reserved         { background: #eff6ff; }
+.rv-table tbody tr.undermaintenance { background: #f9fafb; }
+
+/* ── Status badge ─────────────────────────────────────── */
+.rv-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.rv-status-badge.available        { background: #f7fffa; color: #0c0c0c; border: 1px solid rgb(188, 188, 188);}
+.rv-status-badge.occupied         { background: #bbf7d0; color: #064e23; }
+.rv-status-badge.reserved         { background: #dbeafe; color: #1e40af; }
+.rv-status-badge.undermaintenance { background: #d9d9d9; color: #7f7f7f; }
+
+/* ── Misc cells ───────────────────────────────────────── */
+.rv-price { color: #333; font-weight: 500; }
+.rv-idx   { color: #999; font-size: 12px; width: 48px; }

@@ -19,7 +19,7 @@
     <div class="content-wrapper">
       <div class="left-section">
         <div class="main-image-container">
-           <img src="{{ $data->image ? asset('storage/' . $data->image) : asset('images/adzu_logo.png') }}"
+           <img src="{{ $data->image ? media_url($data->image) : asset('images/' . (strtolower($category) === 'room' ? 'placeholder_room' : 'placeholder_venue') . '.svg') }}"
                 alt="{{ $data->display_name }}"
                 class="main-image">
         </div>

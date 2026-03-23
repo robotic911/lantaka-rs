@@ -33,7 +33,7 @@
 
       <div class="profile-avatar-wrap">
         @if($user->valid_id_path)
-          <img src="{{ asset('storage/' . $user->valid_id_path) }}" alt="avatar">
+          <img src="{{ media_url($user->valid_id_path) }}" alt="avatar">
         @else
           <span class="profile-avatar-initials">{{ $initials }}</span>
         @endif
@@ -104,12 +104,8 @@
       {{-- Valid ID --}}
       <div class="valid-id-section">
         <p class="valid-id-label">Valid ID</p>
-        @if($user->valid_id_path)
-          <img src="{{ asset('storage/' . $user->valid_id_path) }}"
-               alt="Valid ID" class="valid-id-img">
-        @else
-          <div class="valid-id-placeholder">No ID uploaded</div>
-        @endif
+        <img src="{{ $user->valid_id_path ? media_url($user->valid_id_path) : asset('images/placeholder_id.svg') }}"
+             alt="Valid ID" class="valid-id-img">
       </div>
 
     </div>

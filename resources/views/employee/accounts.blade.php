@@ -93,7 +93,7 @@
                   </td>
                   <td>
                     @if($user->Account_Status == 'pending')
-                        <button class="action-btn-approve" data-user="{{ json_encode($user) }}">
+                        <button class="action-btn-approve" data-user="{{ json_encode(array_merge($user->toArray(), ['valid_id_url' => $user->valid_id_path ? media_url($user->valid_id_path) : ''])) }}">
                           <span class="icon-eye">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 5c-7 0-10 7-10 7s3 7 10 7 10-7 10-7-3-7-10-7zm0 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z"/>
@@ -101,7 +101,7 @@
                           </span>
                         </button>
                         @elseif($user->Account_Status != 'declined')
-                          <button class="action-btn-view" data-user="{{ json_encode($user) }}">✎</button>
+                          <button class="action-btn-view" data-user="{{ json_encode(array_merge($user->toArray(), ['valid_id_url' => $user->valid_id_path ? media_url($user->valid_id_path) : ''])) }}">✎</button>
                         @else
 
                     @endif

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+  <!-- Background -->
+  <rect width="400" height="300" fill="#f1f3f5"/>
+
+  <!-- Card body -->
+  <rect x="72" y="82" width="256" height="158" rx="14" fill="#d1d5db"/>
+  <!-- Card header stripe -->
+  <rect x="72" y="82" width="256" height="30" rx="14" fill="#c4c9d4"/>
+  <rect x="72" y="96" width="256" height="16" fill="#c4c9d4"/>
+
+  <!-- Photo box -->
+  <rect x="94" y="126" width="68" height="82" rx="7" fill="#e5e7eb"/>
+  <!-- Person head -->
+  <circle cx="128" cy="149" r="17" fill="#d1d5db"/>
+  <!-- Person shoulders -->
+  <path d="M 98,205 Q 98,180 128,180 Q 158,180 158,205 Z" fill="#d1d5db"/>
+
+  <!-- Text line 1 (name) -->
+  <rect x="178" y="135" width="122" height="11" rx="4" fill="#e5e7eb"/>
+  <!-- Text line 2 -->
+  <rect x="178" y="155" width="96" height="9" rx="4" fill="#e5e7eb"/>
+  <!-- Text line 3 -->
+  <rect x="178" y="172" width="108" height="9" rx="4" fill="#e5e7eb"/>
+  <!-- Text line 4 -->
+  <rect x="178" y="189" width="80" height="9" rx="4" fill="#e5e7eb"/>
+</svg>

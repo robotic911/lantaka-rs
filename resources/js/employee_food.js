@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (updateFoodType)   updateFoodType.value   = item.dataset.type
       if (updateFoodPrice)  updateFoodPrice.value  = item.dataset.price
       if (updateFoodStatus) updateFoodStatus.value = item.dataset.status
-      if (updateFoodForm)   updateFoodForm.action  = `/employee/room_venue/${item.dataset.id}`
+      if (updateFoodForm)   updateFoodForm.action  = `/employee/food/${item.dataset.id}`
 
       closeFoodModal()
       openUpdateModal()
