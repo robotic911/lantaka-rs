@@ -164,20 +164,6 @@
 
   <div class="overlay"></div>
 
-  {{-- Resolve the correct "safe" destination based on the logged-in role --}}
-  @php
-    $dashboardUrl = url('/');
-
-    if (auth()->check()) {
-      $role = auth()->user()->Account_Role;
-      if (in_array($role, ['admin', 'staff', 'Admin', 'Staff'])) {
-        $dashboardUrl = route('employee.dashboard');
-      } elseif ($role === 'client') {
-        $dashboardUrl = route('client.my_reservations');
-      }
-    }
-  @endphp
-
   <div class="error-card">
 
     <div class="error-icon">
@@ -209,19 +195,33 @@
     <hr class="divider">
 
     <div class="btn-group">
-      <a href="{{ $dashboardUrl }}" class="btn-secondary">
+      {{-- Go Back: use browser history — always the real previous page --}}
+      <button onclick="history.back()" class="btn-secondary">
         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
         Go Back
-      </a>
-      <a href="{{ $dashboardUrl }}" class="btn-primary" onclick="this.textContent='Retrying…'">
-        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-          <polyline points="23 4 23 10 17 10"/>
-          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
-        </svg>
-        Try Again
-      </a>
+      </button>
+
+      {{-- Go Home: clear session (logout) then land on / --}}
+      @auth
+        <form method="POST" action="{{ route('logout') }}" style="margin:0;">
+          @csrf
+          <button type="submit" class="btn-primary">
+            <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+              <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+            </svg>
+            Go Home
+          </button>
+        </form>
+      @else
+        <a href="{{ url('/') }}" class="btn-primary">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          </svg>
+          Go Home
+        </a>
+      @endauth
     </div>
 
     <p class="retry-hint">Please try refreshing the page in a few minutes.</p>
