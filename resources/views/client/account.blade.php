@@ -31,14 +31,6 @@
     <div class="profile-card-banner"></div>
     <div class="profile-card-body">
 
-      <div class="profile-avatar-wrap">
-        @if($user->valid_id_path)
-          <img src="{{ media_url($user->valid_id_path) }}" alt="avatar">
-        @else
-          <span class="profile-avatar-initials">{{ $initials }}</span>
-        @endif
-      </div>
-
       <p class="profile-name">{{ $user->Account_Name }}</p>
       <span class="profile-status-badge {{ $statusClass }}">{{ ucfirst($statusClass) }}</span>
 

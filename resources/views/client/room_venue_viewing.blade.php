@@ -98,6 +98,8 @@
       </div>
     </div>
   <script>
+    const IS_ROOM = {{ strtolower($category) === 'room' ? 'true' : 'false' }};
+
     document.addEventListener('DOMContentLoaded', function () {
 
       // Listen for when the user clicks "PROCEED"
@@ -115,7 +117,8 @@
           return;
         }
 
-        if (checkIn === checkOut) {
+        // Rooms require at least one overnight stay; venues can be booked for a single day
+        if (IS_ROOM && checkIn === checkOut) {
           e.preventDefault();
           window.showToast('Check-in and check-out dates cannot be the same.');
           return;
