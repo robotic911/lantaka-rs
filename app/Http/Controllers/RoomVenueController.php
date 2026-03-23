@@ -139,16 +139,18 @@ class RoomVenueController extends Controller
                 ->pluck('Venue_ID')->unique();
         }
 
-        // Distinct room types for the dynamic filter buttons (always from all rooms)
+        // Distinct room types for the dynamic filter buttons (only from non-maintenance rooms)
         $roomTypes = Room::query()
             ->whereNotNull('Room_Type')
             ->where('Room_Type', '!=', '')
+            ->where('Room_Status', '!=', 'UnderMaintenance')
             ->distinct()
             ->orderBy('Room_Type')
             ->pluck('Room_Type');
 
-        // 1. Get filtered Rooms
+        // 1. Get filtered Rooms (always exclude under-maintenance)
         $rooms = Room::query()
+            ->where('Room_Status', '!=', 'UnderMaintenance')
             ->when($request->capacity, function ($query, $capacity) {
                 if ($capacity == '50+') return $query->where('Room_Capacity', '>=', 50);
                 return $query->where('Room_Capacity', '>=', (int)$capacity);
@@ -157,9 +159,7 @@ class RoomVenueController extends Controller
                 $query->where('Room_Type', $roomType);
             })
             ->when($dateFrom && $dateTo, function ($query) use ($bookedRoomIds) {
-                // Only show rooms not booked in the range AND not under maintenance
-                $query->whereNotIn('Room_ID', $bookedRoomIds)
-                      ->where('Room_Status', '!=', 'UnderMaintenance');
+                $query->whereNotIn('Room_ID', $bookedRoomIds);
             })
             ->get()
             ->map(function ($room) {
@@ -173,15 +173,15 @@ class RoomVenueController extends Controller
                 return $room;
             });
 
-        // 2. Get filtered Venues
+        // 2. Get filtered Venues (always exclude under-maintenance)
         $venues = Venue::query()
+            ->where('Venue_Status', '!=', 'UnderMaintenance')
             ->when($request->capacity, function ($query, $capacity) {
                 if ($capacity == '50+') return $query->where('Venue_Capacity', '>=', 50);
                 return $query->where('Venue_Capacity', '>=', (int)$capacity);
             })
             ->when($dateFrom && $dateTo, function ($query) use ($bookedVenueIds) {
-                $query->whereNotIn('Venue_ID', $bookedVenueIds)
-                      ->where('Venue_Status', '!=', 'UnderMaintenance');
+                $query->whereNotIn('Venue_ID', $bookedVenueIds);
             })
             ->get()
             ->map(function ($venue) {
@@ -320,6 +320,13 @@ class RoomVenueController extends Controller
             // 1. Find the correct item based on category
             if (strtolower($category) === 'room') {
                 $data = Room::findOrFail($id);
+
+                // Block access to rooms under maintenance
+                if ($data->Room_Status === 'UnderMaintenance') {
+                    return redirect()->route('client.index')
+                        ->with('error', 'This room is currently unavailable.');
+                }
+
                 $data->id = $data->Room_ID;
                 $data->display_name = "Room " . ($data->Room_Number ?? $id);
                 $data->capacity= $data->Room_Capacity;
@@ -337,7 +344,14 @@ class RoomVenueController extends Controller
                 $dateFieldIn = 'Room_Reservation_Check_In_Time';
                 $dateFieldOut = 'Room_Reservation_Check_Out_Time';
             } else {
-                $data = Venue::findOrFail($id); 
+                $data = Venue::findOrFail($id);
+
+                // Block access to venues under maintenance
+                if ($data->Venue_Status === 'UnderMaintenance') {
+                    return redirect()->route('client.index')
+                        ->with('error', 'This venue is currently unavailable.');
+                }
+
                 $data->id = $data->Venue_ID;
                 $data->display_name = $data->Venue_Name;
                 $data->capacity= $data->Venue_Capacity;

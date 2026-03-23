@@ -2,16 +2,16 @@
 @vite(['resources/js/top_nav.js'])
 
     <div class="header-container">
-        <a href="{{ url('/') }}">
-            <div class="logo-section">
-                <img src="{{ asset('images/adzu_logo.png') }}" class="logo">
-                <div class="header-text">
-                    <p class="subtitle-text">Ateneo de Zamboanga University</p>
-                    <h1 class="header-title">Lantaka Room and Venue Reservation Portal</h1>
-                    <h1 class="tagline"> &lt;Lantaka Online Room & Venue Reservation System/&gt; </h1>
-                </div>
+    
+        <div class="logo-section">
+            <img src="{{ asset('images/adzu_logo.png') }}" class="logo">
+            <div class="header-text">
+                <p class="subtitle-text">Ateneo de Zamboanga University</p>
+                <h1 class="header-title">Lantaka Room and Venue Reservation Portal</h1>
+                <h1 class="tagline"> &lt;Lantaka Online Room & Venue Reservation System/&gt; </h1>
             </div>
-        </a>
+        </div>
+     
 
         <nav class="nav">
             <a href="{{ route('client.room_venue') }}"

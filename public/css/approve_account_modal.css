@@ -132,7 +132,11 @@ textarea {
   right: 12px;
   cursor: pointer;
   font-size: 18px;
+  display: flex;
+  align-items: center;
+  user-select: none;
 }
+.approval-eye:hover svg { stroke: #444; }
 
 .approval-buttons {
   display: flex;

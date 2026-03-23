@@ -101,6 +101,14 @@
       </div>
     @endif
 
+    @if(session('error'))
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        window.showToast && window.showToast('{{ session('error') }}', 'error');
+      });
+    </script>
+    @endif
+
     <script>
       function filterTab(type) {
         document.getElementById('typeInput').value = type;

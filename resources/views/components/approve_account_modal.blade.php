@@ -15,8 +15,13 @@
           <div class="approval-field">
             <label>Password</label>
             <div class="approval-password">
-              <input type="password" value="********" readonly>
-              <span class="approval-eye"></span>
+              <input type="password" id="approve_password_input" value="********" readonly>
+              <span class="approval-eye" id="approvePasswordEye" title="Show / hide password">
+                <svg id="approveEyeIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+              </span>
             </div>
           </div>
         </div>
