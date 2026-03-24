@@ -2146,16 +2146,16 @@ class ReservationController extends Controller
 
         $totalRevenue = $roomRevenue + $venueRevenue;
 
-        $today = Carbon::today();
+        $today = Carbon::today()->toDateString();
 
         $activeRoomGuests = RoomReservation::where('Room_Reservation_Status', 'checked-in')
-            ->where('Room_Reservation_Check_In_Time', '<=', now())
-            ->where('Room_Reservation_Check_Out_Time', '>=', now())
+            ->whereDate('Room_Reservation_Check_In_Time', '<=', $today)
+            ->whereDate('Room_Reservation_Check_Out_Time', '>=', $today)
             ->sum('Room_Reservation_Pax');
 
         $activeVenueGuests = VenueReservation::where('Venue_Reservation_Status', 'checked-in')
-            ->where('Venue_Reservation_Check_In_Time', '<=', now())
-            ->where('Venue_Reservation_Check_Out_Time', '>=', now())
+            ->whereDate('Venue_Reservation_Check_In_Time', '<=', $today)
+            ->whereDate('Venue_Reservation_Check_Out_Time', '>=', $today)
             ->sum('Venue_Reservation_Pax');
 
         $activeGuests = $activeRoomGuests + $activeVenueGuests;

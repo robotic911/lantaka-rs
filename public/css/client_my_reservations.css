@@ -205,7 +205,7 @@
 }
 
 .status-badge.rejected {
-  background-color: rgba(72, 50, 50, 0.3);
+  background-color: qrgba(72, 50, 50, 0.3);
   color: #991b1b;
 }
 
