@@ -82,7 +82,7 @@
           </div>
         </div>
 
-        @if($user->affiliation)
+        @if($user->Account_Affiliation)
         <div class="profile-info-row">
           <div class="profile-info-icon">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -92,7 +92,7 @@
           </div>
           <div class="profile-info-text">
             <span class="profile-info-label">Affiliation</span>
-            <span class="profile-info-value">{{ $user->affiliation }}</span>
+            <span class="profile-info-value">{{ $user->Account_Affiliation }}</span>
           </div>
         </div>
         @endif

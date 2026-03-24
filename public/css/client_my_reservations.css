@@ -200,12 +200,12 @@
 }
 
 .status-badge.confirmed {
-  background-color: #53e087;
+  background-color: #a4ecbe;
   color: #0f5729;
 }
 
-.status-badge.declined {
-  background-color: rgba(252, 165, 165, 0.3);
+.status-badge.rejected {
+  background-color: rgba(72, 50, 50, 0.3);
   color: #991b1b;
 }
 
