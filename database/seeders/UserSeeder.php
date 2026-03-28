@@ -12,28 +12,28 @@ class UserSeeder extends Seeder
     {
 
     Account::create([
-        'name' => 'Tricia',
+        'Account_Name' => 'Tricia',
         'Account_Username' => 'admin01',
         'Account_Email' => 'admin@example.com',
         'Account_Password' => Hash::make('password123'),
         'Account_Role' => 'admin',
-        'status' => 'approved',
+        'Account_Status' => 'approved',
         'Account_Phone' => '09123456789',         // Add this
-        'affiliation' => 'Staff',          // Add this
-        'usertype' => 'Internal',          // Add this
+        'Account_Affiliation' => 'Staff',          // Add this
+        'Account_Type' => 'Internal',          // Add this
         'valid_id_path' => 'ids/default.jpg', // Add this
     ]);
 
     Account::create([
-        'name' => 'Suzette',
+        'Account_Name' => 'Suzette',
         'Account_Username' => 'staff01',
         'Account_Email' => 'staff@example.com',
         'Account_Password' => Hash::make('password123'),
         'Account_Role' => 'staff',
-        'status' => 'approved',
+        'Account_Status' => 'approved',
         'Account_Phone' => '09987654321',         // Add this
-        'affiliation' => 'Staff',          // Add this
-        'usertype' => 'Internal',          // Add this
+        'Account_Affiliation' => 'Staff',          // Add this
+        'Account_Type' => 'Internal',          // Add this
         'valid_id_path' => 'ids/default.jpg', // Add this
     ]);
 

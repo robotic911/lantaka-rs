@@ -9,10 +9,9 @@ use App\Http\Controllers\ReservationController;
 use App\Http\Controllers\FoodController;
 use App\Http\Controllers\EventLogController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReservationCalendarExport;
 // use App\Http\Controllers\CalendarStreamController;
 
-
-/* --- 1. Public Pages Routes --- */
 
 /* Index */
 Route::get('/', function () { return view('pages/index');})->name('pages/index');
@@ -45,9 +44,9 @@ Route::get('/test_client_room_venue_viewing', function () {
 
 Route::prefix('employee')
     ->name('employee.')
-    ->middleware(['role:admin,staff'])          // Admin + Staff can enter
+    ->middleware(['role:admin,staff'])       
     ->group(function () {
-        /* ── Shared: Admin + Staff ── */
+     
         Route::post('/reservations/{id}/status', [ReservationController::class, 'updateStatus'])->name('reservations.updateStatus');
         Route::post('/reservations/{id}/mark-paid', [ReservationController::class, 'markAsPaid'])->name('reservations.markPaid');
         Route::get('/dashboard', [ReservationController::class, 'showReservationsCalendar'])->name('dashboard');
@@ -86,7 +85,12 @@ Route::middleware(['role:admin,staff'])->group(function () {
     Route::post('employee/reservations/store', [ReservationController::class, 'storeReservation'])->name('employee.reservations.store');
     Route::get('/export-soa/{clientId}', [ReservationController::class, 'exportSOA'])->name('export.exportSOA');
     Route::get('/employee/calendar-data', [ReservationController::class, 'fetchUpdatedCalendarData'])->name('calendar.fetchUpdatedData');
+    Route::get('/employee/calendar-export',     [ReservationController::class, 'exportCalendar'])->name('calendar.export');
+    Route::get('/employee/calendar-export-pdf', [ReservationController::class, 'exportCalendarPDF'])->name('calendar.export.pdf');
     Route::get('/employee/analytics-report-data', [ReservationController::class, 'analyticsReportData'])->name('employee.analytics.report.data');
+    // Cancellation request management (employee)
+    Route::get('/employee/reservations/{id}/cancellation-request', [ReservationController::class, 'getCancellationRequest'])->name('employee.reservations.cancellationRequest');
+    Route::post('/employee/cancellation-requests/{requestId}/process', [ReservationController::class, 'processCancellation'])->name('employee.cancellation.process');
 
     /* ── Admin Only: Room / Venue / Food CRUD ── */
     Route::middleware(['role:admin'])->group(function () {
@@ -112,6 +116,9 @@ Route::prefix('client')
         
         Route::post('/reservations/{id}/cancel', [ReservationController::class, 'cancel'])->name('reservations.cancel');
 
+        // Cancellation request (new flow: client submits a request, admin approves/rejects)
+        Route::post('/reservations/{id}/request-cancellation', [ReservationController::class, 'requestCancellation'])->name('reservations.requestCancellation');
+
         // Account page
         Route::get('/account', [AccountController::class, 'showClientAccount'])->name('account');
         Route::put('/account', [AccountController::class, 'updateClientAccount'])->name('account.update');
@@ -131,5 +138,6 @@ Route::middleware(['auth'])->group(function () {
     Route::post('/checkout/remove', [ReservationController::class, 'removeFromCart'])->name('checkout.remove');
     Route::post('/checkout/edit', [ReservationController::class, 'editCartItem'])->name('checkout.edit');
     /* Client booking flow — needs auth but role check is loose
-       (employee can create bookings on behalf of clients via their own flow) */
+       (employee can create
+       */
 });

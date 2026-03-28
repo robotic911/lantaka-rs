@@ -130,21 +130,158 @@ document.addEventListener('DOMContentLoaded', () => {
         noteBox.style.display = 'none';
       }
 
-      /* Contact card — show only for pending reservations */
+      /* ── Cancellation request section ── */
+      // Show for pending or confirmed reservations only
       const cancelSection = el('crmCancelSection');
       if (cancelSection) {
-        cancelSection.style.display = s.toLowerCase() === 'pending' ? '' : 'none';
+        const showCancel = ['pending', 'confirmed'].includes(s.toLowerCase());
+        cancelSection.style.display = showCancel ? '' : 'none';
+
+        if (showCancel) {
+          // Fetch any existing cancellation request for this reservation
+          fetchCancellationState(data.real_id, data.type);
+        }
       }
 
       overlay.classList.add('open');
     });
   });
 
+  /* ── Cancellation request state machine ── */
+
+  // Current reservation context (set when modal opens)
+  let _cancelResId   = null;
+  let _cancelResType = null;
+
+  function setCancelState(state, adminNote) {
+    const ids = ['crmCancelIdle', 'crmCancelForm', 'crmCancelPending', 'crmCancelRejected'];
+    ids.forEach(id => { const e = el(id); if (e) e.style.display = 'none'; });
+
+    const target = el(state);
+    if (target) target.style.display = '';
+
+    if (state === 'crmCancelRejected' && adminNote) {
+      const noteEl = el('crmCancelRejectedNote');
+      if (noteEl) noteEl.textContent = 'Your cancellation request was not approved. ' + adminNote;
+    }
+  }
+
+  function fetchCancellationState(resId, resType) {
+    _cancelResId   = resId;
+    _cancelResType = resType;
+
+    // Reset to idle while loading
+    setCancelState('crmCancelIdle');
+
+    fetch(`/employee/reservations/${resId}/cancellation-request?type=${resType}`, {
+      headers: { 'Accept': 'application/json' },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const req = data.request;
+        if (!req) {
+          setCancelState('crmCancelIdle');
+        } else if (req.status === 'pending') {
+          setCancelState('crmCancelPending');
+        } else if (req.status === 'rejected') {
+          setCancelState('crmCancelRejected', req.admin_note || '');
+        } else {
+          // approved — reservation is already cancelled; hide the section
+          const sec = el('crmCancelSection');
+          if (sec) sec.style.display = 'none';
+        }
+      })
+      .catch(() => setCancelState('crmCancelIdle')); // graceful fallback
+  }
+
+  // Open form button
+  const openFormBtn = el('crmCancelOpenFormBtn');
+  if (openFormBtn) {
+    openFormBtn.addEventListener('click', () => {
+      const reasonEl = el('crmCancelReason');
+      if (reasonEl) reasonEl.value = '';
+      const errEl = el('crmCancelError');
+      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+      setCancelState('crmCancelForm');
+    });
+  }
+
+  // Retry button (after rejection → re-open form)
+  const retryBtn = el('crmCancelRetryBtn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      const reasonEl = el('crmCancelReason');
+      if (reasonEl) reasonEl.value = '';
+      const errEl = el('crmCancelError');
+      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+      setCancelState('crmCancelForm');
+    });
+  }
+
+  // Back button
+  const backBtn = el('crmCancelBackBtn');
+  if (backBtn) {
+    backBtn.addEventListener('click', () => setCancelState('crmCancelIdle'));
+  }
+
+  // Submit button
+  const submitBtn = el('crmCancelSubmitBtn');
+  if (submitBtn) {
+    submitBtn.addEventListener('click', () => {
+      const reason  = (el('crmCancelReason')?.value || '').trim();
+      const errEl   = el('crmCancelError');
+
+      if (reason.length < 10) {
+        if (errEl) {
+          errEl.textContent  = 'Please provide a reason of at least 10 characters.';
+          errEl.style.display = '';
+        }
+        return;
+      }
+      if (errEl) errEl.style.display = 'none';
+
+      submitBtn.disabled   = true;
+      submitBtn.textContent = 'Submitting…';
+
+      // Get CSRF token from the meta tag
+      const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+      fetch(`/client/reservations/${_cancelResId}/request-cancellation?type=${_cancelResType}`, {
+        method : 'POST',
+        headers: {
+          'Content-Type' : 'application/json',
+          'Accept'       : 'application/json',
+          'X-CSRF-TOKEN' : csrf,
+        },
+        body: JSON.stringify({ reason }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.success) {
+            setCancelState('crmCancelPending');
+          } else {
+            if (errEl) {
+              errEl.textContent   = data.message || 'Something went wrong. Please try again.';
+              errEl.style.display = '';
+            }
+          }
+        })
+        .catch(() => {
+          if (errEl) {
+            errEl.textContent   = 'Network error. Please check your connection and try again.';
+            errEl.style.display = '';
+          }
+        })
+        .finally(() => {
+          submitBtn.disabled    = false;
+          submitBtn.textContent = 'Submit Request';
+        });
+    });
+  }
+
   /* ── Close modal ── */
   function closeModal() { overlay.classList.remove('open'); }
   if (closeBtn)  closeBtn.addEventListener('click', closeModal);
   if (overlay)   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
-
-  // Cancel is handled by contacting Lantaka — no client-side AJAX needed.
 });

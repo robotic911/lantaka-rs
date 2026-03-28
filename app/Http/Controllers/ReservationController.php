@@ -23,6 +23,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use App\Models\CancellationRequest;
 
 
 class ReservationController extends Controller
@@ -1339,6 +1340,18 @@ class ReservationController extends Controller
         $changes = $this->computeStatChanges($occupancyRate, $activeGuests);
 
 
+        $allRooms = Room::orderBy('Room_Number')->get()->map(fn($r) => [
+            'type'  => 'room',
+            'label' => 'Room ' . $r->Room_Number,
+            'meta'  => $r->Room_Type,
+        ]);
+
+        $allVenues = Venue::orderBy('Venue_Name')->get()->map(fn($v) => [
+            'type'  => 'venue',
+            'label' => $v->Venue_Name,
+            'meta'  => null,
+        ]);
+
         return view('employee.dashboard', compact(
             'reservations',
             'totalReservations',
@@ -1347,7 +1360,9 @@ class ReservationController extends Controller
             'occupancyRate',
             'checkOutsToday',
             'checkOutsTodayCount',
-            'changes'
+            'changes',
+            'allRooms',
+            'allVenues'
         ));
     }
     public function cancel(Request $request, $id)
@@ -1360,6 +1375,203 @@ class ReservationController extends Controller
             'message' => 'To cancel your reservation, please contact Lantaka directly at lantaka@adzu.edu.ph.',
         ], 200);
     }
+    // ─────────────────────────────────────────────────────────────────
+    //  CALENDAR EXCEL EXPORT
+    // ─────────────────────────────────────────────────────────────────
+    // public function exportCalendar(Request $request)
+    // {
+    //     $monthStart = (int) $request->query('start', now()->month);
+    //     $monthEnd   = (int) $request->query('end', now()->month);
+    //     $year       = (int) $request->query('year', now()->year);
+
+    //     $start = max(1, min(12, $monthStart));
+    //     $end   = max(1, min(12, $monthEnd));
+    //     $year  = max(2020, min(2100, $year));
+
+    //     $export = new \App\Exports\ReservationCalendarExport($start, $end, $year);
+    //     return $export->download();
+    // }
+
+    // ─────────────────────────────────────────────────────────────────
+    //  CALENDAR PDF EXPORT
+    // ─────────────────────────────────────────────────────────────────
+    public function exportCalendarPDF(Request $request)
+    {
+        $month = max(1,    min(12,   (int) $request->query('month', now()->month)));
+        $year  = max(2020, min(2100, (int) $request->query('year',  now()->year)));
+
+        $data     = $this->buildCalendarPDFData($month, $year);
+        $filename = 'reservation_calendar_' . $data['month_label_filename'] . '.pdf';
+
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('employee.pdf.reservation_calendar', $data)
+            ->setPaper('a4', 'landscape');
+
+        return $pdf->download($filename);
+    }
+
+    /** Build the week/lane data structure for the PDF Blade view. */
+    private function buildCalendarPDFData(int $month, int $year): array
+    {
+        $monthStart = Carbon::create($year, $month, 1)->startOfDay();
+        $monthEnd   = $monthStart->copy()->endOfMonth()->endOfDay();
+
+        // Status colour palette passed to the view
+        $statusColors = [
+            'pending'     => ['bg' => '#FDE68A', 'fg' => '#92400E', 'border' => '#F59E0B'],
+            'confirmed'   => ['bg' => '#BFDBFE', 'fg' => '#1E3A5F', 'border' => '#3B82F6'],
+            'checked-in'  => ['bg' => '#BBF7D0', 'fg' => '#14532D', 'border' => '#22C55E'],
+            'checked-out' => ['bg' => '#E5E7EB', 'fg' => '#374151', 'border' => '#9CA3AF'],
+            'completed'   => ['bg' => '#DDD6FE', 'fg' => '#4C1D95', 'border' => '#8B5CF6'],
+            'cancelled'   => ['bg' => '#FECACA', 'fg' => '#991B1B', 'border' => '#EF4444'],
+        ];
+
+        $legend = [
+            ['label' => 'Pending',     'bg' => '#FDE68A', 'border' => '#F59E0B'],
+            ['label' => 'Confirmed',   'bg' => '#BFDBFE', 'border' => '#3B82F6'],
+            ['label' => 'Checked-in',  'bg' => '#BBF7D0', 'border' => '#22C55E'],
+            ['label' => 'Checked-out', 'bg' => '#E5E7EB', 'border' => '#9CA3AF'],
+            ['label' => 'Completed',   'bg' => '#DDD6FE', 'border' => '#8B5CF6'],
+        ];
+
+        // Load all reservations overlapping the month
+        $allReservations = $this->loadReservationsForPDF($monthStart, $monthEnd);
+
+        // Build week rows: starting from the Sunday ≤ the 1st
+        $calStart = $monthStart->copy()->startOfWeek(Carbon::SUNDAY);
+        $calEnd   = $monthEnd->copy()->endOfWeek(Carbon::SATURDAY);
+
+        $weeks   = [];
+        $current = $calStart->copy();
+        $dayAbbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        while ($current->lte($calEnd)) {
+            $wStart = $current->copy();
+            $wEnd   = $current->copy()->addDays(6);
+
+            $days = [];
+            for ($d = 0; $d < 7; $d++) {
+                $day    = $wStart->copy()->addDays($d);
+                $days[] = [
+                    'num'        => $day->day,
+                    'name'       => $dayAbbr[$d],
+                    'date'       => $day->format('Y-m-d'),
+                    'in_month'   => (int) $day->month === $month,
+                    'is_today'   => $day->isToday(),
+                    'is_weekend' => ($d === 0 || $d === 6),
+                ];
+            }
+
+            $weeks[] = [
+                'label' => $wStart->format('M d') . ' – ' . $wEnd->format('M d, Y'),
+                'days'  => $days,
+                'lanes' => $this->buildWeekLanes($allReservations, $wStart, $wEnd),
+            ];
+
+            $current->addDays(7);
+        }
+
+        return [
+            'month_label'          => $monthStart->format('F Y'),
+            'month_label_filename' => $monthStart->format('F_Y'),
+            'weeks'                => $weeks,
+            'statusColors'         => $statusColors,
+            'legend'               => $legend,
+            'generated_at'         => now()->format('M d, Y  H:i'),
+        ];
+    }
+
+    /** Fetch all room + venue reservations that overlap the given month. */
+    private function loadReservationsForPDF(Carbon $monthStart, Carbon $monthEnd): array
+    {
+        $roomRes = RoomReservation::with(['room', 'user'])
+            ->where('Room_Reservation_Check_In_Time',  '<=', $monthEnd)
+            ->where('Room_Reservation_Check_Out_Time', '>=', $monthStart)
+            ->get()
+            ->map(fn($r) => [
+                'check_in'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
+                'check_out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
+                'status'    => strtolower($r->Room_Reservation_Status),
+                'label'     => ($r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A')
+                               . '  ·  ' . (optional($r->user)->name ?? 'Guest'),
+            ])
+            ->toArray();
+
+        $venueRes = VenueReservation::with(['venue', 'user'])
+            ->where('Venue_Reservation_Check_In_Time',  '<=', $monthEnd)
+            ->where('Venue_Reservation_Check_Out_Time', '>=', $monthStart)
+            ->get()
+            ->map(fn($r) => [
+                'check_in'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
+                'check_out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
+                'status'    => strtolower($r->Venue_Reservation_Status),
+                'label'     => ($r->venue ? $r->venue->Venue_Name : 'Venue N/A')
+                               . '  ·  ' . (optional($r->user)->name ?? 'Guest'),
+            ])
+            ->toArray();
+
+        return array_merge($roomRes, $venueRes);
+    }
+
+    /**
+     * Assign reservations visible in a week to greedy lanes.
+     * Returns array indexed [laneIndex][] = bar data.
+     * Uses the same greedy algorithm as the JS Gantt.
+     */
+    private function buildWeekLanes(array $reservations, Carbon $weekStart, Carbon $weekEnd): array
+    {
+        $wStartStr = $weekStart->format('Y-m-d');
+        $wEndStr   = $weekEnd->format('Y-m-d');
+
+        // Only reservations that overlap this week
+        $visible = array_filter(
+            $reservations,
+            fn($r) => $r['check_in'] <= $wEndStr && $r['check_out'] >= $wStartStr
+        );
+
+        if (empty($visible)) return [];
+
+        usort($visible, fn($a, $b) => strcmp($a['check_in'], $b['check_in']));
+
+        $laneEnds = [];
+        $lanes    = [];
+
+        foreach ($visible as $res) {
+            // Greedy lane pick
+            $lane = -1;
+            foreach ($laneEnds as $i => $end) {
+                if ($res['check_in'] > $end) { $lane = $i; break; }
+            }
+            if ($lane === -1) {
+                $lane       = count($laneEnds);
+                $laneEnds[] = $res['check_out'];
+            } else {
+                $laneEnds[$lane] = $res['check_out'];
+            }
+
+            // Clamp bar to the week's visible window
+            $barStart = max($res['check_in'], $wStartStr);
+            $barEnd   = min($res['check_out'], $wEndStr);
+
+            // Column positions (0 = Sunday … 6 = Saturday)
+            $colStart = (int) $weekStart->diffInDays(Carbon::parse($barStart));
+            $colEnd   = (int) $weekStart->diffInDays(Carbon::parse($barEnd));
+            $colSpan  = max(1, $colEnd - $colStart + 1);
+
+            if (!isset($lanes[$lane])) $lanes[$lane] = [];
+            $lanes[$lane][] = [
+                'label'     => $res['label'],
+                'status'    => $res['status'],
+                'col_start' => max(0, $colStart),
+                'col_span'  => min($colSpan, 7 - max(0, $colStart)),
+                'clips_l'   => $res['check_in'] < $wStartStr,
+                'clips_r'   => $res['check_out'] > $wEndStr,
+            ];
+        }
+
+        ksort($lanes);
+        return array_values($lanes);
+    }
+
     public function storeReservation(Request $request)
     {
         $request->validate([
@@ -2110,6 +2322,7 @@ class ReservationController extends Controller
                     ] : null,
                 'label' => $item->room ? 'Room ' . $item->room->Room_Number : 'Room N/A',
                 'type' => 'room',
+                'purpose' => $item->Room_Reservation_Purpose,
             ];
         });
 
@@ -2124,6 +2337,7 @@ class ReservationController extends Controller
                 ] : null,
                 'label' => $item->venue ? $item->venue->Venue_Name : 'Venue N/A',
                 'type' => 'venue',
+                'purpose' => $item->Venue_Reservation_Purpose,
             ];
         });
 
@@ -2320,7 +2534,7 @@ class ReservationController extends Controller
         ]);
     }
 
-    private function computeStatChanges(float $currentOccupancy, int $activeGuests): array
+      private function computeStatChanges(float $currentOccupancy, int $activeGuests): array
     {
         $thisStart = Carbon::now()->startOfMonth();
         $thisEnd   = Carbon::now()->endOfMonth();
@@ -2396,9 +2610,177 @@ class ReservationController extends Controller
             'totalReservations' => $pct($resThis,            $resLast),
             'revenue'           => $pct($revThis,            $revLast),
             'occupancyRate'     => $pct($currentOccupancy,   $prevOccupancy),
-            'activeGuests'      => $pct((float)$activeGuests, (float)$activeGuestsLast),
-            'checkOutsToday'    => $pct($checkOutsThis,      $checkOutsLast),
-            'lastMonthLabel'    => Carbon::now()->subMonth()->format('M Y'),
+            'activeGuests'      => $pct($activeGuestsThis,   $activeGuestsLast),
+            'checkOuts'         => $pct($checkOutsThis,       $checkOutsLast),
         ];
     }
-}   
+
+    /* ════════════════════════════════════════════════════════════════════
+     |  CANCELLATION REQUEST FLOW
+     |  Client submits a request → admin approves or rejects it.
+     ╚═══════════════════════════════════════════════════════════════════ */
+
+    /**
+     * CLIENT: Submit a cancellation request for a pending or confirmed reservation.
+     *
+     * POST /reservations/{id}/request-cancellation?type=room|venue
+     */
+    public function requestCancellation(Request $request, $id)
+    {
+        $type = $request->query('type');
+
+        if (!in_array($type, ['room', 'venue'])) {
+            return response()->json(['success' => false, 'message' => 'Invalid reservation type.'], 422);
+        }
+
+        $request->validate([
+            'reason' => 'required|string|min:10|max:1000',
+        ]);
+
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($id)
+                : \App\Models\VenueReservation::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Reservation not found.'], 404);
+        }
+
+        // Verify the reservation belongs to the authenticated client
+        $clientIdCol = $type === 'room' ? 'Client_ID' : 'Client_ID';
+        if ($reservation->$clientIdCol !== auth()->id()) {
+            return response()->json(['success' => false, 'message' => 'Unauthorised.'], 403);
+        }
+
+        $statusCol = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+        $currentStatus = strtolower($reservation->$statusCol);
+
+        if (!in_array($currentStatus, ['pending', 'confirmed'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cancellation requests can only be made for pending or confirmed reservations.',
+            ], 422);
+        }
+
+        // Check if a pending cancellation request already exists for this reservation
+        $existing = \App\Models\CancellationRequest::where('reservation_id', $id)
+            ->where('reservation_type', $type)
+            ->where('status', 'pending')
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success'  => false,
+                'message'  => 'You already have a pending cancellation request for this reservation.',
+            ], 422);
+        }
+
+        $cr = \App\Models\CancellationRequest::create([
+            'reservation_id'   => $id,
+            'reservation_type' => $type,
+            'client_id'        => auth()->id(),
+            'reason'           => trim($request->input('reason')),
+            'status'           => 'pending',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Your cancellation request has been submitted. We will get back to you shortly.',
+            'request_id' => $cr->id,
+        ]);
+    }
+
+    /**
+     * ADMIN/STAFF: Get the pending cancellation request for a specific reservation.
+     *
+     * GET /employee/reservations/{id}/cancellation-request?type=room|venue
+     */
+    public function getCancellationRequest(Request $request, $id)
+    {
+        $type = $request->query('type');
+
+        if (!in_array($type, ['room', 'venue'])) {
+            return response()->json(['error' => 'Invalid type.'], 422);
+        }
+
+        $cr = \App\Models\CancellationRequest::where('reservation_id', $id)
+            ->where('reservation_type', $type)
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (!$cr) {
+            return response()->json(['request' => null]);
+        }
+
+        return response()->json([
+            'request' => [
+                'id'         => $cr->id,
+                'status'     => $cr->status,
+                'reason'     => $cr->reason,
+                'admin_note' => $cr->admin_note,
+                'created_at' => $cr->created_at?->format('M d, Y h:i A'),
+            ],
+        ]);
+    }
+
+    /**
+     * ADMIN/STAFF: Approve or reject a cancellation request.
+     *
+     * POST /employee/cancellation-requests/{requestId}/process
+     * Body: decision=approved|rejected, admin_note (optional)
+     */
+    public function processCancellation(Request $request, $requestId)
+    {
+        $request->validate([
+            'decision'   => 'required|in:approved,rejected',
+            'admin_note' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            $cr = \App\Models\CancellationRequest::findOrFail($requestId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Cancellation request not found.'], 404);
+        }
+
+        if ($cr->status !== 'pending') {
+            return response()->json(['success' => false, 'message' => 'This request has already been processed.'], 422);
+        }
+
+        $decision = $request->input('decision');
+
+        DB::transaction(function () use ($cr, $decision, $request) {
+            $cr->update([
+                'status'       => $decision,
+                'admin_note'   => $request->input('admin_note'),
+                'processed_by' => auth()->id(),
+                'processed_at' => now(),
+            ]);
+
+            // If approved, actually cancel the reservation
+            if ($decision === 'approved') {
+                $type = $cr->reservation_type;
+                try {
+                    $reservation = ($type === 'room')
+                        ? \App\Models\RoomReservation::findOrFail($cr->reservation_id)
+                        : \App\Models\VenueReservation::findOrFail($cr->reservation_id);
+
+                    $statusCol = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+                    $reservation->$statusCol = 'cancelled';
+                    $reservation->save();
+                } catch (\Exception $e) {
+                    Log::error('processCancellation: could not cancel reservation', [
+                        'cr_id' => $cr->id,
+                        'error' => $e->getMessage(),
+                    ]);
+                }
+            }
+        });
+
+        $label = $decision === 'approved' ? 'approved and reservation cancelled' : 'rejected';
+
+        return response()->json([
+            'success'  => true,
+            'message'  => "Cancellation request {$label} successfully.",
+            'decision' => $decision,
+        ]);
+    }
+}

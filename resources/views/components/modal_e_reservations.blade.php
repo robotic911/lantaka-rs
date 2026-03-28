@@ -282,6 +282,24 @@
             </div>
           </div>
 
+          {{-- ── Cancellation request banner (shown when a client has a pending request) ── --}}
+          <div id="empCancelRequestBanner" style="display:none; padding: 10px 16px 0;">
+            <div class="emp-cancel-banner">
+              <div class="emp-cancel-banner-top">
+                <span class="emp-cancel-banner-label">⚠ Cancellation Requested</span>
+                <span class="emp-cancel-banner-date" id="empCancelReqDate"></span>
+              </div>
+              <p class="emp-cancel-banner-reason" id="empCancelReqReason"></p>
+              <div class="emp-cancel-banner-actions">
+                <button type="button" class="emp-cancel-reject-btn" id="empCancelRejectBtn">Reject Request</button>
+                <button type="button" class="emp-cancel-approve-btn" id="empCancelApproveBtn">Approve &amp; Cancel Reservation</button>
+              </div>
+              <input type="text" id="empCancelAdminNote" class="emp-cancel-note-input"
+                     placeholder="Optional note to client…" style="display:none;">
+              <p id="empCancelBannerMsg" class="emp-cancel-banner-msg" style="display:none;"></p>
+            </div>
+          </div>
+
           <div class="modal-footer" style="height: fit-content;">
             <form id="statusForm" action="" method="POST">
               @csrf
@@ -342,9 +360,221 @@
 
     console.log('SOA LINK SET TO:', soaLink.href);
   }
+
+  /* ── Employee: cancellation request banner ── */
+  let _empCancelReqId   = null;  // current cancellation_requests.id
+  let _empCancelResId   = null;  // reservation id
+  let _empCancelResType = null;  // 'room' | 'venue'
+
+  /**
+   * Call this whenever the employee modal opens.
+   * resId   — the Room_Reservation_ID / Venue_Reservation_ID
+   * resType — 'room' | 'venue'
+   * status  — current reservation status string
+   */
+  function loadCancellationBanner(resId, resType, status) {
+    _empCancelResId   = resId;
+    _empCancelResType = resType;
+
+    const banner    = document.getElementById('empCancelRequestBanner');
+    const noteInput = document.getElementById('empCancelAdminNote');
+    const msgEl     = document.getElementById('empCancelBannerMsg');
+
+    if (!banner) return;
+
+    // Only relevant when reservation is still pending or confirmed
+    if (!['pending', 'confirmed'].includes((status || '').toLowerCase())) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    // Reset banner state
+    if (noteInput) { noteInput.style.display = 'none'; noteInput.value = ''; }
+    if (msgEl)     { msgEl.style.display = 'none'; msgEl.textContent = ''; msgEl.className = 'emp-cancel-banner-msg'; }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(`/employee/reservations/${resId}/cancellation-request?type=${resType}`, {
+      headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const req = data.request;
+        if (!req || req.status !== 'pending') {
+          banner.style.display = 'none';
+          return;
+        }
+        _empCancelReqId = req.id;
+        document.getElementById('empCancelReqDate').textContent   = req.created_at || '';
+        document.getElementById('empCancelReqReason').textContent = req.reason || '';
+        banner.style.display = '';
+      })
+      .catch(() => { banner.style.display = 'none'; });
+  }
+
+  /* Reject button — show note input then confirm */
+  (function () {
+    const rejectBtn  = document.getElementById('empCancelRejectBtn');
+    const approveBtn = document.getElementById('empCancelApproveBtn');
+    const noteInput  = document.getElementById('empCancelAdminNote');
+    const msgEl      = document.getElementById('empCancelBannerMsg');
+
+    if (!rejectBtn || !approveBtn) return;
+
+    let rejectStep = 0; // 0=idle, 1=note shown
+
+    rejectBtn.addEventListener('click', () => {
+      if (!_empCancelReqId) return;
+      if (rejectStep === 0) {
+        noteInput.style.display = '';
+        noteInput.placeholder   = 'Reason for rejection (optional)…';
+        rejectBtn.textContent   = 'Confirm Rejection';
+        rejectStep = 1;
+      } else {
+        processRequest('rejected', noteInput.value, rejectBtn, approveBtn, msgEl);
+      }
+    });
+
+    approveBtn.addEventListener('click', () => {
+      if (!_empCancelReqId) return;
+      approveBtn.disabled = true;
+      processRequest('approved', '', rejectBtn, approveBtn, msgEl);
+    });
+  })();
+
+  function processRequest(decision, adminNote, rejectBtn, approveBtn, msgEl) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(`/employee/cancellation-requests/${_empCancelReqId}/process`, {
+      method : 'POST',
+      headers: {
+        'Content-Type' : 'application/json',
+        'Accept'       : 'application/json',
+        'X-CSRF-TOKEN' : csrf,
+      },
+      body: JSON.stringify({ decision, admin_note: adminNote }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          msgEl.textContent  = data.message;
+          msgEl.className    = 'emp-cancel-banner-msg success';
+          msgEl.style.display = '';
+          // Hide action buttons
+          if (rejectBtn)  rejectBtn.style.display  = 'none';
+          if (approveBtn) approveBtn.style.display = 'none';
+          // If approved, refresh the page after a brief delay to reflect new status
+          if (decision === 'approved') {
+            setTimeout(() => window.location.reload(), 1500);
+          }
+        } else {
+          msgEl.textContent   = data.message || 'Something went wrong.';
+          msgEl.className     = 'emp-cancel-banner-msg error';
+          msgEl.style.display = '';
+          if (approveBtn) approveBtn.disabled = false;
+        }
+      })
+      .catch(() => {
+        msgEl.textContent   = 'Network error. Please try again.';
+        msgEl.className     = 'emp-cancel-banner-msg error';
+        msgEl.style.display = '';
+        if (approveBtn) approveBtn.disabled = false;
+      });
+  }
 </script>
 
 <style>
+  /* ── Employee cancellation request banner ── */
+  .emp-cancel-banner {
+    background: #fffbeb;
+    border: 1.5px solid #fcd34d;
+    border-radius: 10px;
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .emp-cancel-banner-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .emp-cancel-banner-label {
+    font-size: 12px;
+    font-weight: 700;
+    color: #92400e;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+  }
+  .emp-cancel-banner-date {
+    font-size: 11px;
+    color: #9ca3af;
+  }
+  .emp-cancel-banner-reason {
+    font-size: 12px;
+    color: #374151;
+    margin: 0;
+    line-height: 1.5;
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 6px;
+    padding: 7px 10px;
+    max-height: 72px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+  }
+  .emp-cancel-banner-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+  }
+  .emp-cancel-reject-btn {
+    background: none;
+    border: 1.5px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .emp-cancel-reject-btn:hover { background: #f3f4f6; }
+  .emp-cancel-approve-btn {
+    background: #dc2626;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .emp-cancel-approve-btn:hover    { background: #b91c1c; }
+  .emp-cancel-approve-btn:disabled { background: #fca5a5; cursor: not-allowed; }
+  .emp-cancel-note-input {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    font-size: 12px;
+    padding: 7px 10px;
+    font-family: inherit;
+    color: #374151;
+  }
+  .emp-cancel-note-input:focus { outline: none; border-color: #3b82f6; }
+  .emp-cancel-banner-msg {
+    font-size: 12px;
+    font-weight: 600;
+    margin: 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+  }
+  .emp-cancel-banner-msg.success { background: #d1fae5; color: #065f46; }
+  .emp-cancel-banner-msg.error   { background: #fee2e2; color: #991b1b; }
+
   /* ── Payment status badges (shown after checkout) ── */
   .unpaid-badge,
   .paid-badge {

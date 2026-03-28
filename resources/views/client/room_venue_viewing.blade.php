@@ -75,13 +75,15 @@
               <input type="hidden" name="check_out" id="check_out" required>
 
               <div style="display: flex; flex-direction: column; gap: 4px; width: 100%;">
-                <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
-                  <label for="pax-input" class="pax-label">Number of Pax</label>
-                  <input type="number" name="pax" id="pax-input" class="pax-input"
-                         placeholder="Enter No. of Pax"
-                         min="1"
-                         max="{{ $data->capacity }}" required>
-                </div>
+                @if (strtolower($category) === 'venue')     
+                  <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
+                    <label for="pax-input" class="pax-label">Number of Pax</label>
+                    <input type="number" name="pax" id="pax-input" class="pax-input"
+                          placeholder="Enter No. of Pax"
+                          min="1"
+                          max="{{ $data->capacity }}" required>
+                  </div>
+                @endif
 
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   <label for="purpose-input" class="pax-label" style="margin-top: 12px;">Purpose</label>

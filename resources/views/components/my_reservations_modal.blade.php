@@ -76,17 +76,67 @@
           <p id="crmInfoText"></p>
         </div>
 
-        {{-- Cancel contact card — only shown for pending reservations --}}
+        {{-- Cancellation request section — shown for pending / confirmed reservations --}}
         <div id="crmCancelSection" style="display:none;">
-          <div class="crm-contact-card">
-            <p class="crm-contact-title">Need to cancel?</p>
-            <p class="crm-contact-body">
-              Cancellations are handled by our team. Please reach out to us directly and we'll assist you right away.
-            </p>
-            <a href="mailto:lantaka@adzu.edu.ph" class="crm-contact-link">
-              ✉ lantaka@adzu.edu.ph
-            </a>
+
+          {{-- STATE: idle — show the "Request Cancellation" button --}}
+          <div id="crmCancelIdle">
+            <div class="crm-cancel-idle-card">
+              <p class="crm-cancel-idle-title">Need to cancel?</p>
+              <p class="crm-cancel-idle-body">
+                You can submit a cancellation request and our team will review it shortly.
+              </p>
+              <button type="button" id="crmCancelOpenFormBtn" class="crm-cancel-open-btn">
+                Request Cancellation
+              </button>
+            </div>
           </div>
+
+          {{-- STATE: form — textarea + submit --}}
+          <div id="crmCancelForm" style="display:none;">
+            <div class="crm-cancel-form-card">
+              <p class="crm-cancel-form-title">Cancellation Request</p>
+              <label class="crm-cancel-label" for="crmCancelReason">
+                Please explain why you wish to cancel this reservation:
+              </label>
+              <textarea id="crmCancelReason" class="crm-cancel-textarea"
+                        rows="4" maxlength="1000"
+                        placeholder="e.g. Change of plans, schedule conflict…"></textarea>
+              <p id="crmCancelError" class="crm-cancel-error" style="display:none;"></p>
+              <div class="crm-cancel-form-actions">
+                <button type="button" id="crmCancelBackBtn"   class="crm-cancel-back-btn">Back</button>
+                <button type="button" id="crmCancelSubmitBtn" class="crm-cancel-submit-btn">Submit Request</button>
+              </div>
+            </div>
+          </div>
+
+          {{-- STATE: pending (already submitted, awaiting admin) --}}
+          <div id="crmCancelPending" style="display:none;">
+            <div class="crm-cancel-status-card crm-cancel-status--pending">
+              <span class="crm-cancel-status-icon">⏳</span>
+              <div>
+                <p class="crm-cancel-status-title">Cancellation Requested</p>
+                <p class="crm-cancel-status-body">Your request is under review. We'll notify you of the outcome soon.</p>
+              </div>
+            </div>
+          </div>
+
+          {{-- STATE: rejected (admin rejected the request) --}}
+          <div id="crmCancelRejected" style="display:none;">
+            <div class="crm-cancel-status-card crm-cancel-status--rejected">
+              <span class="crm-cancel-status-icon">✕</span>
+              <div>
+                <p class="crm-cancel-status-title">Request Not Approved</p>
+                <p class="crm-cancel-status-body" id="crmCancelRejectedNote">
+                  Your cancellation request was not approved.
+                </p>
+                <button type="button" id="crmCancelRetryBtn" class="crm-cancel-open-btn" style="margin-top:8px;">
+                  Submit New Request
+                </button>
+              </div>
+            </div>
+          </div>
+
         </div>
 
       </div>
@@ -347,17 +397,19 @@
 }
 .crm-info-note p { margin: 0; }
 
-/* ── Cancel contact card ── */
-.crm-contact-card {
+/* ── Cancellation request UI ── */
+
+/* Idle card (before form opens) */
+.crm-cancel-idle-card {
   background: #fff8f8;
   border: 1px solid #fecaca;
   border-radius: 10px;
   padding: 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
-.crm-contact-title {
+.crm-cancel-idle-title {
   font-size: 12px;
   font-weight: 700;
   color: #991b1b;
@@ -365,20 +417,136 @@
   text-transform: uppercase;
   letter-spacing: .4px;
 }
-.crm-contact-body {
+.crm-cancel-idle-body {
   font-size: 12px;
   color: #6b7280;
   margin: 0;
   line-height: 1.5;
 }
-.crm-contact-link {
-  font-size: 12px;
-  font-weight: 600;
-  color: #1e3a8a;
-  text-decoration: none;
-  word-break: break-all;
+.crm-cancel-open-btn {
+  align-self: flex-start;
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: .3px;
+  transition: background .15s;
 }
-.crm-contact-link:hover { text-decoration: underline; }
+.crm-cancel-open-btn:hover { background: #b91c1c; }
+
+/* Form card */
+.crm-cancel-form-card {
+  background: #fff;
+  border: 1px solid #e9eaec;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.crm-cancel-form-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: .8px;
+  margin: 0;
+}
+.crm-cancel-label {
+  font-size: 12px;
+  color: #374151;
+  line-height: 1.4;
+}
+.crm-cancel-textarea {
+  width: 100%;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 12px;
+  padding: 8px 10px;
+  resize: vertical;
+  line-height: 1.5;
+  font-family: inherit;
+  color: #1f2937;
+  transition: border-color .15s;
+}
+.crm-cancel-textarea:focus {
+  outline: none;
+  border-color: #3b82f6;
+}
+.crm-cancel-error {
+  font-size: 11px;
+  color: #dc2626;
+  margin: 0;
+}
+.crm-cancel-form-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+.crm-cancel-back-btn {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.crm-cancel-back-btn:hover { background: #f3f4f6; }
+.crm-cancel-submit-btn {
+  background: #dc2626;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  cursor: pointer;
+  transition: background .15s;
+}
+.crm-cancel-submit-btn:hover  { background: #b91c1c; }
+.crm-cancel-submit-btn:disabled { background: #fca5a5; cursor: not-allowed; }
+
+/* Status cards (pending / rejected) */
+.crm-cancel-status-card {
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.crm-cancel-status--pending {
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+}
+.crm-cancel-status--rejected {
+  background: #fff8f8;
+  border: 1px solid #fecaca;
+}
+.crm-cancel-status-icon {
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.crm-cancel-status-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+.crm-cancel-status--pending .crm-cancel-status-title { color: #1e40af; }
+.crm-cancel-status--rejected .crm-cancel-status-title { color: #991b1b; }
+.crm-cancel-status-body {
+  font-size: 12px;
+  color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
 
 /* ── Mobile ── */
 @media (max-width: 620px) {

@@ -1,0 +1,1827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lantaka — Employee Dashboard (Gantt Redesign)</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --blue:          #1a3a7a;
+      --blue-mid:      #2c3e8f;
+      --blue-light:    #e8edf8;
+      --bg:            #f5f5f0;
+      --card:          #ffffff;
+      --border:        #e5e7eb;
+      --text:          #111827;
+      --text-muted:    #6b7280;
+      --text-light:    #9ca3af;
+      --sidebar-w:     240px;
+      --day-w:         44px;
+      --bar-h:         24px;
+      --bar-gap:       5px;
+      --row-pad-y:     8px;
+      --header-h:      54px;
+    }
+
+    html, body { height: 100%; font-family: 'Inter', sans-serif; font-size: 13px; }
+    body { background: var(--bg); color: var(--text); display: flex; height: 100vh; overflow: hidden; }
+
+    /* ── Sidebar stub ── */
+    .sidebar-stub {
+      width: 62px;
+      background: var(--blue);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 14px 0;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .sidebar-logo {
+      width: 38px; height: 38px;
+      background: rgba(255,255,255,.15);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff;
+      font-weight: 800;
+      font-size: 17px;
+      margin-bottom: 14px;
+      letter-spacing: -1px;
+    }
+    .sidebar-nav {
+      width: 40px; height: 40px;
+      border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,.45);
+      font-size: 16px;
+      cursor: pointer;
+      transition: background .15s, color .15s;
+    }
+    .sidebar-nav:hover  { background: rgba(255,255,255,.1); color: #fff; }
+    .sidebar-nav.active { background: rgba(255,255,255,.18); color: #fff; }
+    .sidebar-sep { width: 28px; height: 1px; background: rgba(255,255,255,.1); margin: 6px 0; }
+
+    /* ── Main shell ── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* Topbar */
+    .topbar {
+      height: 54px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 22px;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    .topbar-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--blue);
+      flex: 1;
+    }
+    .topbar-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 9px;
+      border-radius: 20px;
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+    .btn-primary {
+      padding: 7px 14px;
+      background: var(--blue);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      transition: opacity .15s;
+    }
+    .btn-primary:hover { opacity: .88; }
+
+    /* Content scroll area */
+    .content {
+      flex: 1;
+      overflow-y: auto;
+      padding: 18px 22px 22px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* ── Stat Cards ── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: var(--card);
+      border-radius: 10px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 3px rgba(0,0,0,.05);
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+    .stat-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+    .stat-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+    }
+    .stat-icon-box {
+      width: 30px; height: 30px;
+      border-radius: 8px;
+      background: var(--blue-light);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+    .stat-value {
+      font-size: 25px;
+      font-weight: 700;
+      color: var(--blue);
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-change {
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .chg-up   { color: #16a34a; font-weight: 600; }
+    .chg-down { color: #dc2626; font-weight: 600; }
+    .chg-flat { color: var(--text-light); }
+
+    /* ── Gantt Section ── */
+    .gantt-section {
+      background: var(--card);
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      box-shadow: 0 1px 4px rgba(0,0,0,.06);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex: 1;
+      min-height: 420px;
+    }
+
+    /* Toolbar */
+    .gantt-toolbar {
+      padding: 11px 14px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      background: #fafbff;
+    }
+    .gantt-toolbar-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--blue);
+      margin-right: 6px;
+    }
+
+    /* Toolbar controls */
+    .toolbar-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .toolbar-search-icon {
+      position: absolute;
+      left: 8px;
+      color: var(--text-light);
+      font-size: 12px;
+      pointer-events: none;
+    }
+    .search-inp {
+      padding: 5px 10px 5px 26px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      width: 160px;
+      color: var(--text);
+      transition: border .15s;
+      background: #fff;
+    }
+    .search-inp:focus { border-color: var(--blue); }
+
+    .filter-sel {
+      padding: 5px 8px;
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      background: #fff;
+      color: var(--text-muted);
+      cursor: pointer;
+    }
+    .filter-sel:focus { border-color: var(--blue); }
+
+    .nav-btn {
+      width: 28px; height: 28px;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      color: var(--text-muted);
+      line-height: 1;
+      transition: all .14s;
+    }
+    .nav-btn:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-light); }
+
+    .date-range-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--blue);
+      min-width: 170px;
+      text-align: center;
+    }
+
+    .today-btn {
+      padding: 5px 11px;
+      border-radius: 7px;
+      border: 1px solid var(--blue);
+      background: #fff;
+      color: var(--blue);
+      font-size: 11.5px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .14s;
+    }
+    .today-btn:hover { background: var(--blue); color: #fff; }
+
+    .range-group {
+      display: flex;
+      background: #f3f4f6;
+      border-radius: 7px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+    }
+    .range-group button {
+      padding: 5px 10px;
+      border: none;
+      background: transparent;
+      font-size: 11.5px;
+      font-weight: 500;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .14s;
+    }
+    .range-group button.active {
+      background: var(--blue);
+      color: #fff;
+    }
+    .range-group button:hover:not(.active) {
+      background: var(--blue-light);
+      color: var(--blue);
+    }
+
+    .spacer { flex: 1; }
+
+    /* ── Gantt body layout ── */
+    .gantt-body {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* Left client sidebar */
+    .gantt-sidebar {
+      width: var(--sidebar-w);
+      flex-shrink: 0;
+      border-right: 2px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      background: var(--card);
+      z-index: 4;
+    }
+    .gantt-sidebar-head {
+      height: var(--header-h);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      padding: 0 14px;
+      background: #f8f9fc;
+      flex-shrink: 0;
+      gap: 6px;
+    }
+    .gantt-sidebar-head-label {
+      font-size: 10.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+      color: var(--text-muted);
+    }
+    .gantt-sidebar-head-count {
+      font-size: 10.5px;
+      font-weight: 600;
+      color: var(--text-light);
+      margin-left: auto;
+    }
+    .gantt-sidebar-rows {
+      flex: 1;
+      overflow: hidden; /* scroll synced via JS */
+    }
+
+    /* Client row header */
+    .client-row {
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: flex-start;
+      padding: 0 12px;
+      cursor: pointer;
+      transition: background .12s;
+      user-select: none;
+    }
+    .client-row:hover { background: var(--blue-light); }
+    .client-avatar {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10.5px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      margin-right: 8px;
+      margin-top: 7px;
+    }
+    .client-meta { flex: 1; overflow: hidden; padding: 7px 0; }
+    .client-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .client-affil {
+      font-size: 10.5px;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 1px;
+    }
+    .client-chip {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 10px;
+      background: var(--blue-light);
+      color: var(--blue);
+      flex-shrink: 0;
+      align-self: center;
+      margin-left: 5px;
+    }
+    .collapse-arrow {
+      font-size: 9px;
+      color: var(--text-light);
+      flex-shrink: 0;
+      align-self: center;
+      margin-left: 4px;
+      transition: transform .2s;
+    }
+    .client-row.collapsed .collapse-arrow { transform: rotate(-90deg); }
+
+    /* ── Right gantt area ── */
+    .gantt-right {
+      flex: 1;
+      overflow: auto;
+      position: relative;
+    }
+    .gantt-right::-webkit-scrollbar { height: 7px; width: 7px; }
+    .gantt-right::-webkit-scrollbar-track { background: transparent; }
+    .gantt-right::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+    .gantt-inner {
+      position: relative;
+      min-height: 100%;
+    }
+
+    /* Date header */
+    .date-header {
+      height: var(--header-h);
+      position: sticky;
+      top: 0;
+      z-index: 3;
+      background: #f8f9fc;
+      border-bottom: 1px solid var(--border);
+    }
+    .month-strip {
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 22px;
+      border-bottom: 1px solid var(--border);
+    }
+    .month-chip {
+      position: absolute;
+      top: 0;
+      height: 22px;
+      display: flex;
+      align-items: center;
+      padding-left: 7px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .4px;
+      border-right: 2px solid var(--border);
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .day-strip {
+      position: absolute;
+      top: 22px; left: 0; right: 0;
+      height: 32px;
+      display: flex;
+    }
+    .day-cell {
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .day-cell .dow {
+      font-size: 9px;
+      color: var(--text-light);
+      text-transform: uppercase;
+    }
+    .day-cell .dom {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      line-height: 1;
+    }
+    .day-cell.today-col .dom { color: #3b82f6; font-weight: 700; }
+    .day-cell.today-col { background: rgba(59,130,246,.07); }
+    .day-cell.weekend-col { background: rgba(0,0,0,.018); }
+
+    /* Gantt rows */
+    .gantt-rows-wrap {
+      position: relative;
+    }
+
+    /* Column background overlays */
+    .col-bg {
+      position: absolute;
+      top: 0; bottom: 0;
+      pointer-events: none;
+      z-index: 0;
+    }
+    .col-bg.today-bg { background: rgba(59,130,246,.055); }
+    .col-bg.today-line {
+      border-left: 2px solid rgba(59,130,246,.35);
+    }
+    .col-bg.weekend-bg { background: rgba(0,0,0,.016); }
+
+    /* Chart row (one per client) */
+    .chart-row {
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .chart-row.alt { background: rgba(0,0,0,.012); }
+    .chart-row-collapsed {
+      display: flex;
+      align-items: center;
+      height: 100%;
+      padding: 0 12px;
+      font-size: 11px;
+      color: var(--text-light);
+      font-style: italic;
+    }
+
+    /* Reservation bar */
+    .res-bar {
+      position: absolute;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      padding: 0 7px;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      cursor: pointer;
+      transition: filter .12s, box-shadow .12s;
+      border-width: 1px;
+      border-style: solid;
+      z-index: 1;
+      text-decoration: none;
+    }
+    .res-bar:hover {
+      filter: brightness(.92);
+      box-shadow: 0 3px 10px rgba(0,0,0,.15);
+      z-index: 10;
+    }
+    .res-bar .bar-icon  { margin-right: 4px; font-size: 10px; flex-shrink: 0; }
+    .res-bar .bar-text  { overflow: hidden; text-overflow: ellipsis; }
+
+    /* Status colours */
+    .res-bar.pending     { background: #fef3c7; border-color: #fbbf24; color: #92400e; }
+    .res-bar.confirmed   { background: #dbeafe; border-color: #60a5fa; color: #1e40af; }
+    .res-bar.checked-in  { background: #dcfce7; border-color: #4ade80; color: #166534; }
+    .res-bar.checked-out { background: #f3f4f6; border-color: #9ca3af; color: #374151; }
+    .res-bar.completed   { background: #ede9fe; border-color: #a78bfa; color: #5b21b6; }
+    .res-bar.rejected    { background: #fee2e2; border-color: #f87171; color: #991b1b; opacity:.65; }
+
+    /* Clip arrows when bar extends beyond visible range */
+    .res-bar.clip-l::before { content:'◀'; margin-right:3px; font-size:8px; flex-shrink:0; }
+    .res-bar.clip-r .bar-text::after { content:' ▶'; font-size:8px; }
+
+    /* Empty state */
+    .gantt-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 56px 24px;
+      gap: 8px;
+      color: var(--text-muted);
+    }
+    .gantt-empty .e-icon { font-size: 36px; }
+    .gantt-empty p { font-size: 13px; }
+
+    /* Legend */
+    .gantt-legend {
+      padding: 9px 14px;
+      border-top: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      background: #fafbff;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+    .legend-swatch {
+      width: 11px; height: 11px;
+      border-radius: 3px;
+      border-width: 1px;
+      border-style: solid;
+    }
+    .legend-swatch.pending     { background:#fef3c7; border-color:#fbbf24; }
+    .legend-swatch.confirmed   { background:#dbeafe; border-color:#60a5fa; }
+    .legend-swatch.checked-in  { background:#dcfce7; border-color:#4ade80; }
+    .legend-swatch.checked-out { background:#f3f4f6; border-color:#9ca3af; }
+    .legend-swatch.completed   { background:#ede9fe; border-color:#a78bfa; }
+    .legend-divider { width: 1px; height: 14px; background: var(--border); margin: 0 2px; }
+
+    /* ── Tooltip ── */
+    #tooltip {
+      position: fixed;
+      background: #1f2937;
+      color: #f9fafb;
+      border-radius: 9px;
+      padding: 11px 14px;
+      font-size: 12px;
+      line-height: 1.65;
+      max-width: 250px;
+      min-width: 200px;
+      pointer-events: none;
+      z-index: 9999;
+      display: none;
+      box-shadow: 0 10px 30px rgba(0,0,0,.3);
+    }
+    #tooltip .tt-title { font-weight: 700; font-size: 12.5px; margin-bottom: 6px; display: flex; align-items: center; gap: 5px; }
+    #tooltip .tt-row   { display: flex; gap: 6px; }
+    #tooltip .tt-key   { color: #9ca3af; flex-shrink: 0; min-width: 60px; }
+    #tooltip .tt-badge {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: capitalize;
+    }
+    #tooltip .tt-badge.pending     { background:#f59e0b; color:#fff; }
+    #tooltip .tt-badge.confirmed   { background:#3b82f6; color:#fff; }
+    #tooltip .tt-badge.checked-in  { background:#22c55e; color:#fff; }
+    #tooltip .tt-badge.checked-out { background:#6b7280; color:#fff; }
+    #tooltip .tt-badge.completed   { background:#8b5cf6; color:#fff; }
+
+    @media(max-width:700px){
+      :root { --sidebar-w:140px; --day-w:36px; }
+      .sidebar-stub { display:none; }
+      .search-inp { width:110px; }
+      .date-range-label { min-width: 130px; font-size:11px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Sidebar stub ══ -->
+<nav class="sidebar-stub">
+  <div class="sidebar-logo">LR</div>
+  <div class="sidebar-nav active" title="Dashboard">🏠</div>
+  <div class="sidebar-nav" title="Reservations">📋</div>
+  <div class="sidebar-nav" title="Guests">👥</div>
+  <div class="sidebar-sep"></div>
+  <div class="sidebar-nav" title="Rooms">🛏</div>
+  <div class="sidebar-nav" title="Venues">🏛</div>
+  <div class="sidebar-sep"></div>
+  <div class="sidebar-nav" title="Analytics">📊</div>
+</nav>
+
+<!-- ══ Main ══ -->
+<div class="main">
+
+  <!-- Topbar -->
+  <header class="topbar">
+    <span class="topbar-title">Dashboard</span>
+    <span class="topbar-badge" id="liveBadge">● Live</span>
+    <button class="btn-primary" id="exportBtn">📊 Export Report</button>
+  </header>
+
+  <!-- Scrollable content -->
+  <div class="content">
+
+    <!-- Stat cards -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- Gantt Section -->
+    <div class="gantt-section">
+
+      <!-- Toolbar -->
+      <div class="gantt-toolbar">
+        <span class="gantt-toolbar-title">📅 Reservation Timeline</span>
+
+        <div class="toolbar-search">
+          <span class="toolbar-search-icon">🔍</span>
+          <input class="search-inp" id="searchInp" placeholder="Search client…" autocomplete="off" />
+        </div>
+
+        <select class="filter-sel" id="statusSel">
+          <option value="">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="confirmed">Confirmed</option>
+          <option value="checked-in">Checked-In</option>
+          <option value="checked-out">Checked-Out</option>
+          <option value="completed">Completed</option>
+        </select>
+
+        <select class="filter-sel" id="typeSel">
+          <option value="">All Types</option>
+          <option value="room">Rooms only</option>
+          <option value="venue">Venues only</option>
+        </select>
+
+        <div class="spacer"></div>
+
+        <button class="nav-btn" id="prevBtn" title="Previous period">‹</button>
+        <span class="date-range-label" id="rangeLabel"></span>
+        <button class="nav-btn" id="nextBtn" title="Next period">›</button>
+        <button class="today-btn" id="todayBtn">Today</button>
+
+        <div class="range-group">
+          <button data-r="7">7d</button>
+          <button data-r="14">14d</button>
+          <button data-r="30" class="active">30d</button>
+          <button data-r="60">60d</button>
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="gantt-body">
+
+        <!-- Left sidebar -->
+        <div class="gantt-sidebar">
+          <div class="gantt-sidebar-head">
+            <span class="gantt-sidebar-head-label">Client</span>
+            <span class="gantt-sidebar-head-count" id="clientCount"></span>
+          </div>
+          <div class="gantt-sidebar-rows" id="sidebarRows"></div>
+        </div>
+
+        <!-- Right scrollable -->
+        <div class="gantt-right" id="ganttRight">
+          <div class="gantt-inner" id="ganttInner">
+            <div class="date-header" id="dateHeader"></div>
+            <div class="gantt-rows-wrap" id="ganttRows"></div>
+          </div>
+        </div>
+
+      </div><!-- /gantt-body -->
+
+      <!-- Legend -->
+      <div class="gantt-legend">
+        <span class="legend-item"><span class="legend-swatch pending"></span>Pending</span>
+        <span class="legend-item"><span class="legend-swatch confirmed"></span>Confirmed</span>
+        <span class="legend-item"><span class="legend-swatch checked-in"></span>Checked-In</span>
+        <span class="legend-item"><span class="legend-swatch checked-out"></span>Checked-Out</span>
+        <span class="legend-item"><span class="legend-swatch completed"></span>Completed</span>
+        <span class="legend-divider"></span>
+        <span class="legend-item">🛏 Room &nbsp; 🏛 Venue</span>
+        <span class="legend-divider"></span>
+        <span class="legend-item" style="color:var(--text-light);font-style:italic;">◀ ▶ extends beyond view</span>
+      </div>
+
+    </div><!-- /gantt-section -->
+  </div><!-- /content -->
+</div><!-- /main -->
+
+<!-- Tooltip -->
+<div id="tooltip"></div>
+
+<!-- ══ Export Month Picker Modal ══ -->
+<div id="exportModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
+  z-index:9998;align-items:center;justify-content:center;font-family:'Inter',sans-serif;">
+  <div style="background:#fff;border-radius:14px;padding:28px 28px 22px;width:420px;
+    box-shadow:0 24px 64px rgba(0,0,0,.28);position:relative;">
+
+    <!-- Header -->
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;">
+      <div style="width:42px;height:42px;background:#e8edf8;border-radius:10px;display:flex;
+        align-items:center;justify-content:center;font-size:22px;flex-shrink:0;">📅</div>
+      <div>
+        <div style="font-size:15px;font-weight:700;color:#1a3a7a;">Export Reservation Calendar</div>
+        <div style="font-size:12px;color:#888;margin-top:2px;">A4 landscape PDF · 2 pages</div>
+      </div>
+      <button onclick="closeExportModal()" style="margin-left:auto;width:28px;height:28px;border:none;
+        background:#f3f4f6;border-radius:6px;cursor:pointer;font-size:15px;color:#666;
+        display:flex;align-items:center;justify-content:center;line-height:1;">✕</button>
+    </div>
+
+    <hr style="border:none;border-top:1px solid #eee;margin-bottom:18px;">
+
+    <!-- Month + Year selectors -->
+    <div style="margin-bottom:16px;">
+      <div style="font-size:11px;font-weight:700;color:#555;text-transform:uppercase;
+        letter-spacing:.5px;margin-bottom:8px;">Select Month</div>
+      <div style="display:flex;gap:10px;">
+        <select id="exportMonthSel" onchange="updateExportPreview()"
+          style="flex:1.6;padding:9px 10px;border:1.5px solid #e0e0e8;border-radius:8px;
+          font-size:13px;font-family:inherit;color:#333;outline:none;cursor:pointer;"></select>
+        <select id="exportYearSel" onchange="updateExportPreview()"
+          style="flex:1;padding:9px 10px;border:1.5px solid #e0e0e8;border-radius:8px;
+          font-size:13px;font-family:inherit;color:#333;outline:none;cursor:pointer;"></select>
+      </div>
+    </div>
+
+    <!-- Preview count -->
+    <div style="background:#f0f4ff;border-radius:8px;padding:10px 14px;margin-bottom:20px;
+      font-size:12px;color:#444;line-height:1.6;border:1px solid #dbe4ff;">
+      <span style="font-weight:700;color:#1a3a7a;">📊 Preview:</span>
+      <span id="exportPreviewCount"> —</span>
+    </div>
+
+    <!-- What's included -->
+    <div style="font-size:11.5px;color:#666;margin-bottom:20px;line-height:2;">
+      <div>📅 <strong>Page 1</strong> — Month calendar grid with colour-coded reservation bars</div>
+      <div>📋 <strong>Page 2</strong> — Complete data table (all reservations, every field)</div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button onclick="closeExportModal()"
+        style="padding:9px 20px;border:1.5px solid #ddd;background:#fff;border-radius:8px;
+        font-size:13px;font-weight:500;cursor:pointer;color:#666;font-family:inherit;">Cancel</button>
+      <button onclick="generateCalendarPrint()"
+        style="padding:9px 22px;background:#1a3a7a;color:#fff;border:none;border-radius:8px;
+        font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;
+        gap:7px;font-family:inherit;">🖨&nbsp; Generate &amp; Print</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════════════════════════
+//  CONFIGURATION & CONSTANTS
+// ════════════════════════════════════════════════
+const DAY_W   = 44;    // px per day column
+const BAR_H   = 24;    // bar height px
+const BAR_GAP = 5;     // gap between stacked bars
+const ROW_PAD = 8;     // vertical padding per row
+const HEADER_H = 54;   // date-header height
+
+const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const DOW_NAMES   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+const AVATAR_PALETTE = [
+  '#1a3a7a','#7c3aed','#0891b2','#059669',
+  '#d97706','#c2410c','#db2777','#65a30d','#0f766e',
+];
+
+// ════════════════════════════════════════════════
+//  DATE HELPERS
+// ════════════════════════════════════════════════
+const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+function daysBetween(a, b) {
+  return Math.round((b - a) / 86400000);
+}
+
+function parseDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function fmtShort(date) {
+  return date.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' });
+}
+
+// ════════════════════════════════════════════════
+//  MOCK DATA  — replace with: window.reservations
+// ════════════════════════════════════════════════
+function d(offset) {
+  return addDays(TODAY, offset).toISOString().slice(0, 10);
+}
+
+const RAW_RESERVATIONS = [
+  // ── Maria Santos (3 overlapping reservations)
+  { id:1,  type:'room',  label:'Room 101',        check_in:d(-3), check_out:d(3),  status:'checked-in',  user:{ name:'Maria Santos',   affiliation:'De La Salle University' } },
+  { id:2,  type:'venue', label:'Function Hall A',  check_in:d(1),  check_out:d(6),  status:'confirmed',   user:{ name:'Maria Santos',   affiliation:'De La Salle University' } },
+  { id:3,  type:'room',  label:'Room 205',         check_in:d(4),  check_out:d(9),  status:'pending',     user:{ name:'Maria Santos',   affiliation:'De La Salle University' } },
+
+  // ── Carlos Reyes (3 rooms, overlapping)
+  { id:4,  type:'room',  label:'Room 301',         check_in:d(-2), check_out:d(4),  status:'confirmed',   user:{ name:'Carlos Reyes',   affiliation:'University of the Philippines' } },
+  { id:5,  type:'room',  label:'Room 302',         check_in:d(2),  check_out:d(7),  status:'confirmed',   user:{ name:'Carlos Reyes',   affiliation:'University of the Philippines' } },
+  { id:6,  type:'room',  label:'Room 303',         check_in:d(6),  check_out:d(10), status:'pending',     user:{ name:'Carlos Reyes',   affiliation:'University of the Philippines' } },
+
+  // ── Leonora Cruz (2 overlapping venues)
+  { id:7,  type:'venue', label:'Seminar Room B',   check_in:d(0),  check_out:d(3),  status:'checked-in',  user:{ name:'Leonora Cruz',   affiliation:'Ateneo de Manila University' } },
+  { id:8,  type:'venue', label:'Function Hall C',  check_in:d(1),  check_out:d(5),  status:'confirmed',   user:{ name:'Leonora Cruz',   affiliation:'Ateneo de Manila University' } },
+
+  // ── Jose Mendoza (past reservations)
+  { id:9,  type:'room',  label:'Room 110',         check_in:d(-12),check_out:d(-7), status:'checked-out', user:{ name:'Jose Mendoza',   affiliation:'External' } },
+  { id:10, type:'room',  label:'Room 111',         check_in:d(-9), check_out:d(-5), status:'completed',   user:{ name:'Jose Mendoza',   affiliation:'External' } },
+
+  // ── Ana Villanueva (future)
+  { id:11, type:'room',  label:'Room 402',         check_in:d(11), check_out:d(16), status:'pending',     user:{ name:'Ana Villanueva', affiliation:'Far Eastern University' } },
+  { id:12, type:'venue', label:'Rooftop Venue',    check_in:d(13), check_out:d(19), status:'pending',     user:{ name:'Ana Villanueva', affiliation:'Far Eastern University' } },
+
+  // ── Roberto Lim (long stay, single reservation)
+  { id:13, type:'room',  label:'Suite 500',        check_in:d(-5), check_out:d(14), status:'checked-in',  user:{ name:'Roberto Lim',    affiliation:'San Beda University' } },
+
+  // ── Sofia Tan (triple overlap — stress test)
+  { id:14, type:'room',  label:'Room 201',         check_in:d(3),  check_out:d(8),  status:'confirmed',   user:{ name:'Sofia Tan',      affiliation:'Mapua University' } },
+  { id:15, type:'room',  label:'Room 202',         check_in:d(3),  check_out:d(7),  status:'confirmed',   user:{ name:'Sofia Tan',      affiliation:'Mapua University' } },
+  { id:16, type:'room',  label:'Room 203',         check_in:d(3),  check_out:d(6),  status:'pending',     user:{ name:'Sofia Tan',      affiliation:'Mapua University' } },
+  { id:17, type:'venue', label:'Seminar Room A',   check_in:d(7),  check_out:d(11), status:'pending',     user:{ name:'Sofia Tan',      affiliation:'Mapua University' } },
+
+  // ── Bianca Dela Cruz (single room)
+  { id:18, type:'room',  label:'Room 150',         check_in:d(-1), check_out:d(2),  status:'checked-in',  user:{ name:'Bianca Dela Cruz','affiliation':'Technological Institute of the Philippines' } },
+];
+
+// ════════════════════════════════════════════════
+//  MOCK STATS
+// ════════════════════════════════════════════════
+const STATS = {
+  totalReservations: RAW_RESERVATIONS.length,
+  occupancyRate:     68.4,
+  totalRevenue:      284500,
+  activeGuests:      5,
+  checkOutsToday:    2,
+  changes: { totalReservations: 12, occupancyRate: -3, revenue: 8, activeGuests: 0 },
+};
+
+// ════════════════════════════════════════════════
+//  STATE
+// ════════════════════════════════════════════════
+let rangeStart  = addDays(TODAY, -5);
+let rangeSize   = 30;
+let searchQ     = '';
+let filterStatus = '';
+let filterType   = '';
+const collapsed = new Set();
+
+// ════════════════════════════════════════════════
+//  STAT CARDS
+// ════════════════════════════════════════════════
+function renderStats() {
+  const S = STATS;
+  const cards = [
+    { label:'Total Reservations', value: S.totalReservations, change: S.changes.totalReservations, icon:'📋', fmt: v => v },
+    { label:'Occupancy Rate',     value: S.occupancyRate,     change: S.changes.occupancyRate,     icon:'🏨', fmt: v => `${v.toFixed(1)}%` },
+    { label:'Revenue',            value: S.totalRevenue,      change: S.changes.revenue,           icon:'💰', fmt: v => `₱${v.toLocaleString()}` },
+    { label:'Active Guests',      value: S.activeGuests,      change: S.changes.activeGuests,      icon:'👥', fmt: v => v },
+    { label:'Check-outs Today',   value: S.checkOutsToday,    change: 0,                           icon:'🚪', fmt: v => v },
+  ];
+
+  document.getElementById('statsGrid').innerHTML = cards.map(c => {
+    const chg = c.change > 0
+      ? `<span class="chg-up">↑ ${c.change}%</span>`
+      : c.change < 0
+        ? `<span class="chg-down">↓ ${Math.abs(c.change)}%</span>`
+        : `<span class="chg-flat">—</span>`;
+    return `
+      <div class="stat-card">
+        <div class="stat-card-top">
+          <span class="stat-label">${c.label}</span>
+          <div class="stat-icon-box">${c.icon}</div>
+        </div>
+        <div class="stat-value">${c.fmt(c.value)}</div>
+        <div class="stat-change">${chg} <span>vs last month</span></div>
+      </div>`;
+  }).join('');
+}
+
+// ════════════════════════════════════════════════
+//  GANTT ENGINE
+// ════════════════════════════════════════════════
+
+/** Assign overlap lanes within a single client's reservations */
+function assignLanes(rsvs) {
+  const sorted = [...rsvs].sort((a, b) => a.check_in.localeCompare(b.check_in));
+  const laneEnds = []; // last check_out string per lane
+
+  const placed = sorted.map(res => {
+    let lane = laneEnds.findIndex(end => res.check_in > end);
+    if (lane === -1) {
+      lane = laneEnds.length;
+      laneEnds.push(res.check_out);
+    } else {
+      laneEnds[lane] = res.check_out;
+    }
+    return { ...res, lane };
+  });
+
+  return { placed, laneCount: Math.max(1, laneEnds.length) };
+}
+
+/** Group filtered reservations by client name */
+function groupByClient(data) {
+  const map = new Map();
+  data.forEach(r => {
+    const key = r.user.name;
+    if (!map.has(key)) map.set(key, { name: r.user.name, affiliation: r.user.affiliation || 'External', rsvs: [] });
+    map.get(key).rsvs.push(r);
+  });
+  return [...map.values()];
+}
+
+/** Apply current filters */
+function filtered() {
+  const q = searchQ.toLowerCase();
+  return RAW_RESERVATIONS.filter(r => {
+    if (q && !r.user.name.toLowerCase().includes(q) && !(r.user.affiliation||'').toLowerCase().includes(q)) return false;
+    if (filterStatus && r.status !== filterStatus) return false;
+    if (filterType   && r.type   !== filterType)   return false;
+    return true;
+  });
+}
+
+// Avatar helpers
+function avatarColor(name) {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) & 0xffff;
+  return AVATAR_PALETTE[h % AVATAR_PALETTE.length];
+}
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+    .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Main render
+function render() {
+  const data    = filtered();
+  const clients = groupByClient(data);
+  const rangeEnd = addDays(rangeStart, rangeSize);
+
+  // Update range label
+  document.getElementById('rangeLabel').textContent =
+    `${fmtShort(rangeStart)} – ${fmtShort(addDays(rangeEnd, -1))}`;
+
+  // Update client count badge
+  document.getElementById('clientCount').textContent = `${clients.length} clients`;
+
+  // Total pixel width
+  const totalW = rangeSize * DAY_W;
+  const inner  = document.getElementById('ganttInner');
+  inner.style.width = totalW + 'px';
+
+  renderDateHeader(rangeStart, rangeSize, totalW);
+  renderClientRows(clients, rangeStart, rangeEnd, totalW);
+}
+
+// ── Date header
+function renderDateHeader(start, days, totalW) {
+  const el = document.getElementById('dateHeader');
+  el.style.width = totalW + 'px';
+
+  // Month spans
+  const spans = [];
+  let cur = null, curStart = 0, curCount = 0;
+  for (let i = 0; i < days; i++) {
+    const day = addDays(start, i);
+    const key = `${day.getFullYear()}-${day.getMonth()}`;
+    if (key !== cur) {
+      if (cur) spans.push({ start: curStart, count: curCount, d: addDays(start, curStart) });
+      cur = key; curStart = i; curCount = 1;
+    } else { curCount++; }
+  }
+  spans.push({ start: curStart, count: curCount, d: addDays(start, curStart) });
+
+  let monthHtml = '';
+  spans.forEach(s => {
+    const l = s.start * DAY_W;
+    const w = s.count * DAY_W;
+    monthHtml += `<div class="month-chip" style="left:${l}px;width:${w}px">${MONTH_NAMES[s.d.getMonth()]} ${s.d.getFullYear()}</div>`;
+  });
+
+  let dayHtml = '';
+  for (let i = 0; i < days; i++) {
+    const day = addDays(start, i);
+    const isToday   = daysBetween(TODAY, day) === 0;
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    const cls = [isToday ? 'today-col' : '', isWeekend ? 'weekend-col' : ''].filter(Boolean).join(' ');
+    dayHtml += `
+      <div class="day-cell ${cls}" style="width:${DAY_W}px">
+        <span class="dow">${DOW_NAMES[day.getDay()]}</span>
+        <span class="dom">${day.getDate()}</span>
+      </div>`;
+  }
+
+  el.innerHTML = `
+    <div class="month-strip" style="width:${totalW}px">${monthHtml}</div>
+    <div class="day-strip" style="width:${totalW}px">${dayHtml}</div>`;
+}
+
+// ── Client rows
+function renderClientRows(clients, rangeStart, rangeEnd, totalW) {
+  const sidebarEl = document.getElementById('sidebarRows');
+  const rowsEl    = document.getElementById('ganttRows');
+
+  if (clients.length === 0) {
+    sidebarEl.innerHTML = `<div class="gantt-empty"><div class="e-icon">🔍</div><p>No reservations match your filters.</p></div>`;
+    rowsEl.innerHTML    = '';
+    return;
+  }
+
+  // Column backgrounds (today + weekends)
+  let colBgHtml = '';
+  for (let i = 0; i < rangeSize; i++) {
+    const day = addDays(rangeStart, i);
+    const isToday   = daysBetween(TODAY, day) === 0;
+    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+    const cls = isToday ? 'today-bg today-line' : isWeekend ? 'weekend-bg' : '';
+    if (cls) colBgHtml += `<div class="col-bg ${cls}" style="left:${i*DAY_W}px;width:${DAY_W}px"></div>`;
+  }
+
+  let sidebarHtml = '';
+  let rowsHtml    = '';
+
+  clients.forEach((client, ci) => {
+    const { placed, laneCount } = assignLanes(client.rsvs);
+    const isCollapsed = collapsed.has(client.name);
+    const rowH = isCollapsed
+      ? 40
+      : laneCount * (BAR_H + BAR_GAP) + ROW_PAD * 2;
+
+    // ── Sidebar row
+    sidebarHtml += `
+      <div class="client-row${isCollapsed ? ' collapsed' : ''}"
+           style="height:${rowH}px"
+           onclick="toggleCollapse(${JSON.stringify(client.name)})">
+        <div class="client-avatar" style="background:${avatarColor(client.name)}">${initials(client.name)}</div>
+        <div class="client-meta">
+          <div class="client-name">${esc(client.name)}</div>
+          <div class="client-affil">${esc(client.affiliation)}</div>
+        </div>
+        <span class="client-chip">${client.rsvs.length}</span>
+        <span class="collapse-arrow">▼</span>
+      </div>`;
+
+    // ── Chart row
+    let barsHtml = '';
+    if (!isCollapsed) {
+      placed.forEach(res => {
+        const ciDate = parseDate(res.check_in);
+        const coDate = parseDate(res.check_out);
+
+        // Skip if fully outside range
+        if (coDate <= rangeStart || ciDate >= rangeEnd) return;
+
+        // Clamp to visible range
+        const visStart = ciDate < rangeStart ? rangeStart : ciDate;
+        const visEnd   = coDate > rangeEnd ? rangeEnd : coDate;
+        const clipL    = ciDate < rangeStart;
+        const clipR    = coDate > rangeEnd;
+
+        const leftPx  = daysBetween(rangeStart, visStart) * DAY_W;
+        const widthPx = Math.max(DAY_W - 3, daysBetween(visStart, visEnd) * DAY_W - 3);
+        const topPx   = ROW_PAD + res.lane * (BAR_H + BAR_GAP);
+
+        const icon    = res.type === 'room' ? '🛏' : '🏛';
+        const clipCls = [clipL ? 'clip-l' : '', clipR ? 'clip-r' : ''].filter(Boolean).join(' ');
+        const nights  = daysBetween(ciDate, coDate);
+
+        // Encode tooltip data safely
+        const ttData  = JSON.stringify({
+          label: res.label, type: res.type, status: res.status,
+          check_in: res.check_in, check_out: res.check_out,
+          name: res.user.name, nights
+        });
+
+        barsHtml += `
+          <div class="res-bar ${res.status} ${clipCls}"
+               style="left:${leftPx}px;width:${widthPx}px;top:${topPx}px;height:${BAR_H}px"
+               data-tt='${ttData.replace(/'/g,"&#39;")}'
+               onmouseenter="showTT(event,this)"
+               onmouseleave="hideTT()"
+               onclick="barClick(${res.id},'${res.type}','${res.status}')">
+            <span class="bar-icon">${icon}</span>
+            <span class="bar-text">${esc(res.label)}</span>
+          </div>`;
+      });
+    }
+
+    rowsHtml += `
+      <div class="chart-row${ci % 2 ? ' alt' : ''}" style="height:${rowH}px">
+        ${isCollapsed
+          ? '<div class="chart-row-collapsed">Click to expand reservations</div>'
+          : barsHtml}
+      </div>`;
+  });
+
+  sidebarEl.innerHTML = sidebarHtml;
+  rowsEl.innerHTML    = colBgHtml + rowsHtml;
+}
+
+// ════════════════════════════════════════════════
+//  SYNC SCROLL (sidebar ↔ gantt body)
+// ════════════════════════════════════════════════
+let syncingScroll = false;
+
+document.getElementById('ganttRight').addEventListener('scroll', function () {
+  if (syncingScroll) return;
+  syncingScroll = true;
+  document.getElementById('sidebarRows').scrollTop = this.scrollTop;
+  syncingScroll = false;
+}, { passive: true });
+
+document.getElementById('sidebarRows').addEventListener('scroll', function () {
+  if (syncingScroll) return;
+  syncingScroll = true;
+  document.getElementById('ganttRight').scrollTop = this.scrollTop;
+  syncingScroll = false;
+}, { passive: true });
+
+// ════════════════════════════════════════════════
+//  COLLAPSE TOGGLE
+// ════════════════════════════════════════════════
+function toggleCollapse(name) {
+  if (collapsed.has(name)) collapsed.delete(name);
+  else collapsed.add(name);
+  render();
+}
+
+// ════════════════════════════════════════════════
+//  TOOLTIP
+// ════════════════════════════════════════════════
+const ttEl = document.getElementById('tooltip');
+
+function showTT(e, el) {
+  const d = JSON.parse(el.dataset.tt);
+  const icon = d.type === 'room' ? '🛏' : '🏛';
+  ttEl.innerHTML = `
+    <div class="tt-title">${icon} ${esc(d.label)}</div>
+    <div class="tt-row"><span class="tt-key">Client</span>${esc(d.name)}</div>
+    <div class="tt-row"><span class="tt-key">Check-in</span>${d.check_in}</div>
+    <div class="tt-row"><span class="tt-key">Check-out</span>${d.check_out}</div>
+    <div class="tt-row"><span class="tt-key">Duration</span>${d.nights} night${d.nights !== 1 ? 's' : ''}</div>
+    <div class="tt-row"><span class="tt-key">Status</span><span class="tt-badge ${d.status}">${d.status}</span></div>`;
+  ttEl.style.display = 'block';
+  moveTT(e);
+}
+
+function moveTT(e) {
+  const PAD = 14;
+  let x = e.clientX + PAD;
+  let y = e.clientY + PAD;
+  if (x + 260 > window.innerWidth)  x = e.clientX - 260 - PAD;
+  if (y + 160 > window.innerHeight) y = e.clientY - 160 - PAD;
+  ttEl.style.left = x + 'px';
+  ttEl.style.top  = y + 'px';
+}
+
+document.addEventListener('mousemove', e => {
+  if (ttEl.style.display === 'block') moveTT(e);
+});
+
+function hideTT() { ttEl.style.display = 'none'; }
+
+// ════════════════════════════════════════════════
+//  BAR CLICK  (navigate to reservation)
+// ════════════════════════════════════════════════
+function barClick(id, type, status) {
+  // In the real app replace with actual routes:
+  // const base = (status === 'checked-in' || status === 'completed' || status === 'checked-out')
+  //   ? window.guestPage : window.reservationPage;
+  // window.location.href = `${base}/${id}?type=${type}`;
+  console.log(`→ Reservation #${id}  type=${type}  status=${status}`);
+}
+
+// ════════════════════════════════════════════════
+//  CONTROLS
+// ════════════════════════════════════════════════
+
+// Prev / Next
+document.getElementById('prevBtn').addEventListener('click', () => {
+  rangeStart = addDays(rangeStart, -Math.floor(rangeSize / 2));
+  render();
+});
+document.getElementById('nextBtn').addEventListener('click', () => {
+  rangeStart = addDays(rangeStart, Math.floor(rangeSize / 2));
+  render();
+});
+
+// Today
+document.getElementById('todayBtn').addEventListener('click', () => {
+  rangeStart = addDays(TODAY, -Math.floor(rangeSize / 5));
+  render();
+  // Scroll "today" into roughly the first third of the viewport
+  requestAnimationFrame(() => {
+    const right   = document.getElementById('ganttRight');
+    const todayPx = daysBetween(rangeStart, TODAY) * DAY_W;
+    right.scrollLeft = Math.max(0, todayPx - right.clientWidth / 4);
+  });
+});
+
+// Range buttons
+document.querySelectorAll('.range-group button[data-r]').forEach(btn => {
+  btn.addEventListener('click', function () {
+    document.querySelectorAll('.range-group button').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    rangeSize = parseInt(this.dataset.r);
+    render();
+  });
+});
+
+// Search (debounced)
+let searchTimer;
+document.getElementById('searchInp').addEventListener('input', function () {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => { searchQ = this.value.trim(); render(); }, 180);
+});
+
+// Filters
+document.getElementById('statusSel').addEventListener('change', function () { filterStatus = this.value; render(); });
+document.getElementById('typeSel').addEventListener('change',   function () { filterType   = this.value; render(); });
+
+// ════════════════════════════════════════════════
+//  CALENDAR EXPORT — A4 Landscape, Month View
+//
+//  Layout strategy:
+//    • Landscape A4 usable area: ~277mm × 190mm
+//    • Left sidebar  : 155px  (client name / affiliation / chip)
+//    • Chart area    : ~870px (day columns)
+//    • Day column    : 29px   (fits 30 days = 870px)
+//
+//  Pagination rules:
+//    VERTICAL   — split by clients : max 12 rows per page
+//    HORIZONTAL — split by dates   : max 30 days per page
+//    Combined   → page matrix: (clientGroups) × (dateChunks)
+//
+//  Page anatomy (top → bottom):
+//    ┌─────────────────────────────────────────────────┐
+//    │ HEADER: logo | report title | date range | page │  ~30px
+//    │ STATS BAR (1st page only): 4 KPI tiles          │  ~38px
+//    ├──────────┬──────────────────────────────────────┤
+//    │ Client   │ Month strip  Mar 2026                │  ~16px
+//    │ sidebar  ├──────────────────────────────────────┤
+//    │          │ Day row   Su Mo Tu We Th Fr Sa …     │  ~22px
+//    │          ├──────────────────────────────────────┤
+//    │ avatar   │ ██ Room 101 (confirmed)              │  per lane × 21px
+//    │ name     │    ██ Function Hall A (checked-in)   │
+//    │ …        │ …                                    │
+//    ├──────────┴──────────────────────────────────────┤
+//    │ LEGEND: ● Pending ● Confirmed … 🛏 Room 🏛 Venue│  ~22px
+//    └─────────────────────────────────────────────────┘
+// ════════════════════════════════════════════════
+
+// ── Print-friendly status palette
+const CAL_STATUS = {
+  'pending'     : { bg:'#fef9e7', border:'#f5c518', color:'#7c5800', label:'Pending'     },
+  'confirmed'   : { bg:'#ebf3fd', border:'#5b9bd5', color:'#0d3b6e', label:'Confirmed'   },
+  'checked-in'  : { bg:'#eafaf1', border:'#52be80', color:'#0e5e38', label:'Checked-In'  },
+  'checked-out' : { bg:'#f2f3f4', border:'#aab7b8', color:'#2c3e50', label:'Checked-Out' },
+  'completed'   : { bg:'#f4ecfc', border:'#bb8fce', color:'#4a235a', label:'Completed'   },
+  'rejected'    : { bg:'#fdedec', border:'#e88585', color:'#7b241c', label:'Rejected'    },
+};
+
+const CAL_BAR_H   = 17; // px per event bar
+const CAL_BAR_GAP = 3;  // px gap between stacked bars
+const CAL_DATE_H  = 20; // px for the day-number row at top of each cell
+const CAL_PAD     = 5;  // px bottom padding per week row
+const CAL_MAX_VIS = 3;  // max visible lanes before "+N more"
+
+// Status print styles (lighter for ink-friendliness)
+function pEsc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ════════════════════════════════════════════════
+//  MONTH PICKER MODAL  (controls the export flow)
+// ════════════════════════════════════════════════
+
+function openExportModal() {
+  const modal = document.getElementById('exportModal');
+  const mSel  = document.getElementById('exportMonthSel');
+  const ySel  = document.getElementById('exportYearSel');
+
+  // Seed selects if empty
+  if (!ySel.options.length) {
+    const now = new Date();
+    MONTH_NAMES.forEach((m, i) => {
+      const o = document.createElement('option');
+      o.value = i + 1; o.textContent = m;
+      mSel.appendChild(o);
+    });
+    for (let y = now.getFullYear() + 1; y >= now.getFullYear() - 2; y--) {
+      const o = document.createElement('option');
+      o.value = y; o.textContent = y;
+      ySel.appendChild(o);
+    }
+    mSel.value = now.getMonth() + 1;
+    ySel.value = now.getFullYear();
+  }
+
+  updateExportPreview();
+  modal.style.display = 'flex';
+}
+
+function closeExportModal() {
+  document.getElementById('exportModal').style.display = 'none';
+}
+
+function updateExportPreview() {
+  const month = parseInt(document.getElementById('exportMonthSel').value);
+  const year  = parseInt(document.getElementById('exportYearSel').value);
+  const mStart = new Date(year, month - 1, 1);
+  const mEnd   = new Date(year, month,     1);
+
+  const active = RAW_RESERVATIONS.filter(r => {
+    const ci = parseDate(r.check_in);
+    const co = parseDate(r.check_out);
+    return ci < mEnd && co > mStart;
+  });
+  const clientCount = new Set(active.map(r => r.user.name)).size;
+  const roomCount   = active.filter(r => r.type === 'room').length;
+  const venueCount  = active.filter(r => r.type === 'venue').length;
+
+  document.getElementById('exportPreviewCount').textContent =
+    `${active.length} reservations · ${clientCount} clients · ${roomCount} rooms · ${venueCount} venues`;
+}
+
+// ════════════════════════════════════════════════
+//  CALENDAR LANE ASSIGNMENT (per week row)
+//  Two events conflict if their column spans overlap.
+// ════════════════════════════════════════════════
+
+function calEventsOverlap(a, b) {
+  return a.startCol <= b.endCol && b.startCol <= a.endCol;
+}
+
+function assignCalendarLanes(events) {
+  // Sort: earlier start first, then longer span first
+  const sorted = [...events].sort((a, b) =>
+    a.startCol !== b.startCol
+      ? a.startCol - b.startCol
+      : (b.endCol - b.startCol) - (a.endCol - a.startCol)
+  );
+
+  const placed = [];
+  sorted.forEach(ev => {
+    let lane = 0;
+    while (placed.filter(p => p.lane === lane && calEventsOverlap(p, ev)).length > 0) lane++;
+    placed.push({ ...ev, lane });
+  });
+  return placed;
+}
+
+// ════════════════════════════════════════════════
+//  CALENDAR PAGE BUILDER
+// ════════════════════════════════════════════════
+
+function buildCalendarPage(rsvs, month, year, pageNum, totalPages) {
+  const mStart = new Date(year, month - 1, 1);
+  const mEnd   = new Date(year, month, 0);           // last day of month
+  const label  = `${MONTH_NAMES[month-1]} ${year}`;
+
+  // Calendar grid: start on Sunday of the week containing mStart
+  const gridStart = addDays(mStart, -mStart.getDay());
+  const weeks     = Math.ceil((mStart.getDay() + mEnd.getDate()) / 7);
+
+  // Month stats
+  const active     = rsvs.filter(r => {
+    const ci = parseDate(r.check_in); const co = parseDate(r.check_out);
+    return ci < new Date(year, month, 1) && co > mStart;
+  });
+  const totalRes   = active.length;
+  const clientsCt  = new Set(active.map(r => r.user.name)).size;
+  const roomsCt    = active.filter(r => r.type === 'room').length;
+  const venuesCt   = active.filter(r => r.type === 'venue').length;
+  const confirmedCt= active.filter(r => r.status === 'confirmed' || r.status === 'checked-in').length;
+
+  // Build each week row
+  let weeksHtml = '';
+  for (let w = 0; w < weeks; w++) {
+    const wStart = addDays(gridStart, w * 7);
+    const wEnd   = addDays(wStart, 6);
+
+    // Find reservations overlapping this week
+    const weekRsvs = rsvs.filter(r => {
+      const ci = parseDate(r.check_in);
+      const co = parseDate(r.check_out);
+      return ci <= wEnd && co > wStart;
+    });
+
+    // Map each reservation to its column span within this week
+    const events = weekRsvs.map(r => {
+      const ci       = parseDate(r.check_in);
+      const co       = parseDate(r.check_out); // exclusive
+      const startCol = Math.max(0, daysBetween(wStart, ci));
+      const endCol   = Math.min(6, daysBetween(wStart, addDays(co, -1)));
+      const clipL    = ci < wStart;
+      const clipR    = addDays(co, -1) > wEnd;
+      return { ...r, startCol, endCol, clipL, clipR };
+    });
+
+    const placed = assignCalendarLanes(events);
+    const maxLane = placed.length > 0 ? Math.max(...placed.map(e => e.lane)) : -1;
+    const visLanes = Math.min(maxLane + 1, CAL_MAX_VIS);
+    const overflow = placed.filter(e => e.lane >= CAL_MAX_VIS);
+    const rowH     = CAL_DATE_H + visLanes * (CAL_BAR_H + CAL_BAR_GAP) + CAL_PAD + (overflow.length > 0 ? 14 : 0);
+
+    // Day-number cells
+    let dayNumsHtml = '';
+    for (let d = 0; d < 7; d++) {
+      const day      = addDays(wStart, d);
+      const inMonth  = day.getMonth() === month - 1;
+      const isToday  = daysBetween(TODAY, day) === 0;
+      const isWkd    = day.getDay() === 0 || day.getDay() === 6;
+      const numStyle = isToday
+        ? 'background:#1a3a7a;color:#fff;border-radius:50%;width:16px;height:16px;display:inline-flex;align-items:center;justify-content:center;'
+        : '';
+      const cellBg   = isWkd ? 'background:rgba(0,0,0,.025);' : '';
+      dayNumsHtml += `<div style="flex:1;height:${CAL_DATE_H}px;display:flex;align-items:center;
+        justify-content:flex-end;padding-right:4px;${cellBg}border-right:1px solid #e8e8e8;">
+        <span style="font-size:8pt;font-weight:${isToday?'700':'500'};
+          color:${inMonth ? (isToday?'#fff':'#222') : '#ccc'};${numStyle}">${day.getDate()}</span>
+      </div>`;
+    }
+
+    // Column background highlights (today + weekends, full height)
+    let colBgsHtml = '';
+    for (let d = 0; d < 7; d++) {
+      const day    = addDays(wStart, d);
+      const isTod  = daysBetween(TODAY, day) === 0;
+      const isWkd  = day.getDay() === 0 || day.getDay() === 6;
+      const bg     = isTod ? 'rgba(59,130,246,.07)' : isWkd ? 'rgba(0,0,0,.025)' : '';
+      const border = isTod ? 'border-left:1.5px solid rgba(59,130,246,.3);' : '';
+      if (bg || border)
+        colBgsHtml += `<div style="position:absolute;top:0;left:${(d/7*100).toFixed(3)}%;
+          width:${(1/7*100).toFixed(3)}%;height:100%;background:${bg};${border}"></div>`;
+    }
+
+    // Event bars
+    let barsHtml = '';
+    placed.filter(e => e.lane < CAL_MAX_VIS).forEach(ev => {
+      const st      = CAL_STATUS[ev.status] || CAL_STATUS.pending;
+      const topPx   = CAL_DATE_H + ev.lane * (CAL_BAR_H + CAL_BAR_GAP);
+      const leftPct = (ev.startCol / 7 * 100).toFixed(3);
+      const widPct  = ((ev.endCol - ev.startCol + 1) / 7 * 100).toFixed(3);
+      const icon    = ev.type === 'room' ? '⬜' : '◇';
+      const clipTxt = (ev.clipL ? '◀ ' : '') + pEsc(ev.label) + (ev.clipR ? ' ▶' : '');
+      const night   = daysBetween(parseDate(ev.check_in), parseDate(ev.check_out));
+      const tip     = `${pEsc(ev.user.name)} · ${pEsc(ev.label)} · ${ev.check_in}→${ev.check_out} · ${night}n`;
+
+      barsHtml += `<div title="${tip}" style="position:absolute;top:${topPx}px;
+        left:calc(${leftPct}% + 1px);width:calc(${widPct}% - 2px);height:${CAL_BAR_H}px;
+        background:${st.bg};border:1px solid ${st.border};color:${st.color};
+        border-radius:${ev.clipL?'0':'3px'} ${ev.clipR?'0':'3px'} ${ev.clipR?'0':'3px'} ${ev.clipL?'0':'3px'};
+        border-left-style:${ev.clipL?'dashed':'solid'};border-right-style:${ev.clipR?'dashed':'solid'};
+        display:flex;align-items:center;padding:0 3px;font-size:6pt;font-weight:500;
+        white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-sizing:border-box;">
+        <span style="margin-right:2px;opacity:.7;">${icon}</span>
+        <span style="overflow:hidden;text-overflow:ellipsis;flex:1;">${pEsc(ev.user.name)}</span>
+        <span style="margin-left:2px;opacity:.65;font-size:5.5pt;flex-shrink:0;">${pEsc(ev.label)}</span>
+      </div>`;
+    });
+
+    // Overflow "+N more" — per starting column
+    if (overflow.length > 0) {
+      const overflowByCol = {};
+      overflow.forEach(ev => {
+        for (let c = ev.startCol; c <= ev.endCol; c++) {
+          overflowByCol[c] = (overflowByCol[c] || 0) + 1;
+        }
+      });
+      const topPx = CAL_DATE_H + CAL_MAX_VIS * (CAL_BAR_H + CAL_BAR_GAP) + 1;
+      // Show one "+N more" per column group
+      const shown = new Set();
+      overflow.forEach(ev => {
+        if (!shown.has(ev.startCol)) {
+          shown.add(ev.startCol);
+          const n    = overflowByCol[ev.startCol];
+          const lPct = (ev.startCol / 7 * 100).toFixed(3);
+          const wPct = (1 / 7 * 100).toFixed(3);
+          barsHtml += `<div style="position:absolute;top:${topPx}px;left:calc(${lPct}% + 2px);
+            width:calc(${wPct}% - 4px);height:13px;font-size:5.5pt;color:#888;font-weight:600;
+            display:flex;align-items:center;">+${n} more</div>`;
+        }
+      });
+    }
+
+    weeksHtml += `
+      <div style="display:flex;flex-direction:column;border-bottom:1px solid #ddd;position:relative;height:${rowH}px;">
+        ${colBgsHtml}
+        <div style="display:flex;position:relative;z-index:1;">${dayNumsHtml}</div>
+        <div style="flex:1;position:relative;">${barsHtml}</div>
+      </div>`;
+  }
+
+  // Month stats strip
+  const statsHtml = `
+    <div style="display:flex;gap:0;border:1px solid #e0e0e0;border-radius:6px;overflow:hidden;margin-bottom:8px;">
+      ${[
+        ['📋', 'Reservations',  totalRes],
+        ['👥', 'Clients',       clientsCt],
+        ['🛏', 'Rooms',         roomsCt],
+        ['🏛', 'Venues',        venuesCt],
+        ['✅', 'Confirmed/In',  confirmedCt],
+      ].map(([ic, lbl, val], i, arr) => `
+        <div style="flex:1;padding:5px 9px;border-right:${i<arr.length-1?'1px solid #e5e7eb':'none'};">
+          <div style="font-size:6pt;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.5px;">${ic} ${lbl}</div>
+          <div style="font-size:13pt;font-weight:800;color:#1a3a7a;line-height:1.2;">${val}</div>
+        </div>`).join('')}
+    </div>`;
+
+  // Day-of-week header
+  const dowHeader = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']
+    .map(d => `<div style="flex:1;font-size:7pt;font-weight:700;color:#1a3a7a;text-transform:uppercase;
+      letter-spacing:.5px;padding:5px 0;text-align:center;border-right:1px solid #e0e0e0;">${d}</div>`)
+    .join('');
+
+  return `
+  <div class="print-page">
+    <!-- PAGE HEADER -->
+    <div style="display:flex;align-items:flex-start;padding-bottom:7px;margin-bottom:8px;border-bottom:2.5px solid #1a3a7a;">
+      <div style="flex:1;">
+        <div style="font-size:13pt;font-weight:800;color:#1a3a7a;letter-spacing:-.4px;line-height:1;">
+          LANTAKA RESERVATION SYSTEM</div>
+        <div style="font-size:8pt;color:#555;margin-top:3px;font-weight:500;">
+          Monthly Calendar View &nbsp;·&nbsp; <strong>${label}</strong> &nbsp;·&nbsp;
+          Generated ${new Date().toLocaleDateString('en-PH',{year:'numeric',month:'long',day:'numeric'})}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;padding-left:12px;">
+        <div style="font-size:8pt;font-weight:700;color:#1a3a7a;">Page ${pageNum} / ${totalPages}</div>
+        <div style="font-size:6.5pt;color:#bbb;margin-top:2px;">CONFIDENTIAL</div>
+      </div>
+    </div>
+
+    ${statsHtml}
+
+    <!-- CALENDAR GRID -->
+    <div style="border:1px solid #ddd;border-radius:6px;overflow:hidden;flex:1;">
+      <!-- Day-of-week header -->
+      <div style="display:flex;background:#1a3a7a;border-bottom:2px solid #1a3a7a;">
+        ${dowHeader}
+      </div>
+      <!-- Week rows -->
+      <div style="display:flex;flex-direction:column;">
+        ${weeksHtml}
+      </div>
+    </div>
+
+    <!-- LEGEND + FOOTER -->
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:6px;padding-top:5px;border-top:1px solid #eee;">
+      ${Object.entries(CAL_STATUS).filter(([k])=>k!=='rejected').map(([key,s])=>`
+        <span style="display:flex;align-items:center;gap:3px;font-size:6pt;color:#555;">
+          <span style="width:10px;height:10px;border-radius:2px;background:${s.bg};border:1px solid ${s.border};display:inline-block;"></span>
+          ${s.label}</span>`).join('')}
+      <span style="width:1px;height:12px;background:#ddd;margin:0 2px;"></span>
+      <span style="font-size:6pt;color:#777;">⬜ Room &nbsp;·&nbsp; ◇ Venue</span>
+      <span style="font-size:6pt;color:#777;">‒ ‒ Continues beyond month</span>
+      <span style="font-size:6pt;color:#bbb;margin-left:auto;">Lantaka Reservation Management System · ${new Date().getFullYear()}</span>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+//  DETAILED TABLE PAGE  (page 2 — all data)
+// ════════════════════════════════════════════════
+
+function buildDetailTablePage(rsvs, month, year, pageNum, totalPages) {
+  const label = `${MONTH_NAMES[month-1]} ${year}`;
+  // Sort by check-in then client name
+  const sorted = [...rsvs].sort((a, b) =>
+    a.check_in.localeCompare(b.check_in) || a.user.name.localeCompare(b.user.name)
+  );
+
+  const rows = sorted.map((r, i) => {
+    const nights = daysBetween(parseDate(r.check_in), parseDate(r.check_out));
+    const st     = CAL_STATUS[r.status] || CAL_STATUS.pending;
+    const rowBg  = i % 2 ? '#f9fafb' : '#fff';
+    return `<tr style="background:${rowBg};">
+      <td style="text-align:center;color:#aaa;">${i+1}</td>
+      <td style="font-weight:600;color:#111;">${pEsc(r.user.name)}</td>
+      <td style="color:#666;">${pEsc(r.user.affiliation||'External')}</td>
+      <td style="text-align:center;">${r.type === 'room' ? '⬜ Room' : '◇ Venue'}</td>
+      <td style="font-weight:500;color:#1a3a7a;">${pEsc(r.label)}</td>
+      <td style="text-align:center;">${r.check_in}</td>
+      <td style="text-align:center;">${r.check_out}</td>
+      <td style="text-align:center;font-weight:600;">${nights}n</td>
+      <td style="text-align:center;">
+        <span style="padding:2px 6px;border-radius:3px;font-size:6pt;font-weight:700;
+          background:${st.bg};border:1px solid ${st.border};color:${st.color};">${st.label}</span>
+      </td>
+    </tr>`;
+  }).join('');
+
+  const thStyle = 'padding:5px 7px;text-align:left;font-size:6.5pt;font-weight:700;color:#fff;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;';
+  const thCStyle= thStyle + 'text-align:center;';
+  const tdStyle = 'padding:4px 7px;font-size:7pt;border-bottom:1px solid #eee;';
+
+  return `
+  <div class="print-page">
+    <!-- PAGE HEADER -->
+    <div style="display:flex;align-items:flex-start;padding-bottom:7px;margin-bottom:10px;border-bottom:2.5px solid #1a3a7a;">
+      <div style="flex:1;">
+        <div style="font-size:13pt;font-weight:800;color:#1a3a7a;letter-spacing:-.4px;line-height:1;">
+          LANTAKA RESERVATION SYSTEM</div>
+        <div style="font-size:8pt;color:#555;margin-top:3px;font-weight:500;">
+          Complete Reservation List &nbsp;·&nbsp; <strong>${label}</strong> &nbsp;·&nbsp;
+          ${sorted.length} record${sorted.length !== 1 ? 's' : ''}
+        </div>
+      </div>
+      <div style="text-align:right;flex-shrink:0;padding-left:12px;">
+        <div style="font-size:8pt;font-weight:700;color:#1a3a7a;">Page ${pageNum} / ${totalPages}</div>
+        <div style="font-size:6.5pt;color:#bbb;margin-top:2px;">CONFIDENTIAL</div>
+      </div>
+    </div>
+
+    <!-- FULL DATA TABLE -->
+    <table style="width:100%;border-collapse:collapse;border:1px solid #ddd;border-radius:6px;overflow:hidden;font-family:inherit;">
+      <thead>
+        <tr style="background:#1a3a7a;">
+          <th style="${thCStyle}width:24px;">#</th>
+          <th style="${thStyle}">Client Name</th>
+          <th style="${thStyle}">Affiliation</th>
+          <th style="${thCStyle}">Type</th>
+          <th style="${thStyle}">Room / Venue</th>
+          <th style="${thCStyle}">Check-In</th>
+          <th style="${thCStyle}">Check-Out</th>
+          <th style="${thCStyle}">Nights</th>
+          <th style="${thCStyle}">Status</th>
+        </tr>
+      </thead>
+      <tbody style="${tdStyle}">
+        ${rows || `<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa;font-style:italic;">No reservations for this month.</td></tr>`}
+      </tbody>
+    </table>
+
+    <!-- FOOTER -->
+    <div style="display:flex;align-items:center;margin-top:8px;padding-top:5px;border-top:1px solid #eee;">
+      <span style="font-size:6pt;color:#888;">All times are local. Check-out date is exclusive (guest departs on that day).</span>
+      <span style="font-size:6pt;color:#bbb;margin-left:auto;">Lantaka Reservation Management System · ${new Date().getFullYear()}</span>
+    </div>
+  </div>`;
+}
+
+// ════════════════════════════════════════════════
+//  MAIN EXPORT TRIGGER
+// ════════════════════════════════════════════════
+
+function generateCalendarPrint() {
+  const month = parseInt(document.getElementById('exportMonthSel').value);
+  const year  = parseInt(document.getElementById('exportYearSel').value);
+  closeExportModal();
+
+  const mStart = new Date(year, month - 1, 1);
+  const mEnd   = new Date(year, month,     1);
+  const label  = `${MONTH_NAMES[month-1]} ${year}`;
+
+  // All reservations overlapping this month
+  const rsvs = RAW_RESERVATIONS.filter(r => {
+    const ci = parseDate(r.check_in);
+    const co = parseDate(r.check_out);
+    return ci < mEnd && co > mStart;
+  });
+
+  // 2 pages total: [1] Calendar grid  [2] Full data table
+  const totalPages = 2;
+  const calHtml   = buildCalendarPage(rsvs, month, year, 1, totalPages);
+  const tableHtml = buildDetailTablePage(rsvs, month, year, 2, totalPages);
+
+  const win = window.open('', '_blank', 'width=1200,height=900');
+  win.document.write(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Lantaka – Reservation Calendar · ${label}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    @page { size: A4 landscape; margin: 10mm 12mm; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Inter', Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+    .print-page {
+      width: 277mm;
+      min-height: 185mm;
+      display: flex;
+      flex-direction: column;
+      page-break-after: always;
+      break-after: page;
+    }
+    .print-page:last-child { page-break-after: avoid; break-after: avoid; }
+
+    @media screen {
+      body { background: #e0e0e0; padding: 60px 20px 40px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
+      .print-page { background: #fff; padding: 10mm 12mm; box-shadow: 0 4px 24px rgba(0,0,0,.18); border-radius: 3px; }
+      .screen-bar { position:fixed; top:0; left:0; right:0; background:#1a3a7a; color:#fff; padding:10px 20px; display:flex; align-items:center; gap:10px; z-index:999; font-size:13px; font-family:'Inter',Arial,sans-serif; }
+      .s-btn { padding:6px 16px; border-radius:7px; border:none; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit; }
+      .s-btn.primary { background:#fff; color:#1a3a7a; }
+      .s-btn.ghost { background:rgba(255,255,255,.12); color:#fff; border:1px solid rgba(255,255,255,.3); }
+    }
+    @media print { .screen-bar { display:none !important; } body { background:#fff; padding:0; display:block; } }
+  </style>
+</head>
+<body>
+  <div class="screen-bar">
+    <strong>📅 Lantaka — ${label} Reservation Calendar</strong>
+    <span style="opacity:.65;">2 pages &nbsp;·&nbsp; Page 1: Calendar View &nbsp;·&nbsp; Page 2: Complete Data Table</span>
+    <span style="flex:1;"></span>
+    <button class="s-btn primary" onclick="window.print()">🖨&nbsp; Print / Save as PDF</button>
+    <button class="s-btn ghost"   onclick="window.close()">✕ Close</button>
+  </div>
+  ${calHtml}
+  ${tableHtml}
+</body>
+</html>`);
+  win.document.close();
+}
+
+/* ── Wire export button ── */
+document.getElementById('exportBtn').addEventListener('click', openExportModal);
+
+// ════════════════════════════════════════════════
+//  BOOT
+// ════════════════════════════════════════════════
+renderStats();
+render();
+
+// Auto-scroll so "today" is visible on load
+requestAnimationFrame(() => {
+  const right   = document.getElementById('ganttRight');
+  const todayPx = daysBetween(rangeStart, TODAY) * DAY_W;
+  right.scrollLeft = Math.max(0, todayPx - right.clientWidth / 3);
+});
+</script>
+</body>
+</html>
