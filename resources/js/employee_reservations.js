@@ -190,6 +190,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       updateSoaLink(data.userId);
 
+      // Load cancellation request banner (if any pending request for this reservation)
+      if (typeof loadCancellationBanner === 'function') {
+        loadCancellationBanner(data.id, data.res_type, data.status);
+      }
+
       const currentStatus  = data.status          ? data.status.toLowerCase().trim()          : '';
       const currentPayment = data.payment_status  ? data.payment_status.toLowerCase().trim() : '';
 
