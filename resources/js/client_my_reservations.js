@@ -138,8 +138,22 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelSection.style.display = showCancel ? '' : 'none';
 
         if (showCancel) {
-          // Fetch any existing cancellation request for this reservation
-          fetchCancellationState(data.real_id, data.type);
+          const cancelStatus = (data.cancellation_status || '').toLowerCase();
+          if (cancelStatus === 'pending') {
+            // Already know it's pending from server-rendered data — apply immediately, no AJAX needed
+            _cancelResId   = data.real_id;
+            _cancelResType = data.type;
+            setCancelState('crmCancelPending');
+          } else if (cancelStatus === 'rejected') {
+            _cancelResId   = data.real_id;
+            _cancelResType = data.type;
+            setCancelState('crmCancelRejected');
+          } else {
+            // No cancellation request yet — just show idle
+            _cancelResId   = data.real_id;
+            _cancelResType = data.type;
+            setCancelState('crmCancelIdle');
+          }
         }
       }
 
@@ -154,15 +168,62 @@ document.addEventListener('DOMContentLoaded', () => {
   let _cancelResType = null;
 
   function setCancelState(state, adminNote) {
-    const ids = ['crmCancelIdle', 'crmCancelForm', 'crmCancelPending', 'crmCancelRejected'];
-    ids.forEach(id => { const e = el(id); if (e) e.style.display = 'none'; });
+    // Hide form and rejected panels; idle card is always shown (button state changes)
+    const hideIds = ['crmCancelForm', 'crmCancelRejected'];
+    hideIds.forEach(id => { const e = el(id); if (e) e.style.display = 'none'; });
 
-    const target = el(state);
-    if (target) target.style.display = '';
+    const idleDiv  = el('crmCancelIdle');
+    const idleCard = el('crmCancelIdleCard');
+    const idleBtn  = el('crmCancelOpenFormBtn');
+    const idleTitle = el('crmCancelIdleTitle');
+    const idleBody  = el('crmCancelIdleBody');
 
-    if (state === 'crmCancelRejected' && adminNote) {
-      const noteEl = el('crmCancelRejectedNote');
-      if (noteEl) noteEl.textContent = 'Your cancellation request was not approved. ' + adminNote;
+    // Always keep idle card visible
+    if (idleDiv) idleDiv.style.display = '';
+
+    if (state === 'crmCancelPending') {
+      // Disable the button, turn card amber, add "waiting" note
+      if (idleCard)  idleCard.classList.add('crm-cancel-idle--waiting');
+      if (idleTitle) idleTitle.textContent = 'Cancellation Pending';
+      if (idleBody)  idleBody.innerHTML =
+        '<span class="crm-waiting-pulse"></span> Your request is under review. We\'ll notify you of the outcome soon.';
+      if (idleBtn) {
+        idleBtn.disabled    = true;
+        idleBtn.textContent = '⏳ Waiting for Cancellation';
+        idleBtn.classList.add('crm-cancel-waiting');
+      }
+
+    } else if (state === 'crmCancelIdle') {
+      // Reset to normal idle state
+      if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
+      if (idleTitle) idleTitle.textContent = 'Need to cancel?';
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly.";
+      if (idleBtn) {
+        idleBtn.disabled    = false;
+        idleBtn.textContent = 'Request Cancellation';
+        idleBtn.classList.remove('crm-cancel-waiting');
+      }
+
+    } else if (state === 'crmCancelForm') {
+      const form = el('crmCancelForm');
+      if (form) form.style.display = '';
+
+    } else if (state === 'crmCancelRejected') {
+      const rejected = el('crmCancelRejected');
+      if (rejected) rejected.style.display = '';
+      // Reset idle card to normal so they can retry via the card below
+      if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
+      if (idleTitle) idleTitle.textContent = 'Need to cancel?';
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly.";
+      if (idleBtn) {
+        idleBtn.disabled    = false;
+        idleBtn.textContent = 'Request Cancellation';
+        idleBtn.classList.remove('crm-cancel-waiting');
+      }
+      if (adminNote) {
+        const noteEl = el('crmCancelRejectedNote');
+        if (noteEl) noteEl.textContent = 'Your cancellation request was not approved. ' + adminNote;
+      }
     }
   }
 
@@ -173,7 +234,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset to idle while loading
     setCancelState('crmCancelIdle');
 
-    fetch(`/employee/reservations/${resId}/cancellation-request?type=${resType}`, {
+    fetch(`/client/reservations/${resId}/cancellation-status?type=${resType}`, {
       headers: { 'Accept': 'application/json' },
     })
       .then(r => r.json())
@@ -259,6 +320,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
           if (data.success) {
             setCancelState('crmCancelPending');
+            // Show toast confirmation
+            if (typeof window.showToast === 'function') {
+              window.showToast('Cancellation request submitted. We\'ll review it shortly.', 'success');
+            }
           } else {
             if (errEl) {
               errEl.textContent   = data.message || 'Something went wrong. Please try again.';

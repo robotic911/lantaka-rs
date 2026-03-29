@@ -308,12 +308,7 @@ class RoomVenueController extends Controller
             $venues = $venues->filter(fn ($v) => $v->effective_status === strtolower($statusFilter));
         }
 
-        // Group food by category
-        $foods = Food::all()->groupBy(function ($item) {
-            return strtolower($item->Food_Category);
-        });
-
-        return view('employee.room_venue', compact('rooms', 'venues', 'foods', 'dateFrom', 'dateTo'));
+        return view('employee.room_venue', compact('rooms', 'venues', 'dateFrom', 'dateTo'));
         }
         public function show($category, $id)
         {

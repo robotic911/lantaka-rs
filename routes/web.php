@@ -32,7 +32,8 @@ Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('clie
 Route::get('/booking/prepare', [RoomVenueController::class, 'prepareBooking'])->name('booking.prepare');
 
 /* Food AJAX (used by both client and employee booking flows) */
-Route::get('/foods/ajax/list', [FoodController::class, 'getFoodsAjax'])->name('foods.ajax.list');
+Route::get('/foods/ajax/list',     [FoodController::class, 'getFoodsAjax'])->name('foods.ajax.list');
+Route::get('/foods/ajax/sets',     [FoodController::class, 'getFoodSetsAjax'])->name('foods.ajax.sets');
 Route::get('/view/{category}/{id}', [RoomVenueController::class, 'show'])->name('client.show');
 
 /* TEST ONLY — DO NOT TOUCH */
@@ -92,13 +93,21 @@ Route::middleware(['role:admin,staff'])->group(function () {
     Route::get('/employee/reservations/{id}/cancellation-request', [ReservationController::class, 'getCancellationRequest'])->name('employee.reservations.cancellationRequest');
     Route::post('/employee/cancellation-requests/{requestId}/process', [ReservationController::class, 'processCancellation'])->name('employee.cancellation.process');
 
+    /* ── Food Management Page (admin + staff can view; CRUD is admin-only) ── */
+    Route::get('/employee/food', [FoodController::class, 'showFoodManagementPage'])->name('employee.food');
+
     /* ── Admin Only: Room / Venue / Food CRUD ── */
     Route::middleware(['role:admin'])->group(function () {
         Route::put('/employee/room-venue/update', [RoomVenueController::class, 'update'])->name('room_venue.update');
         Route::post('/employee/room_venue/store', [RoomVenueController::class, 'store'])->name('room_venue.store');
-        Route::post('/employee/food/store', [FoodController::class, 'store'])->name('admin.food.store');
-        Route::put('/employee/food/{id}', [FoodController::class, 'update'])->name('admin.food.update');
+        // Individual food CRUD
+        Route::post('/employee/food/store',        [FoodController::class, 'store'])->name('admin.food.store');
+        Route::put('/employee/food/{id}',           [FoodController::class, 'update'])->name('admin.food.update');
         Route::delete('/employee/food/{id}/delete', [FoodController::class, 'destroy'])->name('admin.food.destroy');
+        // Food Set CRUD
+        Route::post('/employee/food-sets/store',         [FoodController::class, 'storeFoodSet'])->name('admin.food_set.store');
+        Route::put('/employee/food-sets/{id}',            [FoodController::class, 'updateFoodSet'])->name('admin.food_set.update');
+        Route::delete('/employee/food-sets/{id}/delete',  [FoodController::class, 'destroyFoodSet'])->name('admin.food_set.destroy');
     });
 });
 
@@ -118,6 +127,8 @@ Route::prefix('client')
 
         // Cancellation request (new flow: client submits a request, admin approves/rejects)
         Route::post('/reservations/{id}/request-cancellation', [ReservationController::class, 'requestCancellation'])->name('reservations.requestCancellation');
+        // Client checks their own cancellation request status
+        Route::get('/reservations/{id}/cancellation-status', [ReservationController::class, 'getClientCancellationStatus'])->name('reservations.cancellationStatus');
 
         // Account page
         Route::get('/account', [AccountController::class, 'showClientAccount'])->name('account');

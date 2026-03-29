@@ -229,6 +229,16 @@
   color:rgb(188, 125, 7);
 }
 
+/* Cancellation pending badge — amber/orange, distinct from all reservation statuses */
+.status-badge.client-cancel-req-badge {
+  background-color: #fed7aa;
+  color: #7c2d12;
+  border: 1px solid #fb923c;
+  font-size: 11px;
+  padding: 3px 10px;
+  width: auto;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-container {

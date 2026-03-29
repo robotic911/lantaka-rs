@@ -10,19 +10,26 @@ class RoomReservation extends Model
     protected $primaryKey = 'Room_Reservation_ID';
 
     protected $fillable = [
-        'Room_ID', // from'room_id', // Changed to lowercase to match migration
+        'Room_ID',
         'Client_ID',
         'Room_Reservation_Date',
         'Room_Reservation_Check_In_Time',
         'Room_Reservation_Check_Out_Time',
         'Room_Reservation_Total_Price',
-        'Room_Reservation_Pax', //from 'pax',
-        'Room_Reservation_Purpose', //from 'purpose',
-        'Room_Reservation_Discount', //from 'status',
-        'Room_Reservation_Status', //from 'status',
-        'Room_Reservation_Payment_Status', // from 'payment_status',
+        'Room_Reservation_Pax',
+        'Room_Reservation_Purpose',
+        'Room_Reservation_Discount',
+        'Room_Reservation_Status',
+        'Room_Reservation_Payment_Status',
         'Room_Reservation_Additional_Fees',
-        'Room_Reservation_Additional_Fees_Desc'
+        'Room_Reservation_Additional_Fees_Desc',
+        // Cancellation request fields (stored directly on the reservation row)
+        'cancellation_status',
+        'cancellation_reason',
+        'cancellation_admin_note',
+        'cancellation_processed_by',
+        'cancellation_requested_at',
+        'cancellation_processed_at',
     ];
 
     public function room() {

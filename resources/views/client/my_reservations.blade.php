@@ -97,8 +97,8 @@
                     }}
                 </td>
 
-              <td style="display:flex; align-items: center; justify-content:center; width:100%">
-                  {{-- Dynamic Class for Status Color (pending, confirmed, cancelled) --}}
+              <td style="display:flex; flex-direction:column; align-items: center; justify-content:center; width:100%; gap:4px;">
+                  {{-- Main reservation status badge --}}
                   @if($res->type === 'room' && $res->room)
                     <span class="status-badge {{ strtolower($res->Room_Reservation_Status) }}">
                         {{ ucfirst($res->Room_Reservation_Status) }}
@@ -107,6 +107,10 @@
                     <span class="status-badge {{ strtolower($res->Venue_Reservation_Status) }}">
                         {{ ucfirst($res->Venue_Reservation_Status) }}
                     </span>
+                  @endif
+                  {{-- Cancellation pending indicator --}}
+                  @if($res->cancellation_status === 'pending')
+                    <span class="status-badge client-cancel-req-badge">⏳ Cancel Req.</span>
                   @endif
               </td>
 
@@ -126,19 +130,20 @@
 
                 <button class="expand-button"
                     data-info="{{ json_encode([
-                        'real_id'        => $res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID,
-                        'display_id'     => str_pad($res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID, 5, '0', STR_PAD_LEFT),
-                        'type'           => $res->type,
-                        'accommodation'  => $accName,
-                        'pax'            => $res->pax,
-                        'check_in'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
-                        'check_out'      => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
-                        'check_in_raw'   => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
-                        'check_out_raw'  => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
-                        'total'          => number_format($res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0, 2),
-                        'payment_status' => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
-                        'foods'          => $res->foods,
-                        'status'         => $res->status,
+                        'real_id'             => $res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID,
+                        'display_id'          => str_pad($res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID, 5, '0', STR_PAD_LEFT),
+                        'type'                => $res->type,
+                        'accommodation'       => $accName,
+                        'pax'                 => $res->pax,
+                        'check_in'            => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
+                        'check_out'           => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
+                        'check_in_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
+                        'check_out_raw'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
+                        'total'               => number_format($res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0, 2),
+                        'payment_status'      => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
+                        'foods'               => $res->foods,
+                        'status'              => $res->status,
+                        'cancellation_status' => $res->cancellation_status,
                     ]) }}">
                     ⤡
                 </button>

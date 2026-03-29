@@ -17,6 +17,20 @@
             </div>
 
             <div class="status-cards">
+              {{-- ── Priority card: Cancel Requested (shown first, distinct orange-red) ── --}}
+              <a href="{{ request('status') == 'cancel_requested' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'cancel_requested'])) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card cancel-requested {{ request('status') == 'cancel_requested' ? 'active' : '' }}">
+                  <div class="status-label">
+                    ⚠ Cancel Requested
+                    @if(($cancelRequestedCount ?? 0) > 0)
+                      <span class="cancel-req-dot"></span>
+                    @endif
+                  </div>
+                  <div class="status-number">{{ $cancelRequestedCount ?? 0 }}</div>
+                </div>
+              </a>
+
               <a href="{{ request('status') == 'pending' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'pending'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card pending {{ request('status') == 'pending' ? 'active' : '' }}">
@@ -155,7 +169,7 @@
                       }
                   @endphp
 
-                  <tr>
+                  <tr class="{{ $reservation->cancellation_status === 'pending' ? 'row-cancel-requested' : '' }}">
                       <td class="name-cell">
                           <span class="user-icon">
                             <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
@@ -180,6 +194,9 @@
                               <span class="badge {{ strtolower($reservation->status) }}-badge">
                                   {{ ucfirst($reservation->status) }}
                               </span>
+                          @endif
+                          @if($reservation->cancellation_status === 'pending')
+                              <span class="badge cancel-req-badge">Cancel Req.</span>
                           @endif
                       </td>
 
@@ -216,7 +233,8 @@
                                       'purpose' => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
                                                             :($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
                                       'foods' => $reservation->foods ?? [],
-                                      'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null)
+                                      'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
+                                      'cancellation_status' => $reservation->cancellation_status,
                                   ]) }}">
                               ⤢
                           </button>

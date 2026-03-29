@@ -362,8 +362,9 @@
   }
 
   /* ── Employee: cancellation request banner ── */
-  let _empCancelReqId   = null;  // current cancellation_requests.id
-  let _empCancelResId   = null;  // reservation id
+  // _empCancelReqId is now the reservation ID (no separate cancellation_requests table)
+  let _empCancelReqId   = null;  // reservation id (used as route param for process endpoint)
+  let _empCancelResId   = null;  // reservation id (same value, kept for clarity)
   let _empCancelResType = null;  // 'room' | 'venue'
 
   /**
@@ -452,7 +453,7 @@
         'Accept'       : 'application/json',
         'X-CSRF-TOKEN' : csrf,
       },
-      body: JSON.stringify({ decision, admin_note: adminNote }),
+      body: JSON.stringify({ decision, admin_note: adminNote, res_type: _empCancelResType }),
     })
       .then(r => r.json())
       .then(data => {
@@ -463,15 +464,25 @@
           // Hide action buttons
           if (rejectBtn)  rejectBtn.style.display  = 'none';
           if (approveBtn) approveBtn.style.display = 'none';
-          // If approved, refresh the page after a brief delay to reflect new status
+          // Toast notification
           if (decision === 'approved') {
-            setTimeout(() => window.location.reload(), 1500);
+            if (typeof window.showToast === 'function') {
+              window.showToast('Cancellation approved. Confirmation email sent to client.', 'success');
+            }
+            setTimeout(() => window.location.reload(), 1800);
+          } else {
+            if (typeof window.showToast === 'function') {
+              window.showToast('Cancellation request rejected.', 'warning');
+            }
           }
         } else {
           msgEl.textContent   = data.message || 'Something went wrong.';
           msgEl.className     = 'emp-cancel-banner-msg error';
           msgEl.style.display = '';
           if (approveBtn) approveBtn.disabled = false;
+          if (typeof window.showToast === 'function') {
+            window.showToast(data.message || 'Something went wrong.', 'error');
+          }
         }
       })
       .catch(() => {
@@ -479,6 +490,9 @@
         msgEl.className     = 'emp-cancel-banner-msg error';
         msgEl.style.display = '';
         if (approveBtn) approveBtn.disabled = false;
+        if (typeof window.showToast === 'function') {
+          window.showToast('Network error. Please try again.', 'error');
+        }
       });
   }
 </script>

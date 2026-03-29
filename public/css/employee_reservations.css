@@ -99,6 +99,40 @@
   border-left: 4px solid var(--status-color);
 }
 
+/* ── Cancel Requested — distinct orange-amber priority card ── */
+.status-card.cancel-requested {
+  --status-color: #f97316;
+  border-left: 4px solid var(--status-color);
+  background: linear-gradient(135deg, #fff7ed 0%, #ffffff 60%);
+}
+
+.status-card.cancel-requested .status-label {
+  color: #9a3412;
+  font-weight: 700;
+  position: relative;
+}
+
+.status-card.cancel-requested .status-number {
+  color: #c2410c;
+}
+
+/* Pulsing dot indicator */
+.cancel-req-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  background: #ef4444;
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .5; transform: scale(1.4); }
+}
+
 .status-card.active {
   border-color: var(--status-color);
 }
@@ -257,6 +291,32 @@
 
 .rejected-badge {
   background-color: #f58c8c;
+}
+
+/* Row highlight for cancel-requested reservations */
+tr.row-cancel-requested {
+  background-color: #fff7ed !important;
+  border-left: 3px solid #f97316;
+}
+
+tr.row-cancel-requested:hover {
+  background-color: #ffedd5 !important;
+}
+
+/* Inline cancel-requested row badge */
+.cancel-req-badge {
+  background-color: #fed7aa;
+  color: #7c2d12;
+  border: 1px solid #fb923c;
+  margin-top: 4px;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-weight: 700;
+  display: flex;
+  width: 100px;
+  justify-content: center;
+  align-items: center;
 }
 
 .action-cell {

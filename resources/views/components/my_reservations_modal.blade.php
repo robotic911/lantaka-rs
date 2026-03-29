@@ -79,11 +79,11 @@
         {{-- Cancellation request section — shown for pending / confirmed reservations --}}
         <div id="crmCancelSection" style="display:none;">
 
-          {{-- STATE: idle — show the "Request Cancellation" button --}}
+          {{-- STATE: idle / pending — same card, button changes state --}}
           <div id="crmCancelIdle">
-            <div class="crm-cancel-idle-card">
-              <p class="crm-cancel-idle-title">Need to cancel?</p>
-              <p class="crm-cancel-idle-body">
+            <div class="crm-cancel-idle-card" id="crmCancelIdleCard">
+              <p class="crm-cancel-idle-title" id="crmCancelIdleTitle">Need to cancel?</p>
+              <p class="crm-cancel-idle-body" id="crmCancelIdleBody">
                 You can submit a cancellation request and our team will review it shortly.
               </p>
               <button type="button" id="crmCancelOpenFormBtn" class="crm-cancel-open-btn">
@@ -106,17 +106,6 @@
               <div class="crm-cancel-form-actions">
                 <button type="button" id="crmCancelBackBtn"   class="crm-cancel-back-btn">Back</button>
                 <button type="button" id="crmCancelSubmitBtn" class="crm-cancel-submit-btn">Submit Request</button>
-              </div>
-            </div>
-          </div>
-
-          {{-- STATE: pending (already submitted, awaiting admin) --}}
-          <div id="crmCancelPending" style="display:none;">
-            <div class="crm-cancel-status-card crm-cancel-status--pending">
-              <span class="crm-cancel-status-icon">⏳</span>
-              <div>
-                <p class="crm-cancel-status-title">Cancellation Requested</p>
-                <p class="crm-cancel-status-body">Your request is under review. We'll notify you of the outcome soon.</p>
               </div>
             </div>
           </div>
@@ -434,9 +423,49 @@
   padding: 6px 14px;
   cursor: pointer;
   letter-spacing: .3px;
-  transition: background .15s;
+  transition: background .15s, opacity .15s;
 }
-.crm-cancel-open-btn:hover { background: #b91c1c; }
+.crm-cancel-open-btn:hover:not(:disabled) { background: #b91c1c; }
+
+/* Disabled waiting state — keeps red but muted + not-allowed cursor */
+.crm-cancel-open-btn:disabled,
+.crm-cancel-open-btn.crm-cancel-waiting {
+  background: #dc2626;
+  opacity: .65;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Idle card turns orange-amber border when in waiting state */
+.crm-cancel-idle-card.crm-cancel-idle--waiting {
+  background: #fff7ed;
+  border-color: #f97316;
+}
+.crm-cancel-idle-card.crm-cancel-idle--waiting .crm-cancel-idle-title {
+  color: #9a3412;
+}
+.crm-cancel-waiting-note {
+  font-size: 11px;
+  color: #c2410c;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.crm-waiting-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f97316;
+  display: inline-block;
+  animation: crmWaitPulse 1.4s ease-in-out infinite;
+  flex-shrink: 0;
+}
+@keyframes crmWaitPulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: .4; transform: scale(1.5); }
+}
 
 /* Form card */
 .crm-cancel-form-card {

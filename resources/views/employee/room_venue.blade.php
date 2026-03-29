@@ -2,8 +2,6 @@
   <title>Rooms / Venue - Lantaka</title>
   <link rel="stylesheet" href="{{asset('css/employee_room_venue.css')}}">
 
-  @vite('resources/js/employee_food.js')
-  @vite('resources/js/employee_add_food.js')
   @vite('resources/js/employee/create_reservation.js')
   @vite('resources/js/employee_rv_viewing_modal.js')
 
@@ -37,7 +35,6 @@
       </form>
 
       <div class="button-section">
-        <button class="btn btn-secondary" id="food_button">Food Menu</button>
         @if(auth()->user()->Account_Role === 'admin')
           <button class="btn btn-primary" id="add_room_venue_button">Add Room/Venue</button>
         @endif
@@ -243,7 +240,6 @@
   <x-add_room_venue/>
   <x-create_reservation_modal/>
   <x-employee_rv_viewing_modal/>
-  <x-employee_food :foods="$foods" />
 
 <script>
   (function () {

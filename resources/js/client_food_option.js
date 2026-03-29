@@ -1,569 +1,376 @@
-document.addEventListener('DOMContentLoaded', () => {
-  const masterWrap = document.querySelector('.food-toggle-section .toggle-buttons')
-  const masterBtns = document.querySelectorAll('.food-toggle-section .toggle-btn')
-  const mealSections = document.querySelectorAll('.meal-section')
-
-  // ---------- NEW VARIABLES FOR PRICING ----------
-  const displayTotalPrice = document.getElementById('displayTotalPrice')
-  const paxValueInput = document.getElementById('paxValue')
-  let pax = parseInt(paxValueInput?.value) || 1
-
-  // ---------- NEW FUNCTION: Calculate Total ----------
-  const calculateTotal = () => {
-    let grandTotal = 0; // Changed this to just be the grand total
-
-    // Loop through all currently selected items and add their flat price
-    document.querySelectorAll('.food-item.selected').forEach(item => {
-      const checkbox = item.querySelector('.food-checkbox');
-      if (checkbox) {
-        grandTotal += parseFloat(checkbox.getAttribute('data-price')) || 0;
-      }
-    });
-
-    // We completely removed the " * pax " multiplication here!
-
-    // Update the UI
-    if (displayTotalPrice) {
-      displayTotalPrice.textContent = '₱ ' + grandTotal.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2
-      });
-    }
-  }
-
-  // ---------- helpers ----------
-  const setActiveBtn = (btn, wrap) => {
-    wrap.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'))
-    btn.classList.add('active')
-  }
-
-  const isMasterYes = () => {
-    const active = document.querySelector('.food-toggle-section .toggle-btn.active')
-    return active && active.textContent.trim().toLowerCase() === 'yes'
-  }
-
-  function setMealEnabled(meal, enabled) {
-    meal.dataset.enabled = enabled ? '1' : '0'
-
-    const pill = meal.querySelector('.toggle-status')
-    if (pill) {
-      pill.textContent = enabled ? 'Yes' : 'No'
-      pill.classList.toggle('active', !enabled)
-    }
-
-    meal.querySelectorAll('.food-item').forEach(item => {
-      item.classList.toggle('unavailable', !enabled);
-      if (!enabled) {
-        item.classList.remove('selected'); // This is good!
-        const checkbox = item.querySelector('.food-checkbox');
-        if (checkbox) checkbox.checked = false;
-      }
-    });
-    calculateTotal();
-  }
-
-  function setAllMeals(enabled) {
-    mealSections.forEach(meal => setMealEnabled(meal, enabled))
-  }
-
-  // ---------- DEFAULT STATE ----------
-  if (masterWrap && masterBtns.length) {
-    const yesBtn = [...masterBtns].find(b => b.textContent.trim().toLowerCase() === 'yes')
-    if (yesBtn) setActiveBtn(yesBtn, masterWrap)
-  }
-
-  setAllMeals(true)
-
-  document.querySelectorAll('.food-item').forEach(item => {
-    item.classList.remove('selected')
-    item.classList.remove('unavailable')
-  })
-
-  // ---------- MULTI-SELECT (per row) ----------
-  document.querySelectorAll('.food-items').forEach(row => {
-    row.addEventListener('click', (e) => {
-      // Prevent default label click so we can manually control the checkbox
-      e.preventDefault();
-
-      const item = e.target.closest('.food-item')
-      if (!item) return
-      if (item.classList.contains('unavailable')) return
-
-      // Toggle visual class
-      item.classList.toggle('selected')
-
-      // Toggle the actual hidden checkbox so it submits correctly
-      const checkbox = item.querySelector('.food-checkbox')
-      if (checkbox) {
-        checkbox.checked = item.classList.contains('selected');
-      }
-
-      // Update the price!
-      calculateTotal();
-    })
-  })
-
-  // ---------- PER-MEAL TOGGLE (only affects that row) ----------
-  mealSections.forEach(meal => {
-    const pill = meal.querySelector('.toggle-status')
-    if (!pill) return
-
-    pill.addEventListener('click', () => {
-      if (!isMasterYes()) return
-
-      const enabled = meal.dataset.enabled === '1'
-      setMealEnabled(meal, !enabled)
-    })
-  })
-
-  // ---------- MASTER "Include Food" toggle ----------
-  masterBtns.forEach(btn => {
-    btn.addEventListener('click', () => {
-      if (!masterWrap) return
-
-      setActiveBtn(btn, masterWrap)
-      const yes = btn.textContent.trim().toLowerCase() === 'yes'
-
-      if (!yes) {
-        setAllMeals(false)
-      } else {
-        setAllMeals(true)
-      }
-    })
-  })
-
-  // Run calculation once on page load just to be safe
-  calculateTotal();
-})
-
-// ---------- DATE SELECTOR MODAL LOGIC ----------
-document.addEventListener('DOMContentLoaded', () => {
-  const openBtn = document.querySelector('.date-select-btn')
-
-  const overlay = document.getElementById('foodDateOverlay')
-  const closeBtn = document.getElementById('foodDateClose')
-  const confirmBtn = document.getElementById('foodDateConfirm')
-
-  const dateList = document.getElementById('foodDateList')
-  const errorEl = document.getElementById('foodDateError')
-
-  const hiddenInput = document.getElementById('foodServiceDate')
-
-  let selectedDate = '' // ISO YYYY-MM-DD
-
-  const openModal = () => {
-    if (!overlay) return
-    overlay.classList.add('show')
-    overlay.setAttribute('aria-hidden', 'false')
-
-    errorEl && (errorEl.style.display = 'none')
-  }
-
-  const closeModal = () => {
-    if (!overlay) return
-    overlay.classList.remove('show')
-    overlay.setAttribute('aria-hidden', 'true')
-  }
-
-  openBtn?.addEventListener('click', openModal)
-  closeBtn?.addEventListener('click', closeModal)
-
-  overlay?.addEventListener('click', (e) => {
-    if (e.target === overlay) closeModal()
-  })
-
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && overlay?.classList.contains('show')) closeModal()
-  })
-
-  dateList?.addEventListener('click', (e) => {
-    const chip = e.target.closest('.fooddate-chip')
-    if (!chip) return
-
-    dateList.querySelectorAll('.fooddate-chip').forEach(c => c.classList.remove('selected'))
-    chip.classList.add('selected')
-
-    selectedDate = chip.dataset.date || ''
-    if (errorEl) errorEl.style.display = 'none'
-  })
-
-  confirmBtn?.addEventListener('click', () => {
-    if (!selectedDate) {
-      if (errorEl) {
-        errorEl.textContent = 'Please select a date.'
-        errorEl.style.display = 'block'
-      }
-      return
-    }
-
-    if (hiddenInput) hiddenInput.value = selectedDate
-
-    if (openBtn) openBtn.textContent = `Food Date: ${selectedDate}`
-
-    closeModal()
-  })
-})
-
-
-
-
-
-
-
-
+/**
+ * client_food_option.js
+ * Handles the Food Reservation page:
+ *  – Loads individual foods (by category) and food sets (by meal time) via AJAX
+ *  – Manages per-date "Include Food" toggle
+ *  – Manages per-meal "Include" checkbox
+ *  – Manages per-meal mode switcher (Individual ↔ Set)
+ *  – Calculates running food total (per-pax × pax count)
+ *  – Restores previous selections when editing a cart item
+ */
 
 document.addEventListener('DOMContentLoaded', function () {
 
-  const dateCards = document.querySelectorAll('.reservation-card');
-  let foodsData = {};
+  /* ── AJAX data stores ───────────────────────────────────────── */
+  let foodsData    = {};   // { category: [{ Food_ID, Food_Name, Food_Price }] }
+  let foodSetsData = {};   // { meal_time: [{ Food_Set_ID, Food_Set_Name, Food_Set_Price }] }
 
-  async function fetchFoods() {
+  /* ── DOM helpers ────────────────────────────────────────────── */
+  const dateCards    = document.querySelectorAll('.reservation-card');
+  const displayTotal = document.getElementById('displayTotalPrice');
+  const paxValue     = document.getElementById('paxValue');
 
-      try {
-          const response = await fetch(window.foodAjaxUrl, {
-              headers: {
-                  'X-Requested-With': 'XMLHttpRequest',
-                  'Accept': 'application/json'
-              }
-          });
+  /* ─────────────────────────────────────────────────────────────
+     1. FETCH FOODS & SETS IN PARALLEL, THEN WIRE UP
+  ───────────────────────────────────────────────────────────── */
+  async function fetchAll() {
+    try {
+      const [foodsRes, setsRes] = await Promise.all([
+        fetch(window.foodAjaxUrl,     { headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' } }),
+        fetch(window.foodSetsAjaxUrl, { headers: { 'X-Requested-With': 'XMLHttpRequest', Accept: 'application/json' } }),
+      ]);
 
-          if (!response.ok) {
-              throw new Error('Failed to fetch foods');
-          }
+      if (!foodsRes.ok) throw new Error('Failed to fetch foods');
+      if (!setsRes.ok)  throw new Error('Failed to fetch food sets');
 
-          foodsData = await response.json();
+      foodsData    = await foodsRes.json();   // { category → [...] }
+      foodSetsData = await setsRes.json();    // { meal_time → [...] }
 
-          populateFoodSelects();
-          restorePreviousSelections(); // re-apply old selections if coming from Edit
-          bindSelectEvents();
-          initializeMealRows();
-          updateTotal();
+      populateIndividualSelects();
+      populateSetSelects();
+      initializeMealRows();
+      restorePreviousSelections();
+      updateTotal();
 
-      } catch (error) {
+    } catch (err) {
+      console.error('Food fetch error:', err);
+      document.querySelectorAll('.food-select').forEach(s => {
+        s.innerHTML  = '<option value="">Failed to load</option>';
+        s.disabled   = true;
+        s.closest('.food-cell')?.classList.add('cell-disabled');
+      });
+      document.querySelectorAll('.food-set-select').forEach(s => {
+        s.innerHTML = '<option value="">Failed to load</option>';
+        s.disabled  = true;
+      });
+    }
+  }
 
-          console.error('Error fetching foods:', error);
+  /* ─────────────────────────────────────────────────────────────
+     2. POPULATE INDIVIDUAL FOOD SELECTS
+  ───────────────────────────────────────────────────────────── */
+  function populateIndividualSelects() {
+    document.querySelectorAll('.food-select').forEach(select => {
+      const cat   = (select.dataset.category || '').toLowerCase();
+      const items = foodsData[cat] || [];
 
-          document.querySelectorAll('.food-select').forEach(select => {
-              select.innerHTML = '<option value="">Failed to load</option>';
-              select.disabled = true;
-              select.closest('.food-cell')?.classList.add('cell-disabled');
-          });
+      select.innerHTML = '';
+      select.appendChild(makeOption('', 'None'));
 
+      if (!items.length) {
+        select.disabled = true;
+        select.closest('.food-cell')?.classList.add('cell-disabled');
+        return;
       }
-  }
+      select.closest('.food-cell')?.classList.remove('cell-disabled');
 
-  function populateFoodSelects() {
-
-      document.querySelectorAll('.food-select').forEach(select => {
-
-          const category = (select.dataset.category || '').toLowerCase();
-          const categoryFoods = foodsData[category] || [];
-
-          select.innerHTML = '';
-
-          const defaultOption = document.createElement('option');
-          defaultOption.value = '';
-          defaultOption.textContent = 'None';
-          select.appendChild(defaultOption);
-
-          if (!categoryFoods.length) {
-
-              select.disabled = true;
-              select.closest('.food-cell')?.classList.add('cell-disabled');
-              return;
-
-          }
-
-          select.closest('.food-cell')?.classList.remove('cell-disabled');
-
-          categoryFoods.forEach(food => {
-
-              const option = document.createElement('option');
-              option.value = food.Food_ID;
-              option.dataset.price = food.Food_Price;
-
-              option.textContent =
-                  `${food.Food_Name} - ₱${parseFloat(food.Food_Price).toFixed(2)}`;
-
-              select.appendChild(option);
-
-          });
-
+      items.forEach(food => {
+        const opt       = makeOption(food.Food_ID, `${food.Food_Name} — ₱${parseFloat(food.Food_Price).toFixed(2)}`);
+        opt.dataset.price = food.Food_Price;
+        select.appendChild(opt);
       });
 
+      select.addEventListener('change', updateTotal);
+    });
   }
 
+  /* ─────────────────────────────────────────────────────────────
+     3. POPULATE FOOD SET SELECTS (one per meal-row)
+  ───────────────────────────────────────────────────────────── */
+  function populateSetSelects() {
+    document.querySelectorAll('.food-set-select').forEach(select => {
+      const meal  = (select.dataset.meal || '').toLowerCase();
+      const items = foodSetsData[meal] || [];
 
-  function bindSelectEvents() {
+      select.innerHTML = '';
+      select.appendChild(makeOption('', 'No set'));
 
-      document.querySelectorAll('.food-select').forEach(select => {
-          select.addEventListener('change', updateTotal);
-      });
+      if (!items.length) {
+        const na = makeOption('', 'No sets available for this meal');
+        na.disabled = true;
+        select.appendChild(na);
+      } else {
+        items.forEach(set => {
+          const opt       = makeOption(set.Food_Set_ID, `${set.Food_Set_Name} — ₱${parseFloat(set.Food_Set_Price).toFixed(2)}/pax`);
+          opt.dataset.price = set.Food_Set_Price;
+          select.appendChild(opt);
+        });
+      }
 
+      select.addEventListener('change', updateTotal);
+    });
   }
 
-
+  /* ─────────────────────────────────────────────────────────────
+     4. TOTAL CALCULATION
+  ───────────────────────────────────────────────────────────── */
   function updateTotal() {
-
-      let total = 0;
-
-      document.querySelectorAll('.reservation-card').forEach(card => {
-
-          const isFoodEnabled =
-              card.querySelector('.food-enabled-input')?.value === '1';
-
-          if (!isFoodEnabled) return;
-
-          card.querySelectorAll('.meal-row').forEach(row => {
-
-              if (row.classList.contains('row-disabled')) return;
-
-              row.querySelectorAll('.food-select').forEach(select => {
-
-                  if (select.disabled) return;
-
-                  const selectedOption =
-                      select.options[select.selectedIndex];
-
-                  if (selectedOption && selectedOption.value) {
-
-                      total += parseFloat(
-                          selectedOption.dataset.price || 0
-                      );
-
-                  }
-
-              });
-
-          });
-
-      });
-
-      const pax =
-          parseInt(document.getElementById('paxValue')?.value || 1);
-
-      const displayTotal =
-          document.getElementById('displayTotalPrice');
-
-      if (displayTotal) {
-
-          displayTotal.textContent =
-              '₱ ' + (total * pax).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2
-              });
-
-      }
-
-  }
-
-
-  function updateMealRowState(checkbox) {
-
-      const date = checkbox.dataset.date;
-      const meal = checkbox.dataset.meal;
-
-      const row =
-          document.querySelector(`[data-meal-row="${date}-${meal}"]`);
-
-      if (!row) return;
-
-      const hiddenInput = row.querySelector('.meal-enabled-hidden');
-      const selects = row.querySelectorAll('.food-select');
-
-      if (checkbox.checked) {
-
-          row.classList.remove('row-disabled');
-          hiddenInput.value = '1';
-
-          selects.forEach(select => {
-
-              if (!select.closest('.food-cell')
-                  .classList.contains('cell-disabled')) {
-
-                  select.disabled = false;
-
-              }
-
-          });
-
-      } else {
-
-          row.classList.add('row-disabled');
-          hiddenInput.value = '0';
-
-          selects.forEach(select => {
-
-              select.value = '';
-              select.disabled = true;
-
-          });
-
-      }
-
-      updateTotal();
-
-  }
-
-
-  function updateCardFoodState(card, enabled) {
-
-      const hidden =
-          card.querySelector('.food-enabled-input');
-
-      if (hidden)
-          hidden.value = enabled ? '1' : '0';
-
-      const yesBtn =
-          card.querySelector('[data-toggle="yes"]');
-
-      const noBtn =
-          card.querySelector('[data-toggle="no"]');
-
-      if (enabled) {
-
-          yesBtn?.classList.add('active');
-          noBtn?.classList.remove('active');
-
-          card.classList.remove('food-disabled-card');
-
-          card.querySelectorAll('.meal-toggle-checkbox')
-              .forEach(checkbox => {
-
-                  checkbox.disabled = false;
-                  updateMealRowState(checkbox);
-
-              });
-
-      } else {
-
-          noBtn?.classList.add('active');
-          yesBtn?.classList.remove('active');
-
-          card.classList.add('food-disabled-card');
-
-          card.querySelectorAll('.meal-toggle-checkbox')
-              .forEach(checkbox => {
-
-                  checkbox.disabled = true;
-
-              });
-
-          card.querySelectorAll('.meal-row')
-              .forEach(row => {
-
-                  row.classList.add('row-disabled');
-
-                  const hiddenInput =
-                      row.querySelector('.meal-enabled-hidden');
-
-                  if (hiddenInput)
-                      hiddenInput.value = '0';
-
-                  row.querySelectorAll('.food-select')
-                      .forEach(select => {
-
-                          select.value = '';
-                          select.disabled = true;
-
-                      });
-
-              });
-
-      }
-
-      updateTotal();
-
-  }
-
-
-  function initializeMealRows() {
-
-      document.querySelectorAll('.meal-toggle-checkbox')
-          .forEach(checkbox => {
-
-              updateMealRowState(checkbox);
-
-              checkbox.addEventListener('change', function () {
-                  updateMealRowState(this);
-              });
-
-          });
-
-      dateCards.forEach(card => {
-
-          const yesBtn =
-              card.querySelector('[data-toggle="yes"]');
-
-          const noBtn =
-              card.querySelector('[data-toggle="no"]');
-
-          yesBtn?.addEventListener('click', function () {
-              updateCardFoodState(card, true);
-          });
-
-          noBtn?.addEventListener('click', function () {
-              updateCardFoodState(card, false);
-          });
-
-      });
-
-  }
-
-  // Restore previous food selections (only set when coming from Edit cart)
-  function restorePreviousSelections() {
-      const prev         = window.previousFoodSelections || {};
-      const foodEnabled  = window.previousFoodEnabled    || {};
-      const mealEnabled  = window.previousMealEnabled    || {};
-
-      if (!Object.keys(prev).length && !Object.keys(foodEnabled).length) return;
-
-      document.querySelectorAll('.reservation-card').forEach(card => {
-          const date = card.dataset.date;
-          if (!date) return;
-
-          // Restore food-disabled state for this date
-          if (foodEnabled[date] === '0') {
-              const noBtn = card.querySelector('[data-toggle="no"]');
-              if (noBtn) noBtn.click();
-              return;
+    let subtotal = 0;
+    const pax    = parseInt(paxValue?.value || 1);
+
+    document.querySelectorAll('.reservation-card').forEach(card => {
+      if (card.querySelector('.food-enabled-input')?.value !== '1') return;
+
+      card.querySelectorAll('.meal-row').forEach(row => {
+        if (row.classList.contains('row-disabled')) return;
+
+        const mode = row.dataset.mode || 'individual';
+
+        if (mode === 'set') {
+          // Only the selected food set contributes
+          const setSelect = row.querySelector('.food-set-select');
+          if (setSelect && !setSelect.disabled && setSelect.value) {
+            const opt = setSelect.options[setSelect.selectedIndex];
+            subtotal += parseFloat(opt.dataset.price || 0);
           }
-
-          const dateMeals = prev[date] || {};
-
-          Object.entries(dateMeals).forEach(([mealType, categories]) => {
-              // Restore disabled meal rows
-              const isMealEnabled = (mealEnabled[date]?.[mealType] ?? '1') !== '0';
-              if (!isMealEnabled) {
-                  const checkbox = card.querySelector(
-                      `.meal-toggle-checkbox[data-date="${date}"][data-meal="${mealType}"]`
-                  );
-                  if (checkbox && checkbox.checked) {
-                      checkbox.checked = false;
-                      checkbox.dispatchEvent(new Event('change'));
-                  }
-                  return;
-              }
-
-              // Restore selected food per category
-              if (categories && typeof categories === 'object') {
-                  Object.entries(categories).forEach(([category, foodId]) => {
-                      if (!foodId) return;
-                      const select = card.querySelector(
-                          `select[name="food_selections[${date}][${mealType}][${category}]"]`
-                      );
-                      if (select) {
-                          select.value = String(foodId);
-                          select.dispatchEvent(new Event('change'));
-                      }
-                  });
-              }
+        } else {
+          // Individual mode: sum each category select
+          row.querySelectorAll('.food-select').forEach(select => {
+            if (select.disabled || !select.value) return;
+            const opt = select.options[select.selectedIndex];
+            subtotal += parseFloat(opt.dataset.price || 0);
           });
+        }
       });
+    });
 
-      updateTotal();
+    if (displayTotal) {
+      displayTotal.textContent = '₱ ' + (subtotal * pax).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+    }
   }
 
-  fetchFoods();
+  /* ─────────────────────────────────────────────────────────────
+     5. MEAL ROW STATE (enabled / disabled)
+  ───────────────────────────────────────────────────────────── */
+  function setMealRowEnabled(checkbox) {
+    const date    = checkbox.dataset.date;
+    const meal    = checkbox.dataset.meal;
+    const row     = document.querySelector(`[data-meal-row="${date}-${meal}"]`);
+    if (!row) return;
+
+    const hidden  = row.querySelector('.meal-enabled-hidden');
+    const enabled = checkbox.checked;
+
+    if (hidden) hidden.value = enabled ? '1' : '0';
+
+    if (enabled) {
+      row.classList.remove('row-disabled');
+      // Re-enable selects based on current mode
+      applyModeToRow(row, row.dataset.mode || 'individual');
+    } else {
+      row.classList.add('row-disabled');
+      row.querySelectorAll('.food-select, .food-set-select').forEach(s => {
+        s.value   = '';
+        s.disabled = true;
+      });
+      row.querySelectorAll('.mode-btn').forEach(b => b.disabled = true);
+    }
+    updateTotal();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     6. MODE SWITCHER (Individual ↔ Set) per meal row
+  ───────────────────────────────────────────────────────────── */
+  function applyModeToRow(row, mode) {
+    row.dataset.mode = mode;
+
+    const modeHidden   = row.querySelector('.meal-mode-hidden');
+    if (modeHidden) modeHidden.value = mode;
+
+    const indivCells   = row.querySelectorAll('.indiv-cell');
+    const setCells     = row.querySelectorAll('.set-cell');
+    const indivSelects = row.querySelectorAll('.food-select');
+    const setSelect    = row.querySelector('.food-set-select');
+
+    if (mode === 'set') {
+      indivCells.forEach(c => (c.style.display = 'none'));
+      setCells.forEach(c   => (c.style.display = ''));
+      indivSelects.forEach(s => { s.disabled = true;  s.value = ''; });
+      if (setSelect && !row.classList.contains('row-disabled')) {
+        setSelect.disabled = false;
+      }
+    } else {
+      indivCells.forEach(c => (c.style.display = ''));
+      setCells.forEach(c   => (c.style.display = 'none'));
+      if (setSelect) { setSelect.disabled = true; setSelect.value = ''; }
+      indivSelects.forEach(s => {
+        if (!s.closest('.food-cell')?.classList.contains('cell-disabled')) {
+          s.disabled = false;
+        }
+      });
+    }
+
+    updateTotal();
+  }
+
+  function bindModeButtons() {
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.addEventListener('click', function () {
+        const date = this.dataset.date;
+        const meal = this.dataset.meal;
+        const mode = this.dataset.mode;
+        const row  = document.querySelector(`[data-meal-row="${date}-${meal}"]`);
+        if (!row || row.classList.contains('row-disabled')) return;
+
+        // Toggle active class on sibling buttons
+        const switcher = this.closest('.meal-mode-switcher');
+        switcher?.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        applyModeToRow(row, mode);
+      });
+    });
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     7. CARD FOOD TOGGLE (Yes / No per date)
+  ───────────────────────────────────────────────────────────── */
+  function setCardFoodEnabled(card, enabled) {
+    const hidden = card.querySelector('.food-enabled-input');
+    if (hidden) hidden.value = enabled ? '1' : '0';
+
+    const yesBtn = card.querySelector('[data-toggle="yes"]');
+    const noBtn  = card.querySelector('[data-toggle="no"]');
+
+    if (enabled) {
+      yesBtn?.classList.add('active');
+      noBtn?.classList.remove('active');
+      card.classList.remove('food-disabled-card');
+      card.querySelectorAll('.meal-toggle-checkbox').forEach(cb => {
+        cb.disabled = false;
+        setMealRowEnabled(cb);
+      });
+    } else {
+      noBtn?.classList.add('active');
+      yesBtn?.classList.remove('active');
+      card.classList.add('food-disabled-card');
+      card.querySelectorAll('.meal-toggle-checkbox').forEach(cb => {
+        cb.disabled = true;
+      });
+      card.querySelectorAll('.meal-row').forEach(row => {
+        row.classList.add('row-disabled');
+        const mh = row.querySelector('.meal-enabled-hidden');
+        if (mh) mh.value = '0';
+        row.querySelectorAll('.food-select, .food-set-select').forEach(s => {
+          s.value   = '';
+          s.disabled = true;
+        });
+        row.querySelectorAll('.mode-btn').forEach(b => b.disabled = true);
+      });
+    }
+    updateTotal();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     8. WIRE UP EVENT LISTENERS
+  ───────────────────────────────────────────────────────────── */
+  function initializeMealRows() {
+    // Meal include checkboxes
+    document.querySelectorAll('.meal-toggle-checkbox').forEach(cb => {
+      setMealRowEnabled(cb);
+      cb.addEventListener('change', function () { setMealRowEnabled(this); });
+    });
+
+    // Card Yes/No buttons
+    dateCards.forEach(card => {
+      card.querySelector('[data-toggle="yes"]')?.addEventListener('click', () => setCardFoodEnabled(card, true));
+      card.querySelector('[data-toggle="no"]')?.addEventListener('click',  () => setCardFoodEnabled(card, false));
+    });
+
+    // Mode switcher buttons
+    bindModeButtons();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     9. RESTORE PREVIOUS SELECTIONS (Edit Cart flow)
+  ───────────────────────────────────────────────────────────── */
+  function restorePreviousSelections() {
+    const prev        = window.previousFoodSelections || {};
+    const foodEnabled = window.previousFoodEnabled    || {};
+    const mealEnabled = window.previousMealEnabled    || {};
+    const mealMode    = window.previousMealMode       || {};
+    const setSelects  = window.previousSetSelections  || {};
+
+    if (!Object.keys(prev).length && !Object.keys(foodEnabled).length) return;
+
+    document.querySelectorAll('.reservation-card').forEach(card => {
+      const date = card.dataset.date;
+      if (!date) return;
+
+      // Restore food disabled
+      if (foodEnabled[date] === '0') {
+        card.querySelector('[data-toggle="no"]')?.click();
+        return;
+      }
+
+      const dateMeals    = prev[date]       || {};
+      const dateModes    = mealMode[date]   || {};
+      const dateSetSels  = setSelects[date] || {};
+
+      Object.entries(dateMeals).forEach(([mealKey, categories]) => {
+        const isMealEnabled = (mealEnabled[date]?.[mealKey] ?? '1') !== '0';
+        const row = card.querySelector(`[data-meal-row="${date}-${mealKey}"]`);
+
+        if (!isMealEnabled) {
+          const cb = card.querySelector(`.meal-toggle-checkbox[data-date="${date}"][data-meal="${mealKey}"]`);
+          if (cb && cb.checked) { cb.checked = false; cb.dispatchEvent(new Event('change')); }
+          return;
+        }
+
+        // Restore mode
+        const savedMode = dateModes[mealKey] || 'individual';
+        if (row) {
+          const modeBtn = row.querySelector(`.mode-btn[data-mode="${savedMode}"]`);
+          if (modeBtn) modeBtn.click();
+        }
+
+        if (savedMode === 'set') {
+          const setId  = dateSetSels[mealKey];
+          const setSel = card.querySelector(`.food-set-select[data-date="${date}"][data-meal="${mealKey}"]`);
+          if (setSel && setId) {
+            setSel.value = String(setId);
+            setSel.dispatchEvent(new Event('change'));
+          }
+        } else {
+          // Individual: restore per-category
+          if (categories && typeof categories === 'object') {
+            Object.entries(categories).forEach(([category, foodId]) => {
+              if (!foodId) return;
+              const sel = card.querySelector(`select[name="food_selections[${date}][${mealKey}][${category}]"]`);
+              if (sel) { sel.value = String(foodId); sel.dispatchEvent(new Event('change')); }
+            });
+          }
+        }
+      });
+    });
+
+    updateTotal();
+  }
+
+  /* ─────────────────────────────────────────────────────────────
+     UTIL
+  ───────────────────────────────────────────────────────────── */
+  function makeOption(value, text) {
+    const o   = document.createElement('option');
+    o.value   = value;
+    o.textContent = text;
+    return o;
+  }
+
+  // Kick off
+  fetchAll();
 
 });

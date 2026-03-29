@@ -23,7 +23,7 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use App\Models\CancellationRequest;
+// CancellationRequest model removed — cancellation data lives on the reservation rows
 
 
 class ReservationController extends Controller
@@ -613,7 +613,11 @@ class ReservationController extends Controller
             });
         }
 
-        if ($status) {
+        // 'cancel_requested' is a virtual filter — not a real status value
+        if ($status === 'cancel_requested') {
+            $roomQuery->where('cancellation_status', 'pending');
+            $venueQuery->where('cancellation_status', 'pending');
+        } elseif ($status) {
             $roomQuery->where('Room_Reservation_Status', $status);
             $venueQuery->where('Venue_Reservation_Status', $status);
         }
@@ -625,7 +629,7 @@ class ReservationController extends Controller
         if (!$accType || $accType === 'room') {
             $rooms = $roomQuery->get()->map(function ($item) {
                 $item->display_type = 'room';
-                $item->type = 'room'; // Helper for the Blade
+                $item->type = 'room';
                 $item->status = $item->Room_Reservation_Status;
                 return $item;
             });
@@ -634,7 +638,7 @@ class ReservationController extends Controller
         if (!$accType || $accType === 'venue') {
             $venues = $venueQuery->get()->map(function ($item) {
                 $item->display_type = 'venue';
-                $item->type = 'venue'; // Helper for the Blade
+                $item->type = 'venue';
                 $item->status = $item->Venue_Reservation_Status;
                 return $item;
             });
@@ -653,11 +657,15 @@ class ReservationController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        // Status counts for the cards
+        // Status counts for the regular status cards
         $allForCounts = RoomReservation::select('Room_Reservation_Status as status')->get()
             ->concat(VenueReservation::select('Venue_Reservation_Status as status')->get());
 
-        return view('employee.reservations', compact('reservations', 'allForCounts'));
+        // Count of pending cancellation requests (shown as its own priority card)
+        $cancelRequestedCount = RoomReservation::where('cancellation_status', 'pending')->count()
+                              + VenueReservation::where('cancellation_status', 'pending')->count();
+
+        return view('employee.reservations', compact('reservations', 'allForCounts', 'cancelRequestedCount'));
     }
 
     public function adminIndexSpecificId(Request $request)
@@ -2610,7 +2618,7 @@ class ReservationController extends Controller
             'totalReservations' => $pct($resThis,            $resLast),
             'revenue'           => $pct($revThis,            $revLast),
             'occupancyRate'     => $pct($currentOccupancy,   $prevOccupancy),
-            'activeGuests'      => $pct($activeGuestsThis,   $activeGuestsLast),
+            'activeGuests'      => $pct((float) $activeGuests,  (float) $activeGuestsLast),
             'checkOuts'         => $pct($checkOutsThis,       $checkOutsLast),
         ];
     }
@@ -2624,6 +2632,7 @@ class ReservationController extends Controller
      * CLIENT: Submit a cancellation request for a pending or confirmed reservation.
      *
      * POST /reservations/{id}/request-cancellation?type=room|venue
+     * Cancellation data is stored directly on the reservation row — no separate table.
      */
     public function requestCancellation(Request $request, $id)
     {
@@ -2646,12 +2655,11 @@ class ReservationController extends Controller
         }
 
         // Verify the reservation belongs to the authenticated client
-        $clientIdCol = $type === 'room' ? 'Client_ID' : 'Client_ID';
-        if ($reservation->$clientIdCol !== auth()->id()) {
+        if ($reservation->Client_ID !== auth()->id()) {
             return response()->json(['success' => false, 'message' => 'Unauthorised.'], 403);
         }
 
-        $statusCol = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+        $statusCol     = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
         $currentStatus = strtolower($reservation->$statusCol);
 
         if (!in_array($currentStatus, ['pending', 'confirmed'])) {
@@ -2661,38 +2669,33 @@ class ReservationController extends Controller
             ], 422);
         }
 
-        // Check if a pending cancellation request already exists for this reservation
-        $existing = \App\Models\CancellationRequest::where('reservation_id', $id)
-            ->where('reservation_type', $type)
-            ->where('status', 'pending')
-            ->first();
-
-        if ($existing) {
+        // Reject duplicate pending request
+        if ($reservation->cancellation_status === 'pending') {
             return response()->json([
-                'success'  => false,
-                'message'  => 'You already have a pending cancellation request for this reservation.',
+                'success' => false,
+                'message' => 'You already have a pending cancellation request for this reservation.',
             ], 422);
         }
 
-        $cr = \App\Models\CancellationRequest::create([
-            'reservation_id'   => $id,
-            'reservation_type' => $type,
-            'client_id'        => auth()->id(),
-            'reason'           => trim($request->input('reason')),
-            'status'           => 'pending',
-        ]);
+        $reservation->cancellation_status       = 'pending';
+        $reservation->cancellation_reason       = trim($request->input('reason'));
+        $reservation->cancellation_admin_note   = null;
+        $reservation->cancellation_processed_by = null;
+        $reservation->cancellation_requested_at = now();
+        $reservation->cancellation_processed_at = null;
+        $reservation->save();
 
         return response()->json([
             'success' => true,
             'message' => 'Your cancellation request has been submitted. We will get back to you shortly.',
-            'request_id' => $cr->id,
         ]);
     }
 
     /**
-     * ADMIN/STAFF: Get the pending cancellation request for a specific reservation.
+     * ADMIN/STAFF: Get the cancellation request data for a specific reservation.
      *
      * GET /employee/reservations/{id}/cancellation-request?type=room|venue
+     * Reads directly from the reservation row — no separate table.
      */
     public function getCancellationRequest(Request $request, $id)
     {
@@ -2702,22 +2705,74 @@ class ReservationController extends Controller
             return response()->json(['error' => 'Invalid type.'], 422);
         }
 
-        $cr = \App\Models\CancellationRequest::where('reservation_id', $id)
-            ->where('reservation_type', $type)
-            ->orderByDesc('created_at')
-            ->first();
-
-        if (!$cr) {
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($id)
+                : \App\Models\VenueReservation::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
             return response()->json(['request' => null]);
         }
 
+        if (!$reservation->cancellation_status) {
+            return response()->json(['request' => null]);
+        }
+
+        $pkCol = $type === 'room' ? 'Room_Reservation_ID' : 'Venue_Reservation_ID';
+
         return response()->json([
             'request' => [
-                'id'         => $cr->id,
-                'status'     => $cr->status,
-                'reason'     => $cr->reason,
-                'admin_note' => $cr->admin_note,
-                'created_at' => $cr->created_at?->format('M d, Y h:i A'),
+                // 'id' here is the reservation ID — used by JS when calling processCancellation
+                'id'         => $reservation->$pkCol,
+                'status'     => $reservation->cancellation_status,
+                'reason'     => $reservation->cancellation_reason,
+                'admin_note' => $reservation->cancellation_admin_note,
+                'created_at' => $reservation->cancellation_requested_at
+                                    ? \Carbon\Carbon::parse($reservation->cancellation_requested_at)->format('M d, Y h:i A')
+                                    : null,
+            ],
+        ]);
+    }
+
+    /**
+     * CLIENT: Check the cancellation request status for their own reservation.
+     *
+     * GET /client/reservations/{id}/cancellation-status?type=room|venue
+     */
+    public function getClientCancellationStatus(Request $request, $id)
+    {
+        $type = $request->query('type');
+
+        if (!in_array($type, ['room', 'venue'])) {
+            return response()->json(['request' => null]);
+        }
+
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($id)
+                : \App\Models\VenueReservation::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['request' => null]);
+        }
+
+        // Only return data for this client's own reservation
+        if ($reservation->Client_ID !== auth()->id()) {
+            return response()->json(['request' => null]);
+        }
+
+        if (!$reservation->cancellation_status) {
+            return response()->json(['request' => null]);
+        }
+
+        $pkCol = $type === 'room' ? 'Room_Reservation_ID' : 'Venue_Reservation_ID';
+
+        return response()->json([
+            'request' => [
+                'id'         => $reservation->$pkCol,
+                'status'     => $reservation->cancellation_status,
+                'admin_note' => $reservation->cancellation_admin_note,
+                'created_at' => $reservation->cancellation_requested_at
+                                    ? \Carbon\Carbon::parse($reservation->cancellation_requested_at)->format('M d, Y h:i A')
+                                    : null,
             ],
         ]);
     }
@@ -2725,55 +2780,71 @@ class ReservationController extends Controller
     /**
      * ADMIN/STAFF: Approve or reject a cancellation request.
      *
-     * POST /employee/cancellation-requests/{requestId}/process
-     * Body: decision=approved|rejected, admin_note (optional)
+     * POST /employee/cancellation-requests/{reservationId}/process
+     * Body: decision=approved|rejected, res_type=room|venue, admin_note (optional)
+     *
+     * {reservationId} is the Room_Reservation_ID or Venue_Reservation_ID.
+     * Cancellation state lives on the reservation row — no separate table.
      */
-    public function processCancellation(Request $request, $requestId)
+    public function processCancellation(Request $request, $reservationId)
     {
         $request->validate([
             'decision'   => 'required|in:approved,rejected',
+            'res_type'   => 'required|in:room,venue',
             'admin_note' => 'nullable|string|max:500',
         ]);
 
+        $type     = $request->input('res_type');
+        $decision = $request->input('decision');
+
         try {
-            $cr = \App\Models\CancellationRequest::findOrFail($requestId);
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($reservationId)
+                : \App\Models\VenueReservation::findOrFail($reservationId);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['success' => false, 'message' => 'Cancellation request not found.'], 404);
+            return response()->json(['success' => false, 'message' => 'Reservation not found.'], 404);
         }
 
-        if ($cr->status !== 'pending') {
+        if ($reservation->cancellation_status !== 'pending') {
             return response()->json(['success' => false, 'message' => 'This request has already been processed.'], 422);
         }
 
-        $decision = $request->input('decision');
+        DB::transaction(function () use ($reservation, $type, $decision, $request) {
+            $reservation->cancellation_status       = $decision;
+            $reservation->cancellation_admin_note   = $request->input('admin_note');
+            $reservation->cancellation_processed_by = auth()->id();
+            $reservation->cancellation_processed_at = now();
 
-        DB::transaction(function () use ($cr, $decision, $request) {
-            $cr->update([
-                'status'       => $decision,
-                'admin_note'   => $request->input('admin_note'),
-                'processed_by' => auth()->id(),
-                'processed_at' => now(),
-            ]);
-
-            // If approved, actually cancel the reservation
+            // If approved, mark the reservation as cancelled
             if ($decision === 'approved') {
-                $type = $cr->reservation_type;
-                try {
-                    $reservation = ($type === 'room')
-                        ? \App\Models\RoomReservation::findOrFail($cr->reservation_id)
-                        : \App\Models\VenueReservation::findOrFail($cr->reservation_id);
-
-                    $statusCol = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
-                    $reservation->$statusCol = 'cancelled';
-                    $reservation->save();
-                } catch (\Exception $e) {
-                    Log::error('processCancellation: could not cancel reservation', [
-                        'cr_id' => $cr->id,
-                        'error' => $e->getMessage(),
-                    ]);
-                }
+                $statusCol = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+                $reservation->$statusCol = 'cancelled';
             }
+
+            $reservation->save();
         });
+
+        // Send approval email to the client
+        if ($decision === 'approved') {
+            try {
+                $reservation->load('user');
+                if ($type === 'room') $reservation->load('room');
+                else                  $reservation->load('venue');
+
+                \Illuminate\Support\Facades\Mail::to($reservation->user->Account_Email)
+                    ->send(new \App\Mail\CancellationApprovedMail(
+                        $reservation,
+                        $type,
+                        $request->input('admin_note')
+                    ));
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('CancellationApprovedMail failed', [
+                    'reservation_id' => $reservationId,
+                    'type'           => $type,
+                    'error'          => $e->getMessage(),
+                ]);
+            }
+        }
 
         $label = $decision === 'approved' ? 'approved and reservation cancelled' : 'rejected';
 

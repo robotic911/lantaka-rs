@@ -13,19 +13,26 @@ class VenueReservation extends Model
     protected $primaryKey = 'Venue_Reservation_ID';
 
     protected $fillable = [
-        'Venue_ID',                             // from'venue_id',
+        'Venue_ID',
         'Client_ID',
         'Venue_Reservation_Date',
         'Venue_Reservation_Check_In_Time',
         'Venue_Reservation_Check_Out_Time',
-        'Venue_Reservation_Pax',                // from 'pax',
-        'Venue_Reservation_Purpose',            // from 'purpose',
+        'Venue_Reservation_Pax',
+        'Venue_Reservation_Purpose',
         'Venue_Reservation_Total_Price',
-        'Venue_Reservation_Status',             // from 'status',
-        'Venue_Reservation_Payment_Status',     // from 'payment_status',
+        'Venue_Reservation_Status',
+        'Venue_Reservation_Payment_Status',
         'Venue_Reservation_Additional_Fees',
         'Venue_Reservation_Additional_Fees_Desc',
-        'Venue_Reservation_Discount'
+        'Venue_Reservation_Discount',
+        // Cancellation request fields (stored directly on the reservation row)
+        'cancellation_status',
+        'cancellation_reason',
+        'cancellation_admin_note',
+        'cancellation_processed_by',
+        'cancellation_requested_at',
+        'cancellation_processed_at',
     ];
 
     public function venue() {

@@ -4,56 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * RETIRED — cancellation data is now stored directly on the
+ * RoomReservation / VenueReservation models (cancellation_status,
+ * cancellation_reason, cancellation_admin_note, etc.).
+ *
+ * This stub is kept so the class name resolves without fatal errors
+ * if any cached/old reference remains. It can be deleted once you
+ * are confident no code path instantiates it.
+ */
 class CancellationRequest extends Model
 {
     protected $table = 'cancellation_requests';
-
-    protected $fillable = [
-        'reservation_id',
-        'reservation_type',
-        'client_id',
-        'reason',
-        'status',        // pending | approved | rejected
-        'admin_note',
-        'processed_by',
-        'processed_at',
-    ];
-
-    protected $dates = ['processed_at'];
-
-    /* ── Relationships ── */
-
-    public function client()
-    {
-        return $this->belongsTo(User::class, 'client_id', 'Account_ID');
-    }
-
-    public function processedBy()
-    {
-        return $this->belongsTo(User::class, 'processed_by', 'Account_ID');
-    }
-
-    /* ── Scopes ── */
-
-    public function scopePending($query)
-    {
-        return $query->where('status', 'pending');
-    }
-
-    /* ── Helpers ── */
-
-    public function isPending(): bool
-    {
-        return $this->status === 'pending';
-    }
-
-    public function isApproved(): bool
-    {
-        return $this->status === 'approved';
-    }
-
-    public function isRejected(): bool
-    {
-        return $this->status === 'rejected';
-    }
 }
