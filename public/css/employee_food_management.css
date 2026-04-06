@@ -9,7 +9,6 @@
 .fm-page {
   font-family: 'Alexandria', sans-serif;
   padding: 28px 32px;
-  max-width: 1300px;
 }
 
 /* ── Page header ─────────────────────────────────────────── */
@@ -151,6 +150,69 @@
   font-size: 0.8rem;
   color: #6b7280;
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.fm-filter-active-label {
+  font-weight: 700;
+  color: #2c3e7f;
+}
+
+/* ── Category filter form ───────────────────────────────── */
+.fm-filter-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.fm-filter-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #6b7280;
+  white-space: nowrap;
+}
+
+.fm-filter-select {
+  padding: 6px 30px 6px 10px;
+  border: 1.5px solid rgba(44, 62, 127, 0.25);
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: #1a2448;
+  background: #fff;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232c3e7f' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.fm-filter-select:focus {
+  outline: none;
+  border-color: #2c3e7f;
+  box-shadow: 0 0 0 3px rgba(44, 62, 127, 0.1);
+}
+
+.fm-filter-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(44, 62, 127, 0.1);
+  color: #2c3e7f;
+  font-size: 11px;
+  font-weight: 700;
+  text-decoration: none;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.fm-filter-clear:hover {
+  background: rgba(44, 62, 127, 0.22);
 }
 
 /* ── Table ───────────────────────────────────────────────── */
@@ -434,10 +496,382 @@
 }
 .fm-btn-submit:hover { background: #1d4ed8; }
 
+/* ── Purpose pill ───────────────────────────────────────── */
+.fm-purpose-pill {
+  display: inline-block;
+  background: #fff7ed;
+  color: #9a3412;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 2px 9px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fm-pill--more {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+/* ── Multi-pill cells ────────────────────────────────────── */
+.fm-td-pills {
+  min-width: 120px;
+}
+
+.fm-td-pills .fm-meal-pill,
+.fm-td-pills .fm-purpose-pill,
+.fm-td-pills .fm-pill--more {
+  display: inline-block;
+  margin: 2px 2px 2px 0;
+}
+
+/* ── Pill checkboxes (meal times & purposes) ─────────────── */
+.fm-form-group--checks {
+  grid-column: 1 / -1;
+  margin-top: 2px;
+}
+
+.fm-purpose-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fm-purpose-section {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.fm-purpose-group-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6b7280;
+  min-width: 52px;
+  padding-top: 6px;
+  flex-shrink: 0;
+}
+
+.fm-check-row {
+  display: flex;
+  margin: 10px 0px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fm-pill-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fm-pill-check input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.fm-pill-check span {
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 13px;
+  border-radius: 20px;
+  border: 1.5px solid #d1d5db;
+  background: #f9fafb;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: #374151;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+  font-family: 'Alexandria', sans-serif;
+}
+
+.fm-pill-check:hover span {
+  border-color: #93c5fd;
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.fm-pill-check input:checked + span {
+  background: #1e3a5f;
+  border-color: #1e3a5f;
+  color: #fff;
+  font-weight: 700;
+}
+
+/* ── Selected foods summary ──────────────────────────────── */
+.fm-selected-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  min-height: 34px;
+  padding: 6px 10px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.fm-summary-empty {
+  font-size: 0.8rem;
+  color: #9ca3af;
+  font-style: italic;
+}
+
+.fm-summary-count {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #374151;
+  white-space: nowrap;
+}
+
+.fm-summary-tag {
+  display: inline-flex;
+  align-items: center;
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+/* ── Checked state on food items ─────────────────────────── */
+.fm-check-item--checked {
+  background: #f0fdf4 !important;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+}
+
+.fm-check-item--checked .fm-check-name {
+  color: #166534;
+  font-weight: 700;
+}
+
+/* ── Wide modal (food sets with checklist) ──────────────── */
+.fm-modal--wide {
+  max-width: 720px;
+}
+
+/* ── Included foods column ──────────────────────────────── */
+.fm-td-foods {
+  min-width: 160px;
+  max-width: 260px;
+}
+
+.fm-food-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fm-food-pill {
+  display: inline-block;
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 4px;
+  padding: 1px 7px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fm-food-pill--more {
+  background: #f3f4f6;
+  color: #6b7280;
+  border-color: #d1d5db;
+}
+
+.fm-no-foods {
+  color: #d1d5db;
+  font-size: 0.85rem;
+}
+
+/* ── Food checklist in modal ────────────────────────────── */
+.fm-form-group--foods {
+  grid-column: 1 / -1;
+  margin-top: 4px;
+}
+
+.fm-label-hint {
+  font-size: 0.72rem;
+  font-weight: 400;
+  color: #9ca3af;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.fm-food-checklist {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+  background: #fafafa;
+  padding: 8px 0;
+}
+
+.fm-check-category {
+  padding: 4px 12px 2px;
+}
+
+.fm-check-cat-label {
+  display: block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #9ca3af;
+  padding: 6px 0 2px;
+  border-bottom: 1px solid #f3f4f6;
+  margin-bottom: 4px;
+}
+
+.fm-check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s;
+  margin: 1px 0;
+}
+
+.fm-check-item:hover {
+  background: #eff6ff;
+}
+
+.fm-check-item--dim {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fm-check-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: #2563eb;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.fm-check-name {
+  flex: 1;
+  font-size: 0.84rem;
+  color: #1f2937;
+  font-weight: 500;
+}
+
+.fm-check-price {
+  font-size: 0.78rem;
+  color: #2563eb;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.fm-check-unavail {
+  font-size: 0.7rem;
+  color: #ef4444;
+  font-weight: 600;
+  background: #fee2e2;
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.fm-no-foods-hint {
+  text-align: center;
+  color: #9ca3af;
+  font-size: 0.83rem;
+  padding: 16px;
+  font-style: italic;
+}
+
+/* ── Pagination wrapper ──────────────────────────────────── */
+.fm-pagination {
+  padding: 4px 18px 8px;
+  border-top: 1px solid #f3f4f6;
+}
+
+/* ── Purpose group-toggle UI ─────────────────────────────── */
+.fm-purpose-ui {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.fm-group-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fm-group-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 16px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 20px;
+  background: #fff;
+  color: #374151;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: 'Alexandria', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.fm-group-btn:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+/* All items in group selected */
+.fm-group-btn--active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
+.fm-group-btn--active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+/* Some (not all) items selected — indeterminate */
+.fm-group-btn--partial {
+  background: #dbeafe;
+  border-color: #2563eb;
+  color: #1d4ed8;
+}
+
+.fm-group-btn--partial:hover {
+  background: #bfdbfe;
+}
+
+/* Expandable sub-item row */
+.fm-purpose-sub {
+  padding: 8px 4px 4px;
+  border-left: 2px solid #e5e7eb;
+  margin-left: 4px;
+  padding-left: 12px;
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 @media (max-width: 640px) {
   .fm-page { padding: 16px; }
   .fm-form-grid { grid-template-columns: 1fr; }
   .fm-modal { max-width: 100%; }
+  .fm-modal--wide { max-width: 100%; }
   .fm-page-header { flex-direction: column; align-items: flex-start; }
 }

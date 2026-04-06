@@ -8,6 +8,10 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (Schema::hasTable('Room_Reservation')) {
+            return;
+        }
+
         Schema::create('Room_Reservation', function (Blueprint $table) {
             $table->bigIncrements('Room_Reservation_ID');
 

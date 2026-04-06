@@ -29,44 +29,135 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${diff} ${unit}`;
   }
 
-  function buildFoodHtml(foods) {
-    if (!foods || foods.length === 0) {
+  function buildFoodHtml(foods, foodSetRows) {
+    const hasIndiv = foods && foods.length > 0;
+    const hasSets  = foodSetRows && foodSetRows.length > 0;
+    if (!hasIndiv && !hasSets) {
       return '<p class="crm-empty">No food reserved.</p>';
     }
 
-    const grouped = {};
-    foods.forEach(f => {
-      const raw  = f.pivot?.Food_Reservation_Serving_Date || f.Food_Reservation_Serving_Date || null;
-      const name = f.Food_Name || f.name || 'Unknown item';
-      const meal = f.pivot?.Food_Reservation_Meal_time || f.Food_Reservation_Meal_time || null;
-      if (!raw) return;
+    const MEAL_ORDER = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner'];
+    const MEAL_LABEL = {
+      breakfast: 'Breakfast',
+      am_snack:  'AM Snack',
+      lunch:     'Lunch',
+      pm_snack:  'PM Snack',
+      dinner:    'Dinner',
+      snacks:    'Snacks',
+    };
 
-      const dateKey = raw.substring(0, 10); // "YYYY-MM-DD"
-      if (!grouped[dateKey]) grouped[dateKey] = [];
-      grouped[dateKey].push({ name, meal });
+    /*
+     * Group by date → meal_time slot → { set, items[] }
+     *
+     * Both a food set row and its customisation choices (rice, drink) share the
+     * same meal_time (e.g. "gen_17").  By keying on meal_time we can merge them:
+     *   set slot  → "Set 3 (Pancit Miki, Pork Adobo, Fried Rice, Softdrinks)"
+     *   real slot → "SNACKS / Cassava Cake"
+     */
+    const byDate = {};
+
+    function slot(dateKey, meal) {
+      if (!byDate[dateKey])        byDate[dateKey] = {};
+      if (!byDate[dateKey][meal])  byDate[dateKey][meal] = { sets: [], items: [] };
+      return byDate[dateKey][meal];
+    }
+
+    // Food-set rows — push to array so multiple sets on the same meal slot all show
+    (foodSetRows || []).forEach(r => {
+      const dateKey = (r.serving_date || '').substring(0, 10);
+      if (!dateKey) return;
+      slot(dateKey, (r.meal_time || '').toLowerCase().trim()).sets.push(r);
     });
 
-    const dates = Object.keys(grouped).sort();
+    // Individual food items (rice, drinks, snacks, etc.)
+    (foods || []).forEach(f => {
+      const raw = f.pivot?.Food_Reservation_Serving_Date || f.Food_Reservation_Serving_Date || null;
+      if (!raw) return;
+      const dateKey = raw.substring(0, 10);
+      const meal    = (f.pivot?.Food_Reservation_Meal_time || f.Food_Reservation_Meal_time || '').toLowerCase().trim();
+      slot(dateKey, meal).items.push(f);
+    });
+
+    const dates = Object.keys(byDate).sort();
     if (dates.length === 0) return '<p class="crm-empty">No food reserved.</p>';
 
     return dates.map(date => {
-      const label = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
-        weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      const dateLabel = new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
+        month: 'long', day: 'numeric', year: 'numeric',
       });
-      const items = grouped[date].map(item => `
-        <div class="crm-food-item">
-          <span class="crm-food-dot"></span>
-          <span>${item.name}</span>
-          ${item.meal ? `<span class="crm-food-meal">${item.meal}</span>` : ''}
-        </div>
-      `).join('');
 
-      return `
-        <div class="crm-food-date-group">
-          <p class="crm-food-date-header">${label}</p>
-          <div class="crm-food-items">${items}</div>
-        </div>
-      `;
+      const slots = byDate[date];
+
+      // Any slot that has at least one set
+      const setMeals = Object.keys(slots).filter(m => slots[m].sets.length > 0);
+
+      // Collect all individual items from gen_XX slots that have NO set
+      // (orphaned rice/drink from older records saved with the old meal_time logic)
+      const orphanGenItems = [];
+      Object.keys(slots).forEach(m => {
+        if (m.startsWith('gen_') && !slots[m].sets.length) {
+          orphanGenItems.push(...slots[m].items);
+        }
+      });
+
+      // Slots with only individual items and a recognisable meal label.
+      // Includes: standard MEAL_ORDER keys + any named key in MEAL_LABEL + 'snacks'.
+      const realMeals = [
+        ...MEAL_ORDER.filter(m => slots[m] && !slots[m].sets.length && slots[m].items.length),
+        ...Object.keys(slots).filter(m =>
+          !MEAL_ORDER.includes(m) &&
+          !slots[m].sets.length &&
+          slots[m].items.length &&
+          !m.startsWith('gen_') &&
+          (m in MEAL_LABEL || m === 'snacks')
+        ),
+      ];
+
+      let inner = '';
+
+      /* ── SET SLOTS ──
+       * Each set on its own line: "Set 3 (Pancit Miki, Pork Adobo, Fried Rice, Softdrinks)"
+       * Same-slot individual items (rice/drink) attach to the first set in that slot.
+       * Orphaned gen_ items (old records) attach to the very first set on the date.
+       */
+      setMeals.forEach((meal, mealIdx) => {
+        const { sets, items } = slots[meal];
+
+        // Rice/drink choices for this slot + orphaned gen_ items (old records)
+        // applied to EVERY set so each set line shows the user's full selection
+        const extras = [
+          ...items.map(f => f.Food_Name).filter(Boolean),
+          ...(mealIdx === 0 ? orphanGenItems.map(f => f.Food_Name).filter(Boolean) : []),
+        ];
+
+        sets.forEach(set => {
+          const foodList = [
+            ...(set.food_names || []),
+            ...extras,                        // attach rice/drink to every set
+          ].filter(Boolean).join(', ');
+          inner += `<p class="crm-food-line crm-food-line--set">${set.set_name}${foodList ? ` (${foodList})` : ''}</p>`;
+        });
+      });
+
+      /* ── REAL MEAL SLOTS: "SNACKS / Cassava Cake / Fresh Lumpia" ── */
+      realMeals.forEach(meal => {
+        const { items } = slots[meal];
+        if (!items.length) return;
+        const label = MEAL_LABEL[meal] || null;
+        if (label) inner += `<p class="crm-food-line crm-food-line--meal">${label}</p>`;
+        items.forEach(f => {
+          inner += `<p class="crm-food-line">${f.Food_Name || 'Unknown item'}</p>`;
+        });
+      });
+
+      if (!inner) {
+        inner = '<p class="crm-empty" style="margin:0;font-size:12px;">No items for this date.</p>';
+      }
+
+      return `<div class="crm-food-date-group">
+        <p class="crm-food-date-header">${dateLabel}</p>
+        ${inner}
+      </div>`;
     }).join('');
   }
 
@@ -86,6 +177,7 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Open modal ── */
   expandBtns.forEach(btn => {
     btn.addEventListener('click', function () {
+      _activeBtn = this;
       const data = JSON.parse(this.getAttribute('data-info'));
 
       /* Header */
@@ -104,6 +196,31 @@ document.addEventListener('DOMContentLoaded', () => {
       el('crmCheckOut').textContent      = data.check_out     || '—';
       el('crmDuration').textContent      = calcDuration(data.check_in_raw, data.check_out_raw, data.type);
 
+      /* Purpose */
+      const purposeRow = el('crmPurposeRow');
+      if (purposeRow) {
+        if (data.purpose) {
+          el('crmPurpose').textContent = data.purpose;
+          purposeRow.style.display = '';
+        } else {
+          purposeRow.style.display = 'none';
+        }
+      }
+
+      /* Price breakdown (above grand total) */
+      const breakdown = el('crmBreakdown');
+      const foodTotalNum  = parseFloat((data.food_total  || '0').replace(/,/g,'')) || 0;
+      const venueTotalNum = parseFloat((data.venue_total || '0').replace(/,/g,'')) || 0;
+      if (breakdown) {
+        if (foodTotalNum > 0) {
+          el('crmVenueTotal').textContent = `₱ ${data.venue_total || '0.00'}`;
+          el('crmFoodTotal').textContent  = `₱ ${data.food_total  || '0.00'}`;
+          breakdown.style.display = '';
+        } else {
+          breakdown.style.display = 'none';
+        }
+      }
+
       /* Total */
       el('crmTotal').textContent = `₱ ${data.total || '0.00'}`;
 
@@ -118,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       /* Food */
-      el('crmFoodList').innerHTML = buildFoodHtml(data.foods);
+      el('crmFoodList').innerHTML = buildFoodHtml(data.foods, data.food_set_rows);
 
       /* Info note */
       const note    = infoNoteText(s);
@@ -166,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Current reservation context (set when modal opens)
   let _cancelResId   = null;
   let _cancelResType = null;
+  let _activeBtn     = null;   // the expand button that opened the current modal
 
   function setCancelState(state, adminNote) {
     // Hide form and rejected panels; idle card is always shown (button state changes)
@@ -257,6 +375,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Open form button
   const openFormBtn = el('crmCancelOpenFormBtn');
+
   if (openFormBtn) {
     openFormBtn.addEventListener('click', () => {
       const reasonEl = el('crmCancelReason');
@@ -264,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const errEl = el('crmCancelError');
       if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
       setCancelState('crmCancelForm');
+      crmCancelIdle.style.display = 'none';
     });
   }
 
@@ -320,7 +440,17 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
           if (data.success) {
             setCancelState('crmCancelPending');
-            // Show toast confirmation
+
+            // Patch the button's data-info so re-opening the modal shows
+            // "Pending" instead of resetting to idle (data-info is baked in at page load)
+            if (_activeBtn) {
+              try {
+                const info = JSON.parse(_activeBtn.getAttribute('data-info'));
+                info.cancellation_status = 'pending';
+                _activeBtn.setAttribute('data-info', JSON.stringify(info));
+              } catch (_) {}
+            }
+
             if (typeof window.showToast === 'function') {
               window.showToast('Cancellation request submitted. We\'ll review it shortly.', 'success');
             }

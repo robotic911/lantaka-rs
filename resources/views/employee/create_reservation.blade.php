@@ -99,30 +99,51 @@
           @endif
           <div style="display: flex; flex-direction: column; gap: 4px; width:100%;">
             @if (strtolower($category) === 'venue')
-              <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
-                <label for="pax-input" class="pax-label">Number of Pax</label>
-                <input
-                  type="number"
-                  name="pax"
-                  id="pax-input"
-                  class="pax-input"
-                  placeholder="Enter No. of Pax"
-                  min="1"
-                  max="{{ $data->capacity }}"
-                  value="{{ $prefillPax ?? '' }}"
-                  required>
+              <div style="display: flex; flex-direction: column; gap: 2px;">
+                <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
+                  <label for="pax-input" class="pax-label">Number of Pax</label>
+                  <input
+                    type="number"
+                    name="pax"
+                    id="pax-input"
+                    class="pax-input"
+                    placeholder="Enter No. of Pax"
+                    min="1"
+                    max="{{ $data->capacity }}"
+                    data-capacity="{{ $data->capacity }}"
+                    value="{{ $prefillPax ?? '' }}"
+                    required>
+                </div>
+                <span id="pax-error" class="pax-error-msg"></span>
               </div>
             @endif
             
 
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <label for="purpose-input" class="pax-label" style="margin-top: 12px;">Purpose</label>
-              <textarea
-                name="purpose"
-                id="purpose-input"
-                placeholder="Enter purpose of reservation"
-                style="width:100%; padding:10px; border:1px solid #ccc; border-radius:8px; resize:vertical; min-height:80px; font-family:inherit; font-size:0.9rem;"
-                required>{{ $prefillPurpose ?? '' }}</textarea>
+            <div style="display: flex; flex-direction: column; gap: 6px;">
+              <label class="pax-label" style="margin-top: 12px;">Purpose</label>
+              <input type="hidden" name="purpose" id="purposeValue">
+              <span id="purpose-error" class="purpose-error-msg"></span>
+              <div class="purpose-pills">
+                @if(strtolower($category) === 'room')
+                  <button type="button" class="purpose-pill" data-value="overnight">Overnight Stay</button>
+                  <button type="button" class="purpose-pill" data-value="retreat">Retreat</button>
+                  <button type="button" class="purpose-pill" data-value="recollection">Recollection</button>
+                @else
+                  <button type="button" class="purpose-pill" data-value="meeting">Meeting</button>
+                  <button type="button" class="purpose-pill" data-value="seminar">Seminar</button>
+                  <button type="button" class="purpose-pill" data-value="birthday">Birthday</button>
+                  <button type="button" class="purpose-pill" data-value="lecture">Lecture</button>
+                  <button type="button" class="purpose-pill" data-value="wedding">Wedding</button>
+                  <button type="button" class="purpose-pill" data-value="orientation">Orientation</button>
+                  <button type="button" class="purpose-pill" data-value="retreat">Retreat</button>
+                  <button type="button" class="purpose-pill" data-value="recollection">Recollection</button>
+                @endif
+                <button type="button" class="purpose-pill" data-value="others">Others</button>
+              </div>
+              <div id="othersWrapper" style="display:none;">
+                <input type="text" id="othersText" class="purpose-others-input"
+                       placeholder="Please specify your purpose...">
+              </div>
             </div>
           </div>
 
@@ -164,25 +185,132 @@
     const bookingForm = document.getElementById('bookingForm');
     if (!bookingForm) return;
 
+    /* ── Purpose pill selector ── */
+    const purposePills  = document.querySelectorAll('.purpose-pill');
+    const purposeValue  = document.getElementById('purposeValue');
+    const othersWrapper = document.getElementById('othersWrapper');
+    const othersText    = document.getElementById('othersText');
+
+    purposePills.forEach(pill => {
+      pill.addEventListener('click', function () {
+        purposePills.forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        clearPurposeError();
+
+        if (this.dataset.value === 'others') {
+          othersWrapper.style.display = 'block';
+          purposeValue.value = othersText.value.trim();
+          othersText.focus();
+        } else {
+          othersWrapper.style.display = 'none';
+          purposeValue.value = this.dataset.value;
+        }
+      });
+    });
+
+    othersText.addEventListener('input', function () {
+      purposeValue.value = this.value.trim();
+      if (this.value.trim()) clearPurposeError();
+    });
+
+    /* ── Pax validation ── */
+    const paxInput     = document.getElementById('pax-input');
+    const paxError     = document.getElementById('pax-error');
+    const purposeError = document.getElementById('purpose-error');
+    const capacity     = parseInt(paxInput?.dataset.capacity || paxInput?.max || 9999);
+
+    function showPaxError(msg) {
+      if (!paxError) return;
+      paxError.textContent = msg;
+      paxError.classList.add('pax-error-msg--visible');
+      paxInput.classList.add('pax-input--error');
+    }
+    function clearPaxError() {
+      if (!paxError) return;
+      paxError.classList.remove('pax-error-msg--visible');
+      paxInput.classList.remove('pax-input--error');
+    }
+    function showPurposeError(msg) {
+      if (!purposeError) return;
+      purposeError.textContent = msg;
+      purposeError.classList.add('purpose-error-msg--visible');
+    }
+    function clearPurposeError() {
+      if (!purposeError) return;
+      purposeError.classList.remove('purpose-error-msg--visible');
+    }
+    function validatePax() {
+      if (!paxInput) return true;
+      const raw = paxInput.value.trim();
+      const num = Number(raw);
+      if (raw === '' || isNaN(num)) {
+        showPaxError('Please enter the number of pax.');
+        return false;
+      }
+      if (num <= 0) {
+        showPaxError('Number of pax must be at least 1.');
+        return false;
+      }
+      if (!Number.isInteger(num)) {
+        showPaxError('Number of pax must be a whole number (no decimals).');
+        return false;
+      }
+      if (num > capacity) {
+        showPaxError(`Exceeds maximum capacity of ${capacity} guest${capacity !== 1 ? 's' : ''}.`);
+        return false;
+      }
+      clearPaxError();
+      return true;
+    }
+
+    paxInput?.addEventListener('input', validatePax);
+
+    /* ── Pre-select purpose when editing an existing reservation ── */
+    const prefillPurpose = '{{ addslashes($prefillPurpose ?? '') }}';
+    if (prefillPurpose) {
+      const matchPill = document.querySelector(`.purpose-pill[data-value="${prefillPurpose}"]`);
+      if (matchPill) {
+        matchPill.click();
+      } else {
+        // Custom "others" text
+        const othersPill = document.querySelector('.purpose-pill[data-value="others"]');
+        if (othersPill) {
+          othersPill.click();
+          othersText.value    = prefillPurpose;
+          purposeValue.value  = prefillPurpose;
+        }
+      }
+    }
+
+    /* ── Form submit ── */
     bookingForm.addEventListener('submit', function(e) {
 
-      const calendarCheckIn = document.getElementById('checkinDate');
+      const calendarCheckIn  = document.getElementById('checkinDate');
       const calendarCheckOut = document.getElementById('checkoutDate');
+      const hiddenCheckIn    = document.getElementById('check_in');
+      const hiddenCheckOut   = document.getElementById('check_out');
 
-      const hiddenCheckIn = document.getElementById('check_in');
-      const hiddenCheckOut = document.getElementById('check_out');
-
-
-      // Only fill values if calendar exists
       if (calendarCheckIn && calendarCheckOut) {
-        hiddenCheckIn.value = calendarCheckIn.value;
+        hiddenCheckIn.value  = calendarCheckIn.value;
         hiddenCheckOut.value = calendarCheckOut.value;
       }
 
-      // Validate after assignment
       if (!hiddenCheckIn.value || !hiddenCheckOut.value) {
         e.preventDefault();
         window.showToast('Please select both a check-in and check-out date.');
+        return;
+      }
+
+      if (paxInput && !validatePax()) {
+        e.preventDefault();
+        paxInput.focus();
+        return;
+      }
+
+      if (!purposeValue.value.trim()) {
+        e.preventDefault();
+        showPurposeError('Select your purpose of stay.');
+        window.showToast('Select your purpose of stay.');
         return;
       }
 

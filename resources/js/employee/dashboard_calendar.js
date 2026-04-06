@@ -1,517 +1,687 @@
 /**
- * dashboard_calendar.js  —  Gantt Timeline (grouped by Resource)
+ * dashboard_calendar.js — Apple Calendar-style Reservation Calendar
  *
- * Layout:
- *   [▼ ROOMS   · N rooms ]   ← collapsible group header
- *       🛏 Room 101           ← resource row  (bars = guest names)
- *       🛏 Room 102
- *   [▼ VENUES  · N venues]
- *       🏛 Function Hall A
+ * Views    : Month (default), Week
+ * Modes    : Detailed (default), Stacked
+ * Features :
+ *   • Status legend colour-coding
+ *   • Cancelled + Rejected hidden by default; visible when explicitly filtered
+ *   • Status filter dropdown (includes Cancelled / Rejected)
+ *   • Room-reservation grouping (same dates + guest name + purpose → one chip)
+ *   • Hover tooltip — shows all grouped rooms
+ *   • Multi-day event spanning bars in Month view (Apple-Calendar style)
+ *   • Click a date cell → expands that cell AND all cells sharing the same
+ *     reservations (multi-week spanning) to show every event; click again to collapse
+ *   • Live-poll refresh every 10 s
  *
  * Preserved contracts:
- *   window.reservations        — initial blade @json
- *   window.calendarDataRoute   — live-poll endpoint
- *   window.reservationPage     — route for pending / confirmed
- *   window.guestPage           — route for checked-in / out
- *   updateStats(stats)         — KPI stat-card updater
- *   updateChanges(changes)     — MoM badge updater
+ *   window.reservations / window.calendarDataRoute
+ *   window.reservationPage / window.guestPage
+ *   updateStats(stats) / updateChanges(changes)
  */
 
-import dayjs from 'dayjs';
-
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
 //  CONSTANTS
-// ═══════════════════════════════════════════
-let   DAY_W       = 44;   // px per day column — recomputed each render()
-const MIN_DAY_W   = 28;   // minimum column width before horizontal scrolling kicks in
-const BAR_H       = 24;   // px — reservation bar height
-const BAR_GAP     = 5;    // px — gap between stacked lanes in one row
-const ROW_PAD     = 8;    // px — top/bottom padding in a resource row
-const GROUP_H     = 36;   // px — group header row height
+// ══════════════════════════════════════════════
 
-const MONTH_NAMES = ['January','Febraury','March','April','May','June','July','August','September','October','November','December'];
-const DOW_NAMES   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+const STATUS_CFG = {
+  'pending':     { bg: '#fef3c7', border: '#fbbf24', text: '#92400e', solid: '#f59e0b' },
+  'confirmed':   { bg: '#dbeafe', border: '#60a5fa', text: '#1e40af', solid: '#3b82f6' },
+  'checked-in':  { bg: '#dcfce7', border: '#4ade80', text: '#166534', solid: '#22c55e' },
+  'checked-out': { bg: '#f3f4f6', border: '#9ca3af', text: '#374151', solid: '#9ca3af' },
+  'completed':   { bg: '#ede9fe', border: '#a78bfa', text: '#5b21b6', solid: '#8b5cf6' },
+  'cancelled':   { bg: '#fee2e2', border: '#f87171', text: '#991b1b', solid: '#ef4444' },
+  'rejected':    { bg: '#fee2e2', border: '#f87171', text: '#991b1b', solid: '#ef4444' },
+};
 
-// ═══════════════════════════════════════════
+/**
+ * Statuses hidden unless the user explicitly filters for them.
+ * When statusFilter === 'cancelled' | 'rejected' → show those.
+ * When statusFilter === '' (All) → still hide these.
+ */
+const HIDDEN_BY_DEFAULT = new Set(['cancelled', 'rejected']);
+
+const DOW_SHORT    = ['SUN','MON','TUE','WED','THU','FRI','SAT'];
+const MONTH_NAMES  = ['January','February','March','April','May','June',
+                      'July','August','September','October','November','December'];
+
+const MAX_VISIBLE_LANES = 3;   // month view: lanes beyond this fold to "+N more"
+const LANE_H_DETAIL     = 22;  // px
+const LANE_H_STACK      = 14;  // px
+
+// ══════════════════════════════════════════════
 //  STATE
-// ═══════════════════════════════════════════
-const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+// ══════════════════════════════════════════════
 
 let reservationData = window.reservations || [];
-let rangeStart      = addDays(TODAY, -5);
-let rangeSize       = 30;
-let searchQ         = '';
-let filterStatus    = '';
-let filterType      = '';
+let calView         = 'month';    // 'month' | 'week'
+let dispMode        = 'detailed'; // 'detailed' | 'stacked'
+let statusFilter    = '';
 
-// collapsed tracks group keys: 'rooms' | 'venues'
-const collapsed    = new Set();
-let syncingScroll  = false;
+const TODAY = (() => { const d = new Date(); d.setHours(0,0,0,0); return d; })();
+let viewDate = new Date(TODAY);
 
-// ═══════════════════════════════════════════
+/**
+ * Tracks which WEEK ROWS are currently expanded.
+ * Keys are ISO strings of the week-row's Monday (Sun-based weekStart).
+ * An expanded week row shows ALL lanes — no "+N more" truncation.
+ */
+const expandedWeeks = new Set();
+
+// ══════════════════════════════════════════════
 //  DATE HELPERS
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
+
+function parseDate(iso) {
+  const [y,m,d] = iso.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
 function addDays(date, n) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + n);
-  return d;
+  const d = new Date(date); d.setDate(d.getDate() + n); return d;
 }
 function daysBetween(a, b) {
   return Math.round((b - a) / 86400000);
 }
-function parseDate(iso) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(y, m - 1, d);
+function isSameDay(a, b) {
+  return a.getFullYear() === b.getFullYear()
+      && a.getMonth()    === b.getMonth()
+      && a.getDate()     === b.getDate();
 }
-function fmtShort(date) {
-  return `${MONTH_NAMES[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+function dateToISO(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 function esc(s) {
-  return String(s || '')
+  return String(s||'')
     .replace(/&/g,'&amp;').replace(/</g,'&lt;')
     .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() - d.getDay());
+  d.setHours(0,0,0,0);
+  return d;
+}
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
 //  FILTER
-// ═══════════════════════════════════════════
+//  • 'cancelled' / 'rejected' only shown when explicitly selected
+//  • All other statuses shown normally
+// ══════════════════════════════════════════════
+
 function getFiltered() {
-  const q = searchQ.toLowerCase();
   return reservationData.filter(r => {
-    const labelMatch  = !q || (r.label||'').toLowerCase().includes(q)
-                           || (r.user?.name||'').toLowerCase().includes(q);
-    const statMatch   = !filterStatus || r.status === filterStatus;
-    const typeMatch   = !filterType   || r.type   === filterType;
-    return labelMatch && statMatch && typeMatch;
-  });
-}
-
-// ═══════════════════════════════════════════
-//  GROUP BY RESOURCE (room / venue)
-//  Always seeds every room/venue from window.allRooms / window.allVenues,
-//  then merges in the filtered reservations — so empty rooms still show.
-//  Returns two sorted arrays: rooms[], venues[]
-//    each entry: { type, label, meta, rsvs[] }
-// ═══════════════════════════════════════════
-function groupByResource(data) {
-  // Seed from the full room/venue catalogue
-  const seedRooms  = (window.allRooms  || []).map(r => ({ ...r, rsvs: [] }));
-  const seedVenues = (window.allVenues || []).map(v => ({ ...v, rsvs: [] }));
-
-  // Build lookup maps keyed by label
-  const roomMap  = new Map(seedRooms .map(r => [r.label, r]));
-  const venueMap = new Map(seedVenues.map(v => [v.label, v]));
-
-  // Attach filtered reservations to their resource row
-  data.forEach(r => {
-    const map = r.type === 'room' ? roomMap : venueMap;
-    if (!map.has(r.label)) {
-      // Reservation references a resource not in the catalogue — add it
-      map.set(r.label, { type: r.type, label: r.label, meta: null, rsvs: [] });
+    // If user explicitly chose cancelled or rejected, show only that status
+    if (statusFilter === 'cancelled' || statusFilter === 'rejected') {
+      return r.status === statusFilter;
     }
-    map.get(r.label).rsvs.push(r);
+    // Otherwise always hide cancelled / rejected
+    if (HIDDEN_BY_DEFAULT.has(r.status)) return false;
+    if (statusFilter && r.status !== statusFilter) return false;
+    return true;
   });
-
-  const rooms  = [...roomMap .values()].sort((a, b) => a.label.localeCompare(b.label));
-  const venues = [...venueMap.values()].sort((a, b) => a.label.localeCompare(b.label));
-  return { rooms, venues };
 }
 
-// ═══════════════════════════════════════════
-//  LANE ASSIGNMENT  (overlap stacking per row)
-// ═══════════════════════════════════════════
-function assignLanes(rsvs) {
-  const sorted = [...rsvs].sort((a, b) => a.check_in.localeCompare(b.check_in));
+// ══════════════════════════════════════════════
+//  GROUPING
+//  Room reservations: identical check_in + check_out + guest + purpose
+//  → merged into one chip; tooltip shows all rooms.
+// ══════════════════════════════════════════════
+
+function groupEvents(data) {
+  const rooms  = data.filter(r => r.type === 'room');
+  const venues = data.filter(r => r.type !== 'room');
+  const processed = new Set();
+  const events = [];
+
+  rooms.forEach(r => {
+    if (processed.has(r.id)) return;
+    const siblings = rooms.filter(o =>
+      !processed.has(o.id) &&
+      o.check_in  === r.check_in  &&
+      o.check_out === r.check_out &&
+      (o.user?.name || '') === (r.user?.name || '') &&
+      (o.purpose  || '') === (r.purpose  || '')
+    );
+    siblings.forEach(s => processed.add(s.id));
+    events.push({
+      id        : r.id,
+      type      : 'room',
+      status    : r.status,
+      check_in  : r.check_in,
+      check_out : r.check_out,
+      guestName : r.user?.name  || 'Guest',
+      purpose   : r.purpose     || 'N/A',
+      rooms     : siblings.map(s => s.label),
+      label     : siblings.length > 1 ? `${siblings.length} Rooms` : r.label,
+      isGrouped : siblings.length > 1,
+    });
+  });
+
+  venues.forEach(r => {
+    events.push({
+      id        : r.id,
+      type      : 'venue',
+      status    : r.status,
+      check_in  : r.check_in,
+      check_out : r.check_out,
+      guestName : r.user?.name || 'Guest',
+      purpose   : r.purpose    || 'N/A',
+      rooms     : [],
+      label     : r.label,
+      isGrouped : false,
+    });
+  });
+
+  return events;
+}
+
+// ══════════════════════════════════════════════
+//  LANE ASSIGNMENT  (greedy, per-week-row)
+// ══════════════════════════════════════════════
+
+function assignLanesForWeek(events, weekStart) {
+  const weekEnd = addDays(weekStart, 7);
+
+  const sorted = [...events].sort((a, b) => {
+    const aLen = daysBetween(parseDate(a.check_in), parseDate(a.check_out));
+    const bLen = daysBetween(parseDate(b.check_in), parseDate(b.check_out));
+    if (bLen !== aLen) return bLen - aLen;
+    return a.check_in.localeCompare(b.check_in);
+  });
+
   const laneEnds = [];
+  const placed   = [];
 
-  const placed = sorted.map(res => {
-    let lane = laneEnds.findIndex(end => res.check_in > end);
-    if (lane === -1) { lane = laneEnds.length; laneEnds.push(res.check_out); }
-    else             { laneEnds[lane] = res.check_out; }
-    return { ...res, lane };
+  sorted.forEach(evt => {
+    const evtStart = parseDate(evt.check_in);
+    const evtEnd   = parseDate(evt.check_out);
+    const visStart = evtStart < weekStart ? weekStart : evtStart;
+    const visEnd   = evtEnd   > weekEnd   ? weekEnd   : evtEnd;
+    const colStart = daysBetween(weekStart, visStart);
+    // +1 makes the bar span check_in → check_out INCLUSIVE (checkout day is visible),
+    // capped at 7 so it never overflows the week row.
+    const colEndIncl = Math.min(7, daysBetween(weekStart, visEnd) + 1);
+    const spanLen    = Math.max(1, colEndIncl - colStart);
+
+    let lane = laneEnds.findIndex(end => end <= colStart);
+    if (lane === -1) { lane = laneEnds.length; laneEnds.push(colEndIncl); }
+    else             { laneEnds[lane] = colEndIncl; }
+
+    placed.push({
+      evt,
+      lane,
+      colStart,
+      spanLen,
+      startsInWeek : evtStart >= weekStart,
+      endsInWeek   : evtEnd   <= weekEnd,
+    });
   });
 
-  return { placed, laneCount: Math.max(1, laneEnds.length) };
+  return { placed, maxLane: laneEnds.length };
 }
 
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  CLICK-TO-EXPAND  (month view)
+//
+//  Clicking a date cell expands the week row(s) of all events
+//  that touch that date — so a reservation spanning 2 weeks
+//  will expand both rows simultaneously.
+//  Clicking again collapses the same set.
+// ══════════════════════════════════════════════
+
+function handleDayClick(clickedDate) {
+  const clickedWeekStart = getWeekStart(clickedDate);
+  const clickedKey       = dateToISO(clickedWeekStart);
+  const isExpanded       = expandedWeeks.has(clickedKey);
+
+  // Gather all events that touch the clicked date
+  const events = groupEvents(getFiltered());
+  const touching = events.filter(evt => {
+    const s = parseDate(evt.check_in);
+    const e = parseDate(evt.check_out);
+    return s <= clickedDate && e > clickedDate;
+  });
+
+  // Collect every week-row that those events span
+  const affectedKeys = new Set([clickedKey]);
+  touching.forEach(evt => {
+    let ws  = getWeekStart(parseDate(evt.check_in));
+    const e = parseDate(evt.check_out);
+    while (ws < e) {
+      affectedKeys.add(dateToISO(ws));
+      ws = addDays(ws, 7);
+    }
+  });
+
+  if (isExpanded) {
+    affectedKeys.forEach(k => expandedWeeks.delete(k));
+  } else {
+    affectedKeys.forEach(k => expandedWeeks.add(k));
+  }
+
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  CHIP CONTENT BUILDERS
+// ══════════════════════════════════════════════
+
+function buildChipContent_detailed(evt) {
+  const icon    = evt.type === 'room' ? '🛏' : '🏛';
+  const roomStr = evt.isGrouped ? `${evt.rooms.length} Rooms` : evt.label;
+  return `<span class="ac-chip-icon">${icon}</span>`
+    + `<span class="ac-chip-body">`
+    +   `<span class="ac-chip-purpose">${esc(evt.purpose)}</span>`
+    +   `<span class="ac-chip-name">${esc(evt.guestName)}</span>`
+    +   `<span class="ac-chip-room">${esc(roomStr)}</span>`
+    + `</span>`;
+}
+
+function buildChipContent_stacked(evt, dotColor) {
+  return `<span class="ac-chip-dot" style="background:${dotColor};"></span>`
+    + `<span class="ac-chip-name-only">${esc(evt.guestName)}</span>`;
+}
+
+function chipTTData(evt) {
+  return JSON.stringify({
+    guestName : evt.guestName,
+    purpose   : evt.purpose,
+    status    : evt.status,
+    check_in  : evt.check_in,
+    check_out : evt.check_out,
+    type      : evt.type,
+    label     : evt.label,
+    rooms     : evt.rooms,
+    isGrouped : evt.isGrouped,
+  }).replace(/'/g,'&#39;');
+}
+
+// ══════════════════════════════════════════════
 //  REDIRECT HELPER
-// ═══════════════════════════════════════════
-function getRedirect(res) {
-  return ['checked-in','checked-out','completed'].includes(res.status)
+// ══════════════════════════════════════════════
+
+function getRedirect(evt) {
+  return ['checked-in','checked-out','completed'].includes(evt.status)
     ? window.guestPage
     : window.reservationPage;
 }
 
-// ═══════════════════════════════════════════
-//  RENDER — MAIN
-// ═══════════════════════════════════════════
-function render() {
-  // ── Compute responsive column width from available chart area
-  const rightEl = document.getElementById('ganttRight');
-  if (rightEl) {
-    DAY_W = Math.max(MIN_DAY_W, Math.floor(rightEl.clientWidth / rangeSize));
-  }
+// ══════════════════════════════════════════════
+//  MONTH VIEW
+// ══════════════════════════════════════════════
 
-  const data               = getFiltered();
-  const { rooms, venues }  = groupByResource(data);
-  const rangeEnd  = addDays(rangeStart, rangeSize);
-  const totalW    = rangeSize * DAY_W;
+function renderMonthView(events) {
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
 
-  // Range label
-  const lbl = document.getElementById('ganttRangeLabel');
-  if (lbl) lbl.textContent =
-    `${fmtShort(rangeStart)} – ${fmtShort(addDays(rangeEnd, -1))}`;
+  const year  = viewDate.getFullYear();
+  const month = viewDate.getMonth();
 
-  // Resource count badge
-  const ct = document.getElementById('ganttClientCount');
-  if (ct) ct.textContent =
-    `${rooms.length} room${rooms.length !== 1 ? 's' : ''}` +
-    ` · ${venues.length} venue${venues.length !== 1 ? 's' : ''}`;
+  const firstDay  = new Date(year, month, 1);
+  const gridStart = new Date(firstDay);
+  gridStart.setDate(gridStart.getDate() - gridStart.getDay());
 
-  // Inner width
-  const inner = document.getElementById('ganttInner');
-  if (inner) inner.style.width = totalW + 'px';
+  const lastDay = new Date(year, month + 1, 0);
+  const gridEnd = new Date(lastDay);
+  if (gridEnd.getDay() !== 6) gridEnd.setDate(gridEnd.getDate() + (6 - gridEnd.getDay()));
+  gridEnd.setDate(gridEnd.getDate() + 1); // exclusive
 
-  renderDateHeader(rangeStart, rangeSize, totalW);
-  renderResourceRows(rooms, venues, rangeStart, rangeEnd);
-}
+  const totalWeeks = Math.ceil(daysBetween(gridStart, gridEnd) / 7);
+  const laneH      = dispMode === 'stacked' ? LANE_H_STACK : LANE_H_DETAIL;
 
-// ── Date header ──────────────────────────────
-function renderDateHeader(start, days, totalW) {
-  const el = document.getElementById('ganttDateHeader');
-  if (!el) return;
-  el.style.width = totalW + 'px';
+  let html = `<div class="ac-month-grid">`;
 
-  // Month spans
-  const spans = [];
-  let cur = null, curS = 0, curN = 0;
-  for (let i = 0; i < days; i++) {
-    const day = addDays(start, i);
-    const key = `${day.getFullYear()}-${day.getMonth()}`;
-    if (key !== cur) {
-      if (cur !== null) spans.push({ s: curS, n: curN, d: addDays(start, curS) });
-      cur = key; curS = i; curN = 1;
-    } else { curN++; }
-  }
-  spans.push({ s: curS, n: curN, d: addDays(start, curS) });
+  // Day-of-week header
+  html += `<div class="ac-dow-row">`;
+  DOW_SHORT.forEach(d => { html += `<div class="ac-dow-cell">${d}</div>`; });
+  html += `</div>`;
 
-  const monthHtml = spans.map(sp =>
-    `<div style="position:absolute;left:${sp.s*DAY_W}px;width:${sp.n*DAY_W}px;height:22px;
-      display:flex;align-items:center;padding-left:6px;font-size:9.5px;font-weight:700;
-      color:#6b7280;text-transform:uppercase;letter-spacing:.3px;
-      border-right:2px solid #e5e7eb;overflow:hidden;white-space:nowrap;box-sizing:border-box;">
-      ${MONTH_NAMES[sp.d.getMonth()]} ${sp.d.getFullYear()}</div>`
-  ).join('');
+  // Week rows
+  for (let w = 0; w < totalWeeks; w++) {
+    const weekStart  = addDays(gridStart, w * 7);
+    const weekEnd    = addDays(weekStart, 7);
+    const weekKeyStr = dateToISO(weekStart);
+    const isExpanded = expandedWeeks.has(weekKeyStr);
 
-  const dayHtml = Array.from({ length: days }, (_, i) => {
-    const day   = addDays(start, i);
-    const isTod = daysBetween(TODAY, day) === 0;
-    const isWkd = day.getDay() === 0 || day.getDay() === 6;
-    const bg    = isTod ? 'rgba(59,130,246,.09)' : isWkd ? 'rgba(0,0,0,.02)' : 'transparent';
-    const dc    = isTod ? '#1d4ed8' : '#6b7280';
-    const fw    = isTod ? '700' : '600';
-    return `<div style="position:absolute;left:${i*DAY_W}px;width:${DAY_W}px;height:32px;
-      background:${bg};border-right:1px solid #e5e7eb;display:flex;flex-direction:column;
-      align-items:center;justify-content:center;box-sizing:border-box;">
-      <span style="font-size:9px;color:#9ca3af;line-height:1;">${DOW_NAMES[day.getDay()]}</span>
-      <span style="font-size:11px;font-weight:${fw};color:${dc};line-height:1;">${day.getDate()}</span>
-    </div>`;
-  }).join('');
-
-  el.innerHTML = `
-    <div style="position:absolute;top:0;left:0;height:22px;width:${totalW}px;
-      border-bottom:1px solid #e5e7eb;">${monthHtml}</div>
-    <div style="position:absolute;top:22px;left:0;height:32px;width:${totalW}px;">${dayHtml}</div>`;
-}
-
-// ── Resource rows (sidebar + chart) ──────────
-function renderResourceRows(rooms, venues, rangeStart, rangeEnd) {
-  const sidebarEl = document.getElementById('ganttSidebarRows');
-  const rowsEl    = document.getElementById('ganttRowsWrap');
-  if (!sidebarEl || !rowsEl) return;
-
-  const totalResources = rooms.length + venues.length;
-
-  if (totalResources === 0) {
-    sidebarEl.innerHTML = `<div class="gantt-empty">
-      <div class="g-empty-icon">🔍</div>
-      <p>No reservations match your filters.</p>
-    </div>`;
-    rowsEl.innerHTML = '';
-    return;
-  }
-
-  // Column backgrounds (today + weekends) — spans full height
-  let colBgsHtml = '';
-  for (let i = 0; i < rangeSize; i++) {
-    const day   = addDays(rangeStart, i);
-    const isTod = daysBetween(TODAY, day) === 0;
-    const isWkd = day.getDay() === 0 || day.getDay() === 6;
-    if (isTod || isWkd) {
-      colBgsHtml += `<div class="gantt-col-bg ${isTod ? 'g-today' : 'g-weekend'}"
-        style="left:${i*DAY_W}px;width:${DAY_W}px;"></div>`;
-    }
-  }
-
-  let sidebarHtml = '';
-  let rowsHtml    = '';
-  let rowIndex    = 0;  // for alt-row shading
-
-  // ── Renders a single resource row (used by both flat + sub-grouped paths)
-  function renderResourceRow(resource, icon) {
-    const { placed, laneCount } = assignLanes(resource.rsvs);
-    const rowH     = laneCount * (BAR_H + BAR_GAP) + ROW_PAD * 2;
-    const rsvCount = resource.rsvs.length;
-    const isEmpty  = rsvCount === 0;
-    const countBadge = rsvCount > 0
-      ? `<span class="g-res-count">${rsvCount}</span>`
-      : '';
-
-    sidebarHtml += `
-      <div class="gantt-resource-row${isEmpty ? ' g-empty-row' : ''}" style="height:${rowH}px;">
-        <span class="gantt-resource-icon">${icon}</span>
-        <span class="gantt-resource-meta">
-          <span class="gantt-resource-label">${esc(resource.label)}</span>
-        </span>
-        ${countBadge}
-      </div>`;
-
-    // Chart resource row — bars
-    let barsHtml = '';
-    placed.forEach(res => {
-      const ciDate = parseDate(res.check_in);
-      const coDate = parseDate(res.check_out);
-
-      if (coDate < rangeStart || ciDate >= rangeEnd) return;
-
-      const visStart = ciDate < rangeStart ? rangeStart : ciDate;
-      const visEnd   = coDate > rangeEnd   ? rangeEnd   : coDate;
-      const clipL    = ciDate < rangeStart;
-      const clipR    = coDate > rangeEnd;
-
-      const leftPx   = daysBetween(rangeStart, visStart) * DAY_W;
-      const widthPx  = Math.max(DAY_W - 3, (daysBetween(visStart, visEnd) + 1) * DAY_W - 3);
-      const topPx    = ROW_PAD + res.lane * (BAR_H + BAR_GAP);
-      const nights   = daysBetween(ciDate, coDate);
-      const clipCls  = [clipL ? 'g-clip-l' : '', clipR ? 'g-clip-r' : ''].filter(Boolean).join(' ');
-      const redirect = getRedirect(res);
-      const guestName = res.user?.name || '----';
-      const purpose = res.purpose || '--';
-
-      const ttData = JSON.stringify({
-        label: res.label, type: res.type, status: res.status,
-        check_in: res.check_in, check_out: res.check_out,
-        name: guestName, nights,
-        purpose: res.purpose || 'N/A',
-      }).replace(/'/g, '&#39;');
-
-      barsHtml += `
-        <a class="gantt-bar ${res.status} ${clipCls}"
-           style="left:${leftPx}px;width:${widthPx}px;top:${topPx}px;height:${BAR_H}px;"
-           href="${getRedirect(res)}/${encodeURIComponent(res.id)}?type=${encodeURIComponent(res.type)}"
-           data-tt='${ttData}'
-           onmouseenter="window.__ganttShowTT(event,this)"
-           onmouseleave="window.__ganttHideTT()">
-          <span class="g-text g-spacing-text">${esc(purpose)} | ${esc(guestName)}</span>
-        </a>`;
+    // Events overlapping this week
+    const weekEvents = events.filter(evt => {
+      const s = parseDate(evt.check_in);
+      const e = parseDate(evt.check_out);
+      return s < weekEnd && e > weekStart;
     });
 
-    rowsHtml += `
-      <div class="gantt-chart-row${isEmpty ? ' g-empty-row' : ''}" style="height:${rowH}px;">
-        ${barsHtml}
-      </div>`;
-  }
+    const { placed, maxLane } = assignLanesForWeek(weekEvents, weekStart);
 
-  // ── Renders one group section (rooms or venues)
-  //    useSubGroups=true → rooms are sub-divided by meta (Room_Type)
-  function renderGroup(resources, groupKey, icon, label, accentClass, useSubGroups = false) {
-    if (resources.length === 0 && filterType) return;
+    // When expanded → show every lane; otherwise cap at MAX_VISIBLE_LANES
+    const visibleLaneCount = isExpanded ? maxLane : Math.min(maxLane, MAX_VISIBLE_LANES);
 
-    const isCollapsed = collapsed.has(groupKey);
-    const count       = resources.length;
-
-    // ── Group header (sidebar)
-    sidebarHtml += `
-      <div class="gantt-group-header ${accentClass}"
-           onclick="window.__ganttToggleGroup('${groupKey}')">
-        <span class="gantt-group-icon">${icon}</span>
-        <span class="gantt-group-label">${label}</span>
-        <span class="gantt-group-count">${count} ${label.toLowerCase()}</span>
-        <span class="gantt-group-arrow${isCollapsed ? ' g-collapsed' : ''}">▼</span>
-      </div>`;
-
-    // ── Group header (chart) — full-width tinted band
-    rowsHtml += `
-      <div class="gantt-chart-group-header ${accentClass}"
-           style="height:${GROUP_H}px;">
-      </div>`;
-
-    if (isCollapsed) return;
-
-    if (useSubGroups) {
-      // ── Sub-group by Room_Type (meta)
-      const typeMap = new Map();
-      resources.forEach(r => {
-        const t = r.meta || 'Other';
-        if (!typeMap.has(t)) typeMap.set(t, []);
-        typeMap.get(t).push(r);
-      });
-
-      // Sort type keys: Single → Double → Triple → anything else
-      const ORDER = ['Single', 'Double', 'Triple'];
-      const sortedTypes = [...typeMap.keys()].sort((a, b) => {
-        const ai = ORDER.indexOf(a), bi = ORDER.indexOf(b);
-        if (ai !== -1 && bi !== -1) return ai - bi;
-        if (ai !== -1) return -1;
-        if (bi !== -1) return  1;
-        return a.localeCompare(b);
-      });
-
-      sortedTypes.forEach(typeName => {
-        const typeKey        = `${groupKey}::${typeName}`;
-        const typeResources  = typeMap.get(typeName);
-        const typeCollapsed  = collapsed.has(typeKey);
-        const typeCount      = typeResources.length;
-
-        // Sub-group header — sidebar
-        sidebarHtml += `
-          <div class="gantt-type-header"
-               onclick="window.__ganttToggleGroup('${typeKey}')">
-            <span class="gantt-type-label">${esc(typeName)}</span>
-            <span class="gantt-group-arrow${typeCollapsed ? ' g-collapsed' : ''}">▼</span>
-          </div>`;
-
-        // Sub-group header — chart band
-        rowsHtml += `<div class="gantt-chart-type-header" style="height:${GROUP_H - 6}px;"></div>`;
-
-        if (!typeCollapsed) {
-          typeResources.forEach(resource => renderResourceRow(resource, icon));
+    // "+N more" per day (only when NOT expanded)
+    const dayMore = Array(7).fill(0);
+    if (!isExpanded) {
+      placed.forEach(({ lane, colStart, spanLen }) => {
+        if (lane >= MAX_VISIBLE_LANES) {
+          for (let c = colStart; c < colStart + spanLen && c < 7; c++) dayMore[c]++;
         }
       });
-    } else {
-      // ── Flat (venues)
-      resources.forEach(resource => renderResourceRow(resource, icon));
+    }
+    const hasMore  = dayMore.some(n => n > 0);
+    // Always at least 100 px so empty weeks stay visually uniform.
+    const rowH = Math.max(100, 30 + visibleLaneCount * (laneH + 3) + (hasMore ? 20 : 0));
+
+    html += `<div class="ac-week-row${isExpanded ? ' ac-row-expanded' : ''}"
+      data-week-start="${weekKeyStr}"
+      style="min-height:${rowH}px;">`;
+
+    // ── Day-cell backgrounds + date numbers ──
+    html += `<div class="ac-week-days">`;
+    for (let d = 0; d < 7; d++) {
+      const day          = addDays(weekStart, d);
+      const isToday      = isSameDay(day, TODAY);
+      const isOtherMonth = day.getMonth() !== month;
+      const isWeekend    = d === 0 || d === 6;
+      html += `<div class="ac-day-cell${isToday?' ac-today':''}${isOtherMonth?' ac-other-month':''}${isWeekend?' ac-weekend':''}">
+        <span class="ac-day-num-wrap">
+          <span class="ac-day-num${isToday?' ac-today-circle':''}">${day.getDate()}</span>
+        </span>
+      </div>`;
+    }
+    html += `</div>`;
+
+    // ── Expand hint (top-right of row when has hidden events) ──
+    if (hasMore && !isExpanded) {
+      html += `<div class="ac-expand-hint" title="Click any date cell to expand">▾</div>`;
+    }
+    if (isExpanded) {
+      html += `<div class="ac-collapse-hint" title="Click any date cell to collapse">▴ collapse</div>`;
     }
 
-    // (resource row rendering now handled inside renderResourceRow / sub-group block)
-    return;
+    // ── Event chips (absolutely positioned spanning bars) ──
+    html += `<div class="ac-events-layer">`;
+    placed
+      .filter(p => isExpanded || p.lane < MAX_VISIBLE_LANES)
+      .forEach(({ evt, lane, colStart, spanLen, startsInWeek, endsInWeek }) => {
+        const cfg  = STATUS_CFG[evt.status] || STATUS_CFG['pending'];
+        const top  = 30 + lane * (laneH + 3);
+        const l    = `calc(${(colStart/7)*100}% + 1px)`;
+        const w    = `calc(${(spanLen/7)*100}% - 2px)`;
+        const cls  = [
+          'ac-chip', evt.status,
+          !startsInWeek ? 'ac-cont-l' : '',
+          !endsInWeek   ? 'ac-cont-r' : '',
+          dispMode === 'stacked' ? 'ac-stacked' : '',
+        ].filter(Boolean).join(' ');
+
+        const inner = dispMode === 'detailed'
+          ? buildChipContent_detailed(evt)
+          : buildChipContent_stacked(evt, cfg.solid);
+
+        html += `<a class="${cls}"
+          style="top:${top}px;left:${l};width:${w};height:${laneH}px;background:${cfg.bg};border-color:${cfg.border};color:${cfg.text};"
+          href="${getRedirect(evt)}/${encodeURIComponent(evt.id)}?type=${encodeURIComponent(evt.type)}"
+          data-tt='${chipTTData(evt)}'
+          onmouseenter="window.__calShowTT(event,this)"
+          onmouseleave="window.__calHideTT()"
+        >${inner}</a>`;
+      });
+
+    // "+N more" labels (only when not expanded)
+    if (hasMore) {
+      for (let d = 0; d < 7; d++) {
+        if (!dayMore[d]) continue;
+        const top  = 30 + MAX_VISIBLE_LANES * (laneH + 3);
+        const l    = `calc(${(d/7)*100}% + 3px)`;
+        const w    = `calc(${(1/7)*100}% - 6px)`;
+        html += `<span class="ac-more-lbl" style="top:${top}px;left:${l};width:${w};">+${dayMore[d]} more</span>`;
+      }
+    }
+
+    html += `</div>`; // /ac-events-layer
+    html += `</div>`; // /ac-week-row
   }
 
-  // Render both groups — rooms use sub-grouping by Room_Type
-  renderGroup(rooms,  'rooms',  '🛏', 'Rooms',  'g-group-room',  true);
-  renderGroup(venues, 'venues', '🏛', 'Venues', 'g-group-venue', false);
-
-  sidebarEl.innerHTML = sidebarHtml;
-  rowsEl.innerHTML    = colBgsHtml + rowsHtml;
+  html += `</div>`; // /ac-month-grid
+  grid.innerHTML = html;
 }
 
-// ═══════════════════════════════════════════
-//  SCROLL SYNC
-// ═══════════════════════════════════════════
-function setupScrollSync() {
-  const right   = document.getElementById('ganttRight');
-  const sidebar = document.getElementById('ganttSidebarRows');
-  if (!right || !sidebar) return;
+// ══════════════════════════════════════════════
+//  WEEK VIEW
+// ══════════════════════════════════════════════
 
-  right.addEventListener('scroll', () => {
-    if (syncingScroll) return;
-    syncingScroll = true;
-    sidebar.scrollTop = right.scrollTop;
-    syncingScroll = false;
-  }, { passive: true });
+function renderWeekView(events) {
+  const grid = document.getElementById('calGrid');
+  if (!grid) return;
 
-  sidebar.addEventListener('scroll', () => {
-    if (syncingScroll) return;
-    syncingScroll = true;
-    right.scrollTop = sidebar.scrollTop;
-    syncingScroll = false;
-  }, { passive: true });
+  const weekStart = getWeekStart(viewDate);
+  const weekEnd   = addDays(weekStart, 7);
+
+  const weekEvents = events.filter(evt => {
+    const s = parseDate(evt.check_in);
+    const e = parseDate(evt.check_out);
+    return s < weekEnd && e > weekStart;
+  });
+
+  const { placed, maxLane } = assignLanesForWeek(weekEvents, weekStart);
+  const laneH   = dispMode === 'stacked' ? 28 : 62;
+  const evtArea = Math.max(160, maxLane * (laneH + 6) + 16);
+
+  let html = `<div class="ac-week-grid">`;
+
+  // Column headers
+  html += `<div class="ac-week-header-row">`;
+  for (let d = 0; d < 7; d++) {
+    const day       = addDays(weekStart, d);
+    const isToday   = isSameDay(day, TODAY);
+    const isWeekend = d === 0 || d === 6;
+    html += `<div class="ac-week-hcell${isToday?' ac-today':''}${isWeekend?' ac-weekend':''}">
+      <span class="ac-week-dow-lbl">${DOW_SHORT[d]}</span>
+      <span class="ac-week-date-num${isToday?' ac-today-circle':''}">${day.getDate()}</span>
+    </div>`;
+  }
+  html += `</div>`;
+
+  // Event canvas
+  html += `<div class="ac-week-body" style="height:${evtArea}px;position:relative;">`;
+
+  // Column bg strips
+  for (let d = 0; d < 7; d++) {
+    const day       = addDays(weekStart, d);
+    const isToday   = isSameDay(day, TODAY);
+    const isWeekend = d === 0 || d === 6;
+    html += `<div class="ac-week-col-bg${isToday?' ac-today-col':''}${isWeekend?' ac-wknd-col':''}"
+      style="left:${(d/7)*100}%;width:${100/7}%;"></div>`;
+  }
+
+  // Event chips
+  placed.forEach(({ evt, lane, colStart, spanLen, startsInWeek, endsInWeek }) => {
+    const cfg    = STATUS_CFG[evt.status] || STATUS_CFG['pending'];
+    const nights = daysBetween(parseDate(evt.check_in), parseDate(evt.check_out));
+    const top    = lane * (laneH + 6) + 6;
+    const l      = `calc(${(colStart/7)*100}% + 4px)`;
+    const w      = `calc(${(spanLen/7)*100}% - 8px)`;
+    const cls    = [
+      'ac-week-chip', evt.status,
+      !startsInWeek ? 'ac-cont-l' : '',
+      !endsInWeek   ? 'ac-cont-r' : '',
+      dispMode === 'stacked' ? 'ac-stacked' : '',
+    ].filter(Boolean).join(' ');
+    const icon    = evt.type === 'room' ? '🛏' : '🏛';
+    const roomStr = evt.isGrouped ? `${evt.rooms.length} Rooms` : evt.label;
+
+    let inner = '';
+    if (dispMode === 'detailed') {
+      inner = `<div class="ac-wk-chip-head">
+          <span class="ac-chip-icon">${icon}</span>
+          <span class="ac-wk-sdot" style="background:${cfg.solid};"></span>
+          <span class="ac-wk-gname">${esc(evt.guestName)}</span>
+        </div>
+        <div class="ac-wk-chip-body">
+          <span class="ac-wk-purpose">${esc(evt.purpose)}</span>
+          <span class="ac-wk-room">${esc(roomStr)}</span>
+          <span class="ac-wk-nights">${nights}n</span>
+        </div>`;
+    } else {
+      inner = buildChipContent_stacked(evt, cfg.solid);
+    }
+
+    html += `<a class="${cls}"
+      style="position:absolute;top:${top}px;left:${l};width:${w};min-height:${laneH}px;
+             background:${cfg.bg};border-left:3px solid ${cfg.solid};color:${cfg.text};"
+      href="${getRedirect(evt)}/${encodeURIComponent(evt.id)}?type=${encodeURIComponent(evt.type)}"
+      data-tt='${chipTTData(evt)}'
+      onmouseenter="window.__calShowTT(event,this)"
+      onmouseleave="window.__calHideTT()"
+    >${inner}</a>`;
+  });
+
+  html += `</div>`; // /ac-week-body
+  html += `</div>`; // /ac-week-grid
+  grid.innerHTML = html;
 }
 
-// ═══════════════════════════════════════════
-//  COLLAPSE TOGGLE  (group level)
-// ═══════════════════════════════════════════
-window.__ganttToggleGroup = function (groupKey) {
-  if (collapsed.has(groupKey)) collapsed.delete(groupKey);
-  else collapsed.add(groupKey);
-  render();
-};
-
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
 //  TOOLTIP
-// ═══════════════════════════════════════════
-const ttEl = document.getElementById('ganttTooltip');
+// ══════════════════════════════════════════════
 
-window.__ganttShowTT = function (e, el) {
-  if (!ttEl) return;
-  const d    = JSON.parse(el.dataset.tt);
+const ttEl = (() => {
+  const el = document.createElement('div');
+  el.className     = 'ac-tooltip';
+  el.style.display = 'none';
+  document.body.appendChild(el);
+  return el;
+})();
+
+window.__calShowTT = function(e, el) {
+  const d      = JSON.parse(el.dataset.tt);
+  const cfg    = STATUS_CFG[d.status] || {};
+  const nights = daysBetween(parseDate(d.check_in), parseDate(d.check_out));
+  const icon   = d.type === 'room' ? '🛏' : '🏛';
+  const statusLabel = d.status.replace(/-/g,' ').replace(/\b\w/g, c => c.toUpperCase());
+
+  let roomsHtml = '';
+  if (d.isGrouped && d.rooms && d.rooms.length > 1) {
+    roomsHtml = `<div class="ac-tt-rooms">${d.rooms.map(r=>`<span class="ac-tt-room-tag">${esc(r)}</span>`).join('')}</div>`;
+  }
+
   ttEl.innerHTML = `
-    <div class="g-tt-title">${esc(d.label)}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Guest</span>${esc(d.name)}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Check-in</span>${d.check_in}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Check-out</span>${d.check_out}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Duration</span>${d.nights} night${d.nights !== 1 ? 's' : ''}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Purpose</span>${d.purpose}</div>
-    <div class="g-tt-row"><span class="g-tt-key">Status</span>
-      <span class="g-tt-badge ${d.status}">${d.status}</span></div>`;
+    <div class="ac-tt-head">
+      <span class="ac-tt-icon">${icon}</span>
+      <span class="ac-tt-guest">${esc(d.guestName)}</span>
+      <span class="ac-tt-badge" style="background:${cfg.bg};color:${cfg.text};border:1px solid ${cfg.border||'transparent'};">${statusLabel}</span>
+    </div>
+    <div class="ac-tt-row"><span class="ac-tt-k">Purpose</span><span>${esc(d.purpose)}</span></div>
+    <div class="ac-tt-row"><span class="ac-tt-k">Check-in</span><span>${d.check_in}</span></div>
+    <div class="ac-tt-row"><span class="ac-tt-k">Check-out</span><span>${d.check_out}</span></div>
+    <div class="ac-tt-row"><span class="ac-tt-k">Duration</span><span>${nights} night${nights!==1?'s':''}</span></div>
+    ${d.isGrouped
+      ? `<div class="ac-tt-row"><span class="ac-tt-k">Rooms (${d.rooms.length})</span></div>${roomsHtml}`
+      : `<div class="ac-tt-row"><span class="ac-tt-k">${d.type==='room'?'Room':'Venue'}</span><span>${esc(d.label)}</span></div>`
+    }`;
+
   ttEl.style.display = 'block';
   moveTT(e);
 };
-window.__ganttHideTT = function () { if (ttEl) ttEl.style.display = 'none'; };
+
+window.__calHideTT = function() { ttEl.style.display = 'none'; };
 
 function moveTT(e) {
-  if (!ttEl) return;
-  const PAD = 14;
-  let x = e.clientX + PAD, y = e.clientY + PAD;
-  if (x + 260 > window.innerWidth)  x = e.clientX - 260 - PAD;
-  if (y + 170 > window.innerHeight) y = e.clientY - 170 - PAD;
+  const PAD = 16;
+  let x = e.clientX + PAD;
+  let y = e.clientY + PAD;
+  if (x + 300 > window.innerWidth)  x = e.clientX - 300 - PAD;
+  if (y + 260 > window.innerHeight) y = e.clientY - 260 - PAD;
   ttEl.style.left = x + 'px';
   ttEl.style.top  = y + 'px';
 }
 document.addEventListener('mousemove', e => {
-  if (ttEl && ttEl.style.display === 'block') moveTT(e);
+  if (ttEl.style.display === 'block') moveTT(e);
 });
 
-// ═══════════════════════════════════════════
-//  STAT CARD UPDATERS  (unchanged)
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  HEADER LABEL
+// ══════════════════════════════════════════════
+
+function updateHeaderLabel() {
+  const lbl = document.getElementById('calHeaderLabel');
+  if (!lbl) return;
+  if (calView === 'month') {
+    lbl.textContent = `${MONTH_NAMES[viewDate.getMonth()]} ${viewDate.getFullYear()}`;
+  } else {
+    const ws = getWeekStart(viewDate);
+    const we = addDays(ws, 6);
+    if (ws.getMonth() === we.getMonth()) {
+      lbl.textContent = `${MONTH_NAMES[ws.getMonth()]} ${ws.getDate()}–${we.getDate()}, ${ws.getFullYear()}`;
+    } else {
+      lbl.textContent = `${MONTH_NAMES[ws.getMonth()]} ${ws.getDate()} – ${MONTH_NAMES[we.getMonth()]} ${we.getDate()}, ${ws.getFullYear()}`;
+    }
+  }
+}
+
+// ══════════════════════════════════════════════
+//  MAIN RENDER
+// ══════════════════════════════════════════════
+
+function render() {
+  updateHeaderLabel();
+  const events = groupEvents(getFiltered());
+  if (calView === 'month') renderMonthView(events);
+  else                     renderWeekView(events);
+}
+
+// ══════════════════════════════════════════════
+//  NAVIGATION
+// ══════════════════════════════════════════════
+
+function navigate(dir) {
+  expandedWeeks.clear(); // collapse all when navigating
+  if (calView === 'month') {
+    viewDate = new Date(viewDate.getFullYear(), viewDate.getMonth() + dir, 1);
+  } else {
+    viewDate = addDays(viewDate, dir * 7);
+  }
+  render();
+}
+
+// ══════════════════════════════════════════════
+//  STAT CARD UPDATERS  (preserved contract)
+// ══════════════════════════════════════════════
+
 function updateStats(stats) {
-  const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-  set('totalReservationsValue', stats.totalReservations ?? 0);
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+  set('totalReservationsValue', stats.totalReservations   ?? 0);
   set('occupancyRateValue',     `${Number(stats.occupancyRate ?? 0).toFixed(1)}%`);
   set('totalRevenueValue',      `₱${Number(stats.totalRevenue ?? 0).toLocaleString()}`);
-  set('activeGuestsValue',      stats.activeGuests ?? 0);
+  set('activeGuestsValue',      stats.activeGuests        ?? 0);
   set('checkOutsTodayValue',    stats.checkOutsTodayCount ?? 0);
 }
 
-function changeHtml(val, labelText) {
+function changeHtml(val, label) {
   const v = Number(val ?? 0);
   const badge = v > 0 ? `<span class="chg-positive">↑ ${v}%</span>`
               : v < 0 ? `<span class="chg-negative">↓ ${Math.abs(v)}%</span>`
                       : `<span class="chg-neutral">—</span>`;
-  return `${badge} <span class="chg-label">${labelText}</span>`;
+  return `${badge} <span class="chg-label">${label}</span>`;
 }
 
 function updateChanges(changes) {
   if (!changes) return;
   const lbl = changes.lastMonthLabel || 'last month';
   const map = {
-    changeTotalReservations: [changes.totalReservations, `vs ${lbl}`],
-    changeOccupancyRate:     [changes.occupancyRate,     'vs prev 30 days'],
-    changeRevenue:           [changes.revenue,            `vs ${lbl}`],
-    changeActiveGuests:      [changes.activeGuests,       `vs ${lbl}`],
-    changeCheckOuts:         [changes.checkOutsToday,     `vs ${lbl}`],
+    changeTotalReservations : [changes.totalReservations, `vs ${lbl}`],
+    changeOccupancyRate     : [changes.occupancyRate,     'vs prev 30 days'],
+    changeRevenue           : [changes.revenue,           `vs ${lbl}`],
+    changeActiveGuests      : [changes.activeGuests,      `vs ${lbl}`],
+    changeCheckOuts         : [changes.checkOutsToday,    `vs ${lbl}`],
   };
-  Object.entries(map).forEach(([id, [val, label]]) => {
+  Object.entries(map).forEach(([id, [v, l]]) => {
     const el = document.getElementById(id);
-    if (el) el.innerHTML = changeHtml(val, label);
+    if (el) el.innerHTML = changeHtml(v, l);
   });
 }
 
-// ═══════════════════════════════════════════
-//  LIVE FETCH  (polls every 10 s)
-// ═══════════════════════════════════════════
+// ══════════════════════════════════════════════
+//  LIVE FETCH  (10 s polling)
+// ══════════════════════════════════════════════
+
 async function fetchReservations() {
   try {
     const res = await fetch(window.calendarDataRoute, {
@@ -520,80 +690,88 @@ async function fetchReservations() {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     reservationData = data.reservations || [];
-    updateStats(data.stats || {});
+    updateStats(data.stats    || {});
     updateChanges(data.changes || window.statChanges || {});
     render();
   } catch (err) {
-    console.warn('Gantt: refresh failed —', err);
+    console.warn('Calendar: refresh failed —', err);
   }
 }
 
-// ═══════════════════════════════════════════
-//  CONTROLS
-// ═══════════════════════════════════════════
-function scrollTodayIntoView() {
-  requestAnimationFrame(() => {
-    const right = document.getElementById('ganttRight');
-    if (!right) return;
-    right.scrollLeft = Math.max(0, daysBetween(rangeStart, TODAY) * DAY_W - right.clientWidth / 3);
-  });
-}
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
 
 document.addEventListener('DOMContentLoaded', () => {
 
-  document.getElementById('ganttPrev')?.addEventListener('click', () => {
-    rangeStart = addDays(rangeStart, -Math.floor(rangeSize / 2));
-    render();
-  });
-
-  document.getElementById('ganttNext')?.addEventListener('click', () => {
-    rangeStart = addDays(rangeStart, Math.floor(rangeSize / 2));
-    render();
-  });
-
-  document.getElementById('ganttToday')?.addEventListener('click', () => {
-    rangeStart = addDays(TODAY, -Math.floor(rangeSize / 5));
-    render();
-    scrollTodayIntoView();
-  });
-
-  document.querySelectorAll('.gantt-range-group button[data-r]').forEach(btn => {
-    btn.addEventListener('click', function () {
-      document.querySelectorAll('.gantt-range-group button').forEach(b => b.classList.remove('active'));
+  // ── View toggle (Month / Week) ──
+  document.querySelectorAll('.ac-view-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.ac-view-btn').forEach(b => b.classList.remove('active'));
       this.classList.add('active');
-      rangeSize = parseInt(this.dataset.r);
+      calView = this.dataset.view;
+      expandedWeeks.clear();
       render();
     });
   });
 
-  let searchTimer;
-  document.getElementById('ganttSearch')?.addEventListener('input', function () {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => { searchQ = this.value.trim(); render(); }, 200);
+  // ── Display mode toggle (Detailed / Stacked) ──
+  document.querySelectorAll('.ac-mode-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.ac-mode-btn').forEach(b => b.classList.remove('active'));
+      this.classList.add('active');
+      dispMode = this.dataset.mode;
+      render();
+    });
   });
 
-  document.getElementById('ganttStatusSel')?.addEventListener('change', function () {
-    filterStatus = this.value; render();
-  });
+  // ── Navigation ──
+  document.getElementById('calPrev')
+    ?.addEventListener('click', () => navigate(-1));
+  document.getElementById('calNext')
+    ?.addEventListener('click', () => navigate(1));
+  document.getElementById('calToday')
+    ?.addEventListener('click', () => {
+      expandedWeeks.clear();
+      viewDate = new Date(TODAY);
+      render();
+    });
 
-  document.getElementById('ganttTypeSel')?.addEventListener('change', function () {
-    filterType = this.value; render();
-  });
+  // ── Status filter ──
+  document.getElementById('calStatusFilter')
+    ?.addEventListener('change', function() {
+      statusFilter = this.value;
+      expandedWeeks.clear();
+      render();
+    });
 
-  setupScrollSync();
+  // ── Click-to-expand delegation (month view day cells) ──
+  //    Clicks that land on a chip navigate as normal (link).
+  //    Clicks anywhere else on a week row toggle expansion.
+  document.getElementById('calGrid')
+    ?.addEventListener('click', (e) => {
+      // Let chip clicks pass through (they're <a> tags)
+      if (e.target.closest('.ac-chip, .ac-week-chip')) return;
+
+      // Only handle month-view week rows
+      const weekRow = e.target.closest('.ac-week-row[data-week-start]');
+      if (!weekRow) return;
+
+      e.preventDefault();
+
+      // Determine which day column was clicked
+      const rect   = weekRow.getBoundingClientRect();
+      const col    = Math.max(0, Math.min(6, Math.floor((e.clientX - rect.left) / rect.width * 7)));
+      const wStart = parseDate(weekRow.dataset.weekStart);
+      const clicked = addDays(wStart, col);
+
+      handleDayClick(clicked);
+    });
+
+  // ── Initial render ──
   render();
-  scrollTodayIntoView();
 
-  // Re-render whenever the chart area is resized (sidebar toggle, window resize, etc.)
-  const rightEl = document.getElementById('ganttRight');
-  if (rightEl && typeof ResizeObserver !== 'undefined') {
-    let resizeTimer;
-    new ResizeObserver(() => {
-      clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(render, 60);  // debounce — 60 ms
-    }).observe(rightEl);
-  }
-
+  // ── Live poll ──
   fetchReservations();
   setInterval(fetchReservations, 10000);
 });

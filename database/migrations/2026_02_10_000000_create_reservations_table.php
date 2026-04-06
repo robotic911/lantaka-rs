@@ -10,6 +10,10 @@ return new class extends Migration
     // Kept for DB parity.
     public function up(): void
     {
+        if (Schema::hasTable('reservations')) {
+            return;
+        }
+
         Schema::create('reservations', function (Blueprint $table) {
             $table->bigIncrements('id');
 

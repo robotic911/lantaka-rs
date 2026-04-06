@@ -166,6 +166,58 @@
                           $extraFees = $reservation->Venue_Reservation_Additional_Fees ?? 0;
                           $extraFeesDesc = $reservation->Venue_Reservation_Additional_Fees_Desc ?? '';
                           $foodTotal = $reservation->foods ? $reservation->foods->sum('pivot.Food_Reservation_Total_Price') : 0;
+                          $foodTotal += $reservation->foodSetReservations ? $reservation->foodSetReservations->sum('Food_Reservation_Total_Price') : 0;
+
+                          // Pre-process set reservations into ready-to-render data for the modal
+                          // custom_ids positions: 0=Rice, 1=Drink, 2=Dessert, 3=Fruit
+                          $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
+                          $foodSets = $reservation->foodSetReservations ? $reservation->foodSetReservations->map(function($r) use ($_customPosLabels) {
+                              $raw = $r->Food_Set_ID ?? '';
+                              $setId = null; $customIds = [];
+                              if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
+                                  $setId = (int)$m[1];
+                                  $customIds = json_decode($m[2], true) ?: [];
+                              } elseif (is_numeric($raw) && $raw !== '') {
+                                  $setId = (int)$raw;
+                              }
+                              $set = $setId ? \App\Models\FoodSet::find($setId) : null;
+
+                              // All base foods in the set definition, each with their category
+                              $setFoods = [];
+                              if ($set && !empty($set->Food_Set_Food_IDs)) {
+                                  $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
+                                      ->get()
+                                      ->map(fn($f) => [
+                                          'name'     => $f->Food_Name,
+                                          'category' => ucfirst(strtolower($f->Food_Category ?? 'Food')),
+                                      ])->toArray();
+                              }
+
+                              // Customized items (rice, drink, dessert, fruit) with real category labels
+                              $customItems = [];
+                              foreach ($customIds as $i => $cid) {
+                                  if (!empty($cid) && is_numeric($cid)) {
+                                      $food = \App\Models\Food::find((int)$cid);
+                                      if ($food) {
+                                          $customItems[] = [
+                                              'name'     => $food->Food_Name,
+                                              'category' => $_customPosLabels[$i]
+                                                  ?? ucfirst(strtolower($food->Food_Category ?? 'Custom')),
+                                          ];
+                                      }
+                                  }
+                              }
+
+                              return [
+                                  'date'         => $r->Food_Reservation_Serving_Date,
+                                  'meal_time'    => $r->Food_Reservation_Meal_time,
+                                  'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                  'set_name'     => $set?->Food_Set_Name ?? 'Unknown Set',
+                                  'set_price'    => (float)($set?->Food_Set_Price ?? 0),
+                                  'set_foods'    => $setFoods,
+                                  'custom_items' => $customItems,
+                              ];
+                          })->toArray() : [];
                       }
                   @endphp
 
@@ -188,16 +240,23 @@
                       <td>{{ $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax }}</td>
 
                       <td>
-                          @if($reservation->status == 'checked-in')
-                              <span class="badge checked-in-badge">Checked-in</span>
-                          @else
-                              <span class="badge {{ strtolower($reservation->status) }}-badge">
-                                  {{ ucfirst($reservation->status) }}
-                              </span>
-                          @endif
-                          @if($reservation->cancellation_status === 'pending')
-                              <span class="badge cancel-req-badge">Cancel Req.</span>
-                          @endif
+                      @php
+                        $status = $reservation->status;
+                        $isCheckedIn = $status === 'checked-in';
+                      @endphp
+
+                     
+
+                      {{-- Cancellation request badge --}}
+                      @if($reservation->cancellation_status === 'pending')
+                        <span class="badge cancel-req-badge">Cancel Request</span>
+                        @else
+                        {{-- Main status badge --}}
+                        <span class="badge
+                          {{ $isCheckedIn ? 'checked-in-badge' : strtolower($status) . '-badge' }}">
+                          {{ $isCheckedIn ? 'Checked-in' : ucfirst($status) }}
+                        </span>
+                      @endif
                       </td>
 
                       <td class="action-cell">
@@ -232,7 +291,8 @@
                                       'userId' => $reservation->Client_ID,
                                       'purpose' => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
                                                             :($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
-                                      'foods' => $reservation->foods ?? [],
+                                      'foods'     => $reservation->foods ?? [],
+                                      'food_sets' => $foodSets ?? [],
                                       'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
                                       'cancellation_status' => $reservation->cancellation_status,
                                   ]) }}">

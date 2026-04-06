@@ -127,6 +127,7 @@
 
 /* Meals Container */
 .meals-container {
+  height: 100%;
   display: flex;
   flex-direction: column;
   gap: 32px;
@@ -462,4 +463,1760 @@
 
 .content{
   padding: 20px 40px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CARD-BASED FOOD LAYOUT  —  system palette
+   Primary:   #2c3e7f   Dark:  #1a2448   Light: #5b8ad6
+   Yellow:    #ffc107   BG:    #F3F5EB
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Page heading */
+.fo-page-heading { margin-bottom: 18px; }
+.fo-page-title   { font-size: 1.5rem; font-weight: 700; color: var(--dark-blue); margin: 0 0 4px; }
+.fo-page-sub     { font-size: 0.85rem; color: var(--text-light); margin: 0; }
+
+/* ── Card header ─────────────────────────────────────────── */
+.card-header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 14px;
+  border-bottom: 2px solid var(--border-gray);
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.card-header h2       { font-size: 18px; font-weight: 700; color: var(--dark-blue); }
+.card-title-wrap      { display: flex; flex-direction: column; gap: 2px; }
+.reservation-date-text { font-size: 13px; color: var(--text-light); }
+
+/* ── Individual / Set mode toggle ─────────────────────────── */
+.fo-mode-toggle {
+  display: inline-flex;
+  border: 2px solid var(--primary-blue);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.fo-mode-btn {
+  padding: 7px 18px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  color: var(--primary-blue);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.fo-mode-btn + .fo-mode-btn { border-left: 2px solid var(--primary-blue); }
+.fo-mode-btn--active        { background: var(--primary-blue); color: #fff; }
+.fo-mode-btn:not(.fo-mode-btn--active):hover {
+  background: rgba(44, 62, 127, 0.08);
+}
+
+/* ── Loading / disabled states ────────────────────────────── */
+.fo-columns--loading {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fo-loading-msg { color: var(--text-light); font-size: 0.9rem; font-style: italic; }
+
+.food-disabled-card .fo-columns {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ── Empty / error helpers ────────────────────────────────── */
+.fo-empty { color: var(--text-light); font-size: 0.82rem; padding: 8px 10px; }
+.fo-error { color: #dc2626; }
+
+/* ══════════════════════════════════════════════════════════════
+   SPIRITUAL SET LAYOUT  (retreat / recollection)
+   ══════════════════════════════════════════════════════════════ */
+
+.fo-spiritual-cols {
+  display: flex;
+  flex-direction: row;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  /* Fixed row height — columns fill this, sets-list scrolls inside */
+  height: 580px;
+  align-items: stretch;
+}
+
+/* .fo-meal-col--snacks {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-direction: column;
+  gap: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(44, 62, 127, 0.25) transparent;
+}
+.fo-meal-col--snacks::-webkit-scrollbar { width: 5px; }
+.fo-meal-col--snacks::-webkit-scrollbar-thumb {
+  background: rgba(44, 62, 127, 0.25);
+  border-radius: 4px;
+} */
+
+/* One column per meal time */
+.fo-meal-col {
+  flex: 1;
+  min-width: 240px;
+  max-width: 320px;
+  background: #fff;
+  border-radius: 10px;
+  border: 1.5px solid rgba(44, 62, 127, 0.18);
+  display: flex;
+  flex-direction: column;
+  /* overflow: hidden keeps border-radius clipping on header,
+     but the sets-list scrollbar must not be clipped — solved by
+     min-height: 0 on the child so it shrinks correctly */
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(26, 36, 72, 0.07);
+}
+
+/* The sets list fills remaining column height and scrolls */
+.fo-sets-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  height: 100%;
+  overflow-y: auto;
+  /* flex: 1 + min-height: 0 is the standard flex-scroll pattern:
+     min-height:0 overrides the default 'auto', allowing the child
+     to shrink below its content and actually scroll */
+  flex: 1;
+  background: #f0f3fa;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(44, 62, 127, 0.25) transparent;
+}
+.fo-sets-list::-webkit-scrollbar { width: 5px; }
+.fo-sets-list::-webkit-scrollbar-thumb {
+  background: rgba(44, 62, 127, 0.25);
+  border-radius: 4px;
+}
+
+/* 4th column: AM + PM Snacks stacked — no fixed height, scrolls as a unit */
+.fo-meal-col--snacks {
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex-direction: column;
+  gap: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(44, 62, 127, 0.25) transparent;
+}
+.fo-meal-col--snacks::-webkit-scrollbar { width: 5px; }
+.fo-meal-col--snacks::-webkit-scrollbar-thumb {
+  background: rgba(44, 62, 127, 0.25);
+  border-radius: 4px;
+}
+
+/* Each AM/PM sub-column inside the snack column */
+.fo-snack-sub-col {
+  background: #fff;
+  border-radius: 10px;
+  border: 1.5px solid rgba(44, 62, 127, 0.18);
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(26, 36, 72, 0.07);
+  flex-shrink: 0;
+}
+.fo-snack-sub-col + .fo-snack-sub-col { margin-top: 14px; }
+
+/* Column header — dark navy */
+.fo-meal-col-header {
+  background: var(--dark-blue);
+  color: #fff;
+  text-align: center;
+  padding: 12px 10px 10px;
+  flex-shrink: 0;  /* header never shrinks */
+}
+.fo-col-title { display: block; font-weight: 700; font-size: 0.88rem; letter-spacing: 0.3px; }
+.fo-col-sub   { display: block; font-size: 0.7rem; opacity: 0.75; margin-top: 2px; }
+
+/* ══════════════════════════════════════════════════════════════
+   SPIRITUAL SET CARDS
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Collapsed card (default) ─────────────────────────────── */
+.fo-set-card {
+  background: #fff;
+  height: 100%;
+  border-radius: 8px;
+  border: 2px solid rgba(44, 62, 127, 0.18);
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  box-shadow: 0 1px 4px rgba(26, 36, 72, 0.06);
+}
+.fo-set-card:hover:not(.fo-set-card--selected) {
+  border-color: var(--primary-blue);
+  box-shadow: 0 3px 10px rgba(44, 62, 127, 0.12);
+}
+
+/* Card header row: name left, price right — always visible */
+.fo-scard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+}
+.fo-scard-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+}
+.fo-scard-price {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  white-space: nowrap;
+}
+
+/* Collapsed bullet list */
+.fo-scard-bullet {
+  list-style: disc;
+  padding: 0 12px 10px 28px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.fo-scard-bullet-item {
+  font-size: 0.78rem;
+  color: var(--text-dark);
+  opacity: 0.82;
+  line-height: 1.4;
+}
+
+/* ── Selected / expanded card — dark blue ─────────────────── */
+.fo-set-card--selected {
+  background: var(--dark-blue);
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.25);
+  cursor: default;
+}
+.fo-set-card--selected .fo-scard-name  { color: #fff; }
+.fo-set-card--selected .fo-scard-price { color: var(--yellow); }
+
+/* Expanded section container */
+.fo-set-expanded {
+  padding: 0 12px 12px;
+}
+
+/* Plain food items list in expanded view */
+.fo-scard-food-items {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin-top: 4px;
+}
+.fo-scard-food-item {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  padding-left: 2px;
+}
+
+/* Extras rows (Rice, Drink, Fruit, Softdrink, Dessert) */
+.fo-extras-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 7px;
+  flex-wrap: wrap;
+}
+.fo-extras-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+  white-space: nowrap;
+  min-width: 68px;
+}
+.fo-extras-select {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1.5px solid rgba(44, 62, 127, 0.3);
+  border-radius: 6px;
+  font-size: 0.78rem;
+  background: #fff;
+  color: var(--dark-blue);
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.fo-extras-select:focus { outline: none; border-color: var(--primary-blue); }
+
+/* Overrides when inside a selected (dark) card */
+.fo-set-card--selected .fo-extras-label  { color: rgba(255,255,255,0.88); }
+.fo-set-card--selected .fo-extras-select {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.25);
+  color: #fff;
+  color-scheme: dark;
+}
+
+/* Business-logic note */
+.fo-extras-note {
+  font-size: 0.73rem;
+  line-height: 1.5;
+  background: rgba(91, 138, 214, 0.12);
+  border-left: 3px solid var(--light-blue);
+  padding: 7px 10px;
+  border-radius: 0 5px 5px 0;
+  margin: 2px 0 10px;
+  color: var(--text-light);
+}
+.fo-set-card--selected .fo-extras-note {
+  background: rgba(91, 138, 214, 0.22);
+  border-left-color: #7baae8;
+  color: rgba(255,255,255,0.78);
+}
+
+/* Change / deselect button */
+.fo-change-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  background: transparent;
+  border: 1.5px solid rgba(44, 62, 127, 0.3);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--primary-blue);
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.12s, border-color 0.12s;
+}
+.fo-change-btn:hover {
+  background: rgba(44, 62, 127, 0.07);
+  border-color: var(--primary-blue);
+}
+.fo-set-card--selected .fo-change-btn {
+  border-color: rgba(255,255,255,0.3);
+  color: rgba(255,255,255,0.78);
+}
+.fo-set-card--selected .fo-change-btn:hover {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.55);
+  color: #fff;
+}
+
+/* ── Sub Total bar below spiritual columns ──────────────────── */
+.fo-spiritual-subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 10px 28px;
+  background: var(--dark-blue);
+  color: rgba(255,255,255,0.75);
+  border-radius: 40px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  align-self: center;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  letter-spacing: 0.2px;
+}
+.fo-spir-subtotal-amount {
+  color: var(--yellow);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+/* Legacy / kept for compat */
+.fo-set-price-badge { display: none; }
+.fo-set-preview     { display: none; }
+.fo-rice-row        { margin-top: 10px; padding: 10px 10px 0 10px; border-top: 1px dashed rgba(44,62,127,0.2); }
+.fo-food-chip {
+  display: inline-flex; align-items: center;
+  background: rgba(44,62,127,0.1); color: var(--dark-blue);
+  border: 1px solid rgba(44,62,127,0.2); border-radius: 20px;
+  padding: 3px 10px; font-size: 0.72rem; font-weight: 600;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GENERAL EVENT SET LAYOUT
+   ══════════════════════════════════════════════════════════════ */
+
+.fo-general-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+/* Section wrapper */
+.fo-section { display: flex; flex-direction: column; gap: 12px; }
+
+/* Section title bar */
+.fo-section-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-bottom: 7px;
+  border-bottom: 2px solid var(--primary-blue);
+}
+.fo-section-title span {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+}
+.fo-section-title small {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  font-weight: 400;
+}
+
+/* Grid of set cards */
+.fo-general-sets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+/* Individual general set card */
+.fo-general-set-card {
+  flex: 1 1 200px;
+  max-width: 280px;
+  background: #fff;
+  border: 2px solid rgba(44, 62, 127, 0.2);
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  box-shadow: 0 1px 4px rgba(26, 36, 72, 0.06);
+}
+.fo-general-set-card:hover:not(.fo-general-set-card--selected) {
+  border-color: var(--primary-blue);
+  box-shadow: 0 3px 10px rgba(44, 62, 127, 0.12);
+}
+
+/* Selected state — full card flips to dark blue */
+.fo-general-set-card--selected {
+  background: var(--dark-blue);
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 3px rgba(255, 193, 7, 0.28);
+}
+
+/* Set card header */
+.fo-general-set-header {
+  background: var(--primary-blue);
+  padding: 11px 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s;
+}
+.fo-general-set-card--selected .fo-general-set-header { background: var(--dark-blue); }
+
+/* ── Inner element overrides when general card is on dark-blue bg ── */
+.fo-general-set-card--selected .fo-food-list-wrap { padding: 0; }
+.fo-general-set-card--selected .fo-list-name  { color: rgba(255,255,255,0.95); }
+.fo-general-set-card--selected .fo-list-cat   {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.6);
+}
+.fo-general-set-card--selected .fo-rice-inline {
+  background: rgba(255,193,7,0.15);
+  border-color: rgba(255,193,7,0.45);
+  color: #fff;
+  color-scheme: dark;
+}
+.fo-general-set-card--selected .fo-gen-sel-area {
+  background: rgba(255,255,255,0.05);
+  border-top-color: rgba(255,255,255,0.1);
+}
+.fo-general-set-card--selected .fo-drink-choice {
+  background: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.15);
+}
+.fo-general-set-card--selected .fo-drink-label { color: rgba(255,255,255,0.88); }
+.fo-general-set-card--selected .fo-upgrades-section  { border-top-color: rgba(255,255,255,0.12); }
+.fo-general-set-card--selected .fo-upgrades-title    { color: rgba(255,255,255,0.45); }
+.fo-general-set-card--selected .fo-upgrade-label     { color: rgba(255,255,255,0.88); }
+.fo-general-set-card--selected .fo-upgrade-price     {
+  background: rgba(255,193,7,0.2);
+  color: var(--yellow);
+}
+.fo-general-set-card--selected .fo-extras-select {
+  background: rgba(255,255,255,0.1);
+  border-color: rgba(255,255,255,0.25);
+  color: #fff;
+  color-scheme: dark;
+}
+.fo-general-set-card--selected .fo-add-btn {
+  background: rgba(255,255,255,0.12);
+  color: #fff;
+}
+.fo-general-set-card--selected .fo-add-btn:hover { background: rgba(255,255,255,0.22); }
+.fo-general-set-card--selected .fo-extra-viand-item  { background: rgba(255,255,255,0.12); }
+.fo-general-set-card--selected .fo-extra-viand-name  { color: #fff; }
+.fo-general-set-card--selected .fo-chip-remove       { background: rgba(255,255,255,0.15); }
+.fo-general-set-card--selected .fo-food-chip {
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.88);
+  border-color: rgba(255,255,255,0.15);
+}
+.fo-gen-set-name {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #fff;
+}
+.fo-gen-set-price {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+/* Food chips area inside general set card */
+.fo-gen-set-foods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 10px 12px 12px;
+}
+
+/* ── Additional food search ─────────────────────────────────── */
+.fo-search-wrap {
+  position: relative;
+  max-width: 480px;
+}
+.fo-search-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 2px solid rgba(44, 62, 127, 0.25);
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-dark);
+  transition: border-color 0.15s;
+}
+.fo-search-input:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(44, 62, 127, 0.1);
+}
+.fo-search-input::placeholder { color: #aab0c0; }
+
+.fo-search-results {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(26, 36, 72, 0.12);
+  z-index: 100;
+  overflow: hidden;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.fo-search-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background 0.12s;
+  border-bottom: 1px solid rgba(44, 62, 127, 0.06);
+}
+.fo-search-option:last-child { border-bottom: none; }
+.fo-search-option:hover { background: rgba(44, 62, 127, 0.06); }
+
+.fo-sopt-name  { flex: 1; font-size: 0.85rem; font-weight: 600; color: var(--dark-blue); }
+.fo-sopt-cat   { font-size: 0.72rem; color: var(--text-light); background: rgba(91, 138, 214, 0.12); padding: 2px 7px; border-radius: 10px; }
+.fo-sopt-price { font-size: 0.8rem; font-weight: 700; color: var(--primary-blue); }
+
+/* Additional food chips */
+.fo-additional-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+.fo-additional-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--primary-blue);
+  color: #fff;
+  border-radius: 20px;
+  padding: 5px 10px 5px 12px;
+  font-size: 0.78rem;
+}
+.fo-chip-name  { font-weight: 700; }
+.fo-chip-cat   { opacity: 0.7; font-size: 0.7rem; background: rgba(255,255,255,0.15); padding: 1px 6px; border-radius: 8px; }
+.fo-chip-price { font-weight: 700; color: var(--yellow); }
+.fo-chip-remove {
+  background: rgba(255,255,255,0.2);
+  border: none;
+  color: #fff;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  transition: background 0.12s;
+  flex-shrink: 0;
+}
+.fo-chip-remove:hover { background: rgba(255,255,255,0.35); }
+
+/* ── Snack grid (shared — single & multi-select) ─────────── */
+.fo-snacks-grid {
+  display: grid;
+  padding: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 5px;
+}
+
+/* Inside the spiritual snack column, items stack as a single column */
+.fo-snack-sub-col .fo-snacks-grid {
+  grid-template-columns: 1fr;
+}
+
+.fo-snack-item {
+  display: flex;
+  background: #ededed;
+  color: #000000;
+  border-radius: 7px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  user-select: none;
+}
+.fo-snack-item:hover:not(.fo-snack-item--selected) {
+  background: #fff;
+  border-color: var(--yellow);
+}
+.fo-snack-item--selected {
+  background: var(--dark-blue);
+  color: #fff;
+  border-color: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.28);
+  font-weight: 700;
+  
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SEARCHABLE SELECT  (custom Select2-style dropdown)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Wrapper ── */
+.ss-wrap {
+  position: relative;
+  width: 100%;
+  user-select: none;
+}
+
+/* ── Trigger button ── */
+.ss-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.22);
+  border-radius: 7px;
+  cursor: pointer;
+  min-height: 34px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  color: var(--text-dark);
+  gap: 6px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.ss-trigger:hover          { border-color: var(--primary-blue); }
+.ss-wrap.ss-open .ss-trigger {
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(44, 62, 127, 0.12);
+}
+
+.ss-display {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #9ca3af;          /* placeholder grey */
+}
+.ss-display--has-value { color: var(--text-dark); }
+
+.ss-arrow {
+  flex-shrink: 0;
+  font-size: 0.7rem;
+  color: rgba(44, 62, 127, 0.5);
+  transition: transform 0.2s;
+}
+.ss-wrap.ss-open .ss-arrow { transform: rotate(180deg); }
+
+/* ── Portal dropdown (appended to <body>) ── */
+.ss-dropdown {
+  display: none;
+  position: absolute;
+  z-index: 9999;
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.2);
+  border-radius: 8px;
+  box-shadow: 0 8px 28px rgba(26, 36, 72, 0.16);
+  overflow: hidden;
+  min-width: 160px;
+}
+.ss-dropdown--open { display: block; }
+
+/* ── Search input ── */
+.ss-search {
+  display: block;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-bottom: 1.5px solid rgba(44, 62, 127, 0.12);
+  font-size: 0.8rem;
+  font-family: inherit;
+  outline: none;
+  background: #f7f8fc;
+  color: var(--text-dark);
+  box-sizing: border-box;
+}
+.ss-search::placeholder { color: #b0b8cc; }
+.ss-search:focus { background: #fff; }
+
+/* ── Options list ── */
+.ss-list {
+  list-style: none;
+  margin: 0;
+  padding: 4px 0;
+  max-height: 220px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.ss-list::-webkit-scrollbar        { width: 5px; }
+.ss-list::-webkit-scrollbar-thumb  { background: rgba(44,62,127,0.2); border-radius: 3px; }
+
+.ss-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-dark);
+  gap: 8px;
+  transition: background 0.1s;
+}
+.ss-option:hover           { background: rgba(44, 62, 127, 0.07); }
+.ss-option--selected       { background: rgba(44, 62, 127, 0.12); font-weight: 600; }
+.ss-option--selected:hover { background: rgba(44, 62, 127, 0.18); }
+
+.ss-opt-name  { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ss-opt-price {
+  flex-shrink: 0;
+  font-size: 0.72rem;
+  color: var(--primary-blue);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.ss-no-results {
+  padding: 10px 12px;
+  font-size: 0.78rem;
+  color: #9ca3af;
+  text-align: center;
+  font-style: italic;
+}
+
+/* ── Validation error state ── */
+.ss-wrap--error .ss-trigger {
+  border-color: #e53e3e !important;
+  box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.14) !important;
+  animation: ss-shake 0.3s ease;
+}
+@keyframes ss-shake {
+  0%, 100% { transform: translateX(0); }
+  25%       { transform: translateX(-4px); }
+  75%       { transform: translateX(4px); }
+}
+
+/* ── Meal column error highlight (set mode) ── */
+.fo-col--error .fo-meal-col-header {
+  background: #c0392b !important;
+  animation: ss-shake 0.3s ease;
+}
+.fo-col--error .fo-sets-list {
+  border: 2px solid rgba(229, 62, 62, 0.35);
+}
+
+/* ── Drink / dessert row error highlight (individual + general set mode) ── */
+.fo-row--error {
+  background: rgba(229, 62, 62, 0.07);
+  border-radius: 6px;
+  outline: 2px solid rgba(229, 62, 62, 0.45);
+  animation: ss-shake 0.3s ease;
+}
+.fo-row--error .fo-indiv-row-label,
+.fo-row--error .fo-drink-label {
+  color: #c0392b;
+  font-weight: 700;
+}
+
+/* ── Hidden native select (invisible but in DOM for form submission) ── */
+.ss-hidden-select {
+  position: absolute !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   INDIVIDUAL ORDER MODE  (card-based, fully customizable)
+   ══════════════════════════════════════════════════════════════ */
+
+.fo-individual-mode { width: 100%; }
+
+/* ── Meal grid: 3 cards side by side ── */
+.fo-indiv-meal-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 14px;
+}
+@media (max-width: 900px) {
+  .fo-indiv-meal-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Meal card ── */
+.fo-indiv-meal-card {
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.18);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 2px 8px rgba(26, 36, 72, 0.07);
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+.fo-indiv-meal-card--disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.fo-indiv-meal-card--disabled .fo-indiv-card-body { pointer-events: none; }
+
+/* ── Card header ── */
+.fo-indiv-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--dark-blue);
+  color: #fff;
+}
+.fo-indiv-meal-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+.fo-indiv-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.75);
+  font-weight: 500;
+  user-select: none;
+}
+.fo-indiv-toggle input[type="checkbox"] {
+  accent-color: var(--yellow);
+  cursor: pointer;
+  width: 14px; height: 14px;
+}
+
+/* ── Card body ── */
+.fo-indiv-card-body {
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  flex: 1;
+  transition: opacity 0.2s;
+}
+.fo-indiv-card-body--disabled {
+  opacity: 0.35;
+  pointer-events: none;
+}
+
+/* ── Each row inside body ── */
+.fo-indiv-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.fo-indiv-row-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--primary-blue);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Food select inside card ── */
+.fo-indiv-select {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1.5px solid rgba(44, 62, 127, 0.2);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.fo-indiv-select:focus { outline: none; border-color: var(--primary-blue); }
+
+/* Re-use for .food-select class on the same element */
+.food-select {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1.5px solid rgba(44, 62, 127, 0.2);
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-dark);
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.food-select:focus { outline: none; border-color: var(--primary-blue); }
+
+/* ── Drink radio group ── */
+.fo-indiv-drink-group {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.fo-indiv-drink-option {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: var(--text-dark);
+  cursor: pointer;
+}
+.fo-indiv-drink-option input[type="radio"] {
+  accent-color: var(--primary-blue);
+  cursor: pointer;
+}
+
+/* ── Add-row (extra viand / dessert) ── */
+.fo-indiv-add-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.fo-indiv-add-row .fo-indiv-select { flex: 1; min-width: 0; }
+.fo-indiv-add-btn {
+  flex-shrink: 0;
+  padding: 5px 11px;
+  background: var(--primary-blue);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.fo-indiv-add-btn:hover  { background: var(--dark-blue); transform: translateY(-1px); }
+.fo-indiv-add-btn:active { transform: translateY(0); }
+
+/* ── Chips container ── */
+.fo-indiv-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  min-height: 0;
+}
+.fo-indiv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(44, 62, 127, 0.08);
+  border: 1px solid rgba(44, 62, 127, 0.2);
+  border-radius: 20px;
+  padding: 3px 8px 3px 10px;
+  font-size: 0.75rem;
+  color: var(--dark-blue);
+}
+.fo-indiv-chip-label { font-weight: 600; }
+.fo-indiv-chip-rm {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #e74c3c;
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 2px;
+  font-weight: 700;
+  transition: color 0.15s;
+}
+.fo-indiv-chip-rm:hover { color: #c0392b; }
+
+/* ── Snacks block below meal cards (multi-select) ── */
+.fo-indiv-snack-wrap {
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.18);
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(26, 36, 72, 0.07);
+}
+.fo-indiv-snack-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--dark-blue);
+  color: #fff;
+}
+.fo-indiv-snack-title {
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+}
+.fo-indiv-snack-sub {
+  font-size: 0.75rem;
+  color: rgba(255,255,255,0.65);
+}
+.fo-indiv-snack-wrap .fo-snacks-grid {
+  padding: 10px 14px;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STICKY FOOTER TOTALS
+   ══════════════════════════════════════════════════════════════ */
+.action-section {
+  position: sticky;
+  bottom: 0;
+  background: var(--dark-blue);
+  border-top: 3px solid var(--yellow);
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 50;
+  box-shadow: 0 -4px 20px rgba(26, 36, 72, 0.18);
+  border-radius: 0 0 12px 12px;
+}
+.total-section { display: flex; align-items: baseline; gap: 10px; }
+.total-label   { font-size: 0.85rem; color: rgba(255,255,255,0.7); font-weight: 600; }
+.total-amount  { font-size: 1.5rem; font-weight: 800; color: var(--yellow); }
+.total-pax     { font-size: 0.78rem; color: rgba(255,255,255,0.5); }
+/* ══════════════════════════════════════════════════════════════
+   BUSINESS LOGIC GUIDE PANEL
+   ══════════════════════════════════════════════════════════════ */
+.fo-guide-panel {
+  background: #fff;
+  border: 1.5px solid rgba(44, 62, 127, 0.18);
+  border-radius: 10px;
+  margin-bottom: 20px;
+  overflow: hidden;
+  box-shadow: 0 1px 6px rgba(26, 36, 72, 0.07);
+}
+
+.fo-guide-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  background: rgba(44, 62, 127, 0.05);
+  border: none;
+  font-family: inherit;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.fo-guide-toggle:hover { background: rgba(44, 62, 127, 0.1); }
+.fo-guide-caret { font-size: 0.8rem; opacity: 0.7; }
+
+.fo-guide-body {
+  display: none;
+  padding: 14px 18px 18px;
+  border-top: 1px solid rgba(44, 62, 127, 0.1);
+}
+.fo-guide-body--open { display: block; }
+
+.fo-guide-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+/* Spiritual guide — 3 items side by side, no upgrade tint */
+.fo-guide-grid--spiritual {
+  grid-template-columns: repeat(3, 1fr);
+}
+@media (max-width: 640px) {
+  .fo-guide-grid--spiritual { grid-template-columns: 1fr; }
+}
+
+.fo-guide-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f7f9ff;
+  border-radius: 8px;
+  border: 1px solid rgba(44, 62, 127, 0.1);
+}
+.fo-guide-item--upgrade {
+  background: rgba(255, 193, 7, 0.06);
+  border-color: rgba(255, 193, 7, 0.3);
+}
+
+.fo-guide-icon { font-size: 1.3rem; flex-shrink: 0; margin-top: 1px; }
+
+.fo-guide-item strong {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--dark-blue);
+  margin-bottom: 2px;
+}
+.fo-guide-item p {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  margin: 0;
+  line-height: 1.4;
+}
+.fo-guide-price {
+  background: rgba(255, 193, 7, 0.25);
+  color: #7a5500;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   NUMBERED FOOD LIST
+   ══════════════════════════════════════════════════════════════ */
+.fo-food-list-wrap { margin-bottom: 10px; }
+
+.fo-food-list {
+  list-style: decimal;
+  padding: 10px;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fo-food-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  color: #fff;
+  flex-wrap: wrap;
+}
+
+.fo-list-name {
+  font-weight: 600;
+  color: var(--dark-blue);
+}
+
+.fo-list-cat {
+  font-size: 0.7rem;
+  color: var(--text-light);
+  background: rgba(44, 62, 127, 0.08);
+  padding: 1px 7px;
+  border-radius: 8px;
+}
+
+/* Rice row — inline type selector */
+.fo-list-rice-row { align-items: center; }
+.fo-rice-inline {
+  padding: 3px 22px 3px 7px;
+  font-size: 0.75rem;
+  border: 1.5px solid rgba(255, 193, 7, 0.5);
+  border-radius: 5px;
+  background: rgba(255, 193, 7, 0.08);
+  color: var(--dark-blue);
+  font-family: inherit;
+  cursor: pointer;
+}
+.fo-rice-inline:focus { outline: none; border-color: var(--yellow); }
+
+/* Drink placeholder row */
+.fo-list-drink-row .fo-list-cat {
+  background: rgba(91, 138, 214, 0.12);
+  color: var(--primary-blue);
+  font-style: italic;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DRINK CHOICE (General set — searchable-select)
+   ══════════════════════════════════════════════════════════════ */
+.fo-drink-choice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 10px;
+  background: rgba(91, 138, 214, 0.08);
+  border-radius: 7px;
+  border: 1px solid rgba(91, 138, 214, 0.2);
+  flex-wrap: wrap;
+}
+
+.fo-drink-label {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+  white-space: nowrap;
+}
+
+/* Stretch the drink searchable-select to fill the remaining row space */
+.fo-drink-choice .fo-drink-ss {
+  flex: 1;
+  min-width: 140px;
+}
+
+/* When the whole row is in error state, tint label red */
+.fo-row--error .fo-drink-label { color: #c0392b; font-weight: 700; }
+
+/* ══════════════════════════════════════════════════════════════
+   UPGRADES SECTION
+   ══════════════════════════════════════════════════════════════ */
+.fo-upgrades-section {
+  border-top: 1.5px dashed rgba(44, 62, 127, 0.18);
+  padding-top: 10px;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.fo-upgrades-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-light);
+  margin: 0 0 2px;
+}
+
+.fo-upgrade-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fo-upgrade-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fo-upgrade-price {
+  background: rgba(255, 193, 7, 0.22);
+  color: #7a5500;
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Add extra viand row */
+.fo-add-viand-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.fo-add-btn {
+  padding: 5px 12px;
+  background: var(--primary-blue);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.15s;
+  flex-shrink: 0;
+}
+.fo-add-btn:hover { background: var(--dark-blue); }
+
+/* List of added extra viands */
+.fo-extra-viand-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 2px;
+}
+
+.fo-extra-viand-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--primary-blue);
+  color: #fff;
+  border-radius: 16px;
+  padding: 3px 8px 3px 10px;
+  font-size: 0.75rem;
+}
+
+.fo-extra-viand-name { font-weight: 600; }
+
+/* General set selection area (legacy — kept for compat) */
+.fo-gen-sel-area {
+  border-top: 1.5px solid rgba(44, 62, 127, 0.12);
+  padding: 10px 12px 12px;
+  background: #f7f9ff;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   GENERAL SET CARD — card body, customize area, customize button
+   ══════════════════════════════════════════════════════════════ */
+
+/* Card body wraps food list + drink choice */
+.fo-gen-card-body {
+  padding: 10px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Customize CTA area — hidden until card is selected */
+.fo-gen-cust-area {
+  display: none;
+  padding: 8px 12px 12px;
+  border-top: 1.5px solid rgba(44, 62, 127, 0.12);
+  justify-content: flex-end;
+}
+.fo-gen-cust-area--visible {
+  display: flex;
+}
+
+/* Yellow Customize button */
+.fo-customize-btn {
+  padding: 7px 18px;
+  background: var(--yellow);
+  color: #1a2448;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  letter-spacing: 0.2px;
+  transition: background 0.15s, transform 0.1s;
+  white-space: nowrap;
+}
+.fo-customize-btn:hover {
+  background: #e6ac00;
+  transform: translateY(-1px);
+}
+.fo-customize-btn:active { transform: translateY(0); }
+
+/* Selected-state overrides for new gen-card elements */
+.fo-general-set-card--selected .fo-gen-card-body {
+  background: transparent;
+}
+.fo-general-set-card--selected .fo-gen-cust-area {
+  border-top-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+}
+/* Dark-theme all searchable-select triggers inside a selected general set card.
+   The card background is dark-blue, so we override the default white trigger. */
+.fo-general-set-card--selected .fo-rice-inline-ss .ss-trigger,
+.fo-general-set-card--selected .fo-drink-ss .ss-trigger {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: rgba(255, 255, 255, 0.88);
+}
+.fo-general-set-card--selected .fo-rice-inline-ss .ss-display,
+.fo-general-set-card--selected .fo-drink-ss .ss-display {
+  color: rgba(255, 255, 255, 0.88);
+}
+.fo-general-set-card--selected .fo-rice-inline-ss .ss-display:not(.ss-display--has-value),
+.fo-general-set-card--selected .fo-drink-ss .ss-display:not(.ss-display--has-value) {
+  color: rgba(255, 255, 255, 0.4);
+}
+.fo-general-set-card--selected .fo-rice-inline-ss .ss-arrow,
+.fo-general-set-card--selected .fo-drink-ss .ss-arrow {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CUSTOMIZE MODAL  (general events — opens from Customize btn)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Full-screen dark overlay */
+.fo-cust-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(10, 14, 40, 0.72);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(2px);
+}
+
+/* Modal card */
+.fo-cust-modal {
+  background: #fff;
+  border-radius: 14px;
+  width: 100%;
+  max-width: 820px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 64px rgba(10, 14, 40, 0.32), 0 4px 16px rgba(10, 14, 40, 0.16);
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal header */
+.fo-cust-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 22px 16px;
+  border-bottom: 2px solid rgba(44, 62, 127, 0.1);
+  background: var(--dark-blue);
+  border-radius: 14px 14px 0 0;
+  flex-shrink: 0;
+}
+
+.fo-cust-modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fo-cust-modal-price {
+  font-size: 1rem;
+  font-weight: 800;
+  color: var(--yellow);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* 3-column body */
+.fo-cust-modal-body {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+}
+
+/* Individual columns */
+.fo-cust-col {
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border-right: 1.5px solid rgba(44, 62, 127, 0.08);
+}
+.fo-cust-col:last-child { border-right: none; }
+
+/* Column heading */
+.fo-cust-col-heading {
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  color: var(--primary-blue);
+  margin: 0 0 2px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid rgba(44, 62, 127, 0.1);
+}
+
+/* Field group — label + select (or add row) */
+.fo-cust-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.fo-cust-field-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--dark-blue);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* Yellow price tag badge */
+.fo-cust-price-tag {
+  display: inline-block;
+  background: rgba(255, 193, 7, 0.2);
+  color: #7a5500;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Full-width select inside modal */
+.fo-cust-select {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1.5px solid rgba(44, 62, 127, 0.25);
+  border-radius: 7px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  background: #fff;
+  color: var(--text-dark);
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%232c3e7f' stroke-width='1.8' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 28px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.fo-cust-select:focus {
+  outline: none;
+  border-color: var(--primary-blue);
+  box-shadow: 0 0 0 3px rgba(44, 62, 127, 0.12);
+}
+
+/* Row with select + Add button side-by-side */
+.fo-cust-add-row {
+  display: flex;
+  gap: 7px;
+  align-items: stretch;
+}
+.fo-cust-add-row .fo-cust-select {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Add button (matching primary blue) */
+.fo-cust-add-btn {
+  padding: 7px 14px;
+  background: var(--primary-blue);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.fo-cust-add-btn:hover { background: var(--dark-blue); }
+
+/* Chips container */
+.fo-cust-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 26px;
+}
+
+/* Individual chip */
+.fo-cust-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--primary-blue);
+  color: #fff;
+  border-radius: 16px;
+  padding: 3px 6px 3px 10px;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+/* Chip remove (×) button */
+.fo-cust-chip-rm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.22);
+  border: none;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 0.7rem;
+  line-height: 1;
+  cursor: pointer;
+  font-family: inherit;
+  flex-shrink: 0;
+  transition: background 0.12s;
+  padding: 0;
+}
+.fo-cust-chip-rm:hover { background: rgba(255, 255, 255, 0.4); }
+
+/* Modal footer */
+.fo-cust-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 22px 18px;
+  border-top: 1.5px solid rgba(44, 62, 127, 0.1);
+  flex-shrink: 0;
+  background: #fafbff;
+  border-radius: 0 0 14px 14px;
+}
+
+/* Cancel button — outlined red */
+.fo-cust-cancel-btn {
+  padding: 8px 20px;
+  background: transparent;
+  color: #dc2626;
+  border: 2px solid #dc2626;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+.fo-cust-cancel-btn:hover {
+  background: #dc2626;
+  color: #fff;
+}
+
+/* Save button — solid green */
+.fo-cust-save-btn {
+  padding: 8px 22px;
+  background: #16a34a;
+  color: #fff;
+  border: 2px solid #16a34a;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+.fo-cust-save-btn:hover {
+  background: #15803d;
+  border-color: #15803d;
+}
+
+/* Live price display inside footer */
+.fo-cust-footer-price {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark-blue);
+  margin-right: auto;
+}
+.fo-cust-footer-price span {
+  color: var(--primary-blue);
+  font-size: 1rem;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CARD CUSTOMIZATION FEEDBACK  (applied after Save Changes)
+   ══════════════════════════════════════════════════════════════ */
+
+/* Extra viand / dessert rows added via customization */
+.fo-list-cat--added {
+  background: rgba(22, 163, 74, 0.14);
+  color: #15803d;
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Switched viand/side dish row — yellow left accent + italic name */
+.fo-food-item--switched {
+  border-left: 2px solid var(--yellow);
+  padding-left: 4px;
+}
+.fo-food-item--switched .fo-list-name { font-style: italic; }
+
+/* Overrides when the card is selected (dark bg) */
+.fo-general-set-card--selected .fo-food-item--switched {
+  border-left-color: var(--yellow);
+}
+.fo-general-set-card--selected .fo-food-item--switched .fo-list-name {
+  color: rgba(255, 255, 255, 0.92);
+}
+.fo-general-set-card--selected .fo-list-cat--added {
+  background: rgba(22, 163, 74, 0.22);
+  color: #86efac;
+}
+
+/* ── Responsive: stack columns on small screens ────────────── */
+@media (max-width: 640px) {
+  .fo-cust-modal-body {
+    grid-template-columns: 1fr;
+  }
+  .fo-cust-col {
+    border-right: none;
+    border-bottom: 1.5px solid rgba(44, 62, 127, 0.08);
+  }
+  .fo-cust-col:last-child { border-bottom: none; }
+  .fo-cust-modal { max-height: 95vh; }
+  .fo-cust-overlay { padding: 10px; }
 }

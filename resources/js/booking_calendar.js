@@ -139,11 +139,16 @@ function calendarRender() {
     const dayNum = cellDate.date()
 
     // mark days outside the current viewed month
-    const otherMonth = cellDate.month() !== view.month()
+    const cellMonthKey = cellDate.year() * 12 + cellDate.month()
+    const viewMonthKey = view.year() * 12 + view.month()
+    const isPrevMonth = cellMonthKey < viewMonthKey
+    const isNextMonth = cellMonthKey > viewMonthKey
+    const otherMonth  = isPrevMonth || isNextMonth
 
     let cls = 'day'
 
-    if (otherMonth) cls += ' other-month'
+    if (isPrevMonth) cls += ' other-month prev-month'
+    else if (isNextMonth) cls += ' other-month next-month'
     if (isOccupied(dateStr)) cls += ' occupied'
 
     // 🔥 NEW: Check if the date string is before today's date string
@@ -168,9 +173,10 @@ function calendarRender() {
 calendarDays.addEventListener('click', (e) => {
   const cell = e.target.closest('.day')
 
-  // Ignore clicks on other-month, truly occupied, or past dates.
-  // current-reservation dates ARE allowed (they belong to the reservation being edited).
-  if (!cell || cell.classList.contains('other-month') || cell.classList.contains('occupied') || cell.classList.contains('past-date')) return
+  // Block only truly past dates and occupied dates.
+  // Both prev-month and next-month overflow dates are selectable if they are not in the past.
+  // past-date already covers any date before today regardless of which month it visually belongs to.
+  if (!cell || cell.classList.contains('occupied') || cell.classList.contains('past-date')) return
 
   clearError()
 

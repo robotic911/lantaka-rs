@@ -139,80 +139,87 @@
 
         </div>
 
-        <!-- Gantt Timeline Section -->
-        <div class="gantt-section">
+        <!-- ══════════════════════════════════════════
+             Apple Calendar — Reservation Calendar
+             ══════════════════════════════════════════ -->
+        <div class="ac-section">
 
-            {{-- Toolbar --}}
-            <div class="gantt-toolbar">
-                <span class="gantt-title">Reservation Timeline</span>
+            {{-- ── Toolbar ── --}}
+            <div class="ac-toolbar">
 
-                <div class="gantt-search-wrap">
-                    <span class="gantt-search-icon">🔍</span>
-                    <input class="gantt-search-inp" id="ganttSearch" placeholder="Search client…" autocomplete="off" />
+                {{-- Left: navigation --}}
+                <div class="ac-nav-group">
+                    <button class="ac-nav-btn" id="calPrev" title="Previous">&#8249;</button>
+                    <h2 class="ac-header-label" id="calHeaderLabel">Loading…</h2>
+                    <button class="ac-nav-btn" id="calNext" title="Next">&#8250;</button>
+                    <button class="ac-today-btn" id="calToday">Today</button>
                 </div>
 
-                <select class="gantt-filter-sel" id="ganttStatusSel">
-                    <option value="">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="confirmed">Confirmed</option>
-                    <option value="checked-in">Checked-In</option>
-                    <option value="checked-out">Checked-Out</option>
-                    <option value="completed">Completed</option>
-                </select>
+                {{-- Centre: section title --}}
+                <span class="ac-section-title">Reservation Calendar</span>
 
-                <select class="gantt-filter-sel" id="ganttTypeSel">
-                    <option value="">All Types</option>
-                    <option value="room">Rooms</option>
-                    <option value="venue">Venues</option>
-                </select>
+                {{-- Right: controls --}}
+                <div class="ac-ctrl-group">
 
-                <div class="gantt-spacer">
-                       {{-- Legend --}}
-                    <div class="gantt-legend">
-                        <span class="gantt-legend-item"><span class="gantt-legend-dot pending"></span>Pending</span>
-                        <span class="gantt-legend-item"><span class="gantt-legend-dot confirmed"></span>Confirmed</span>
-                        <span class="gantt-legend-item"><span class="gantt-legend-dot checked-in"></span>Checked-In</span>
-                        <span class="gantt-legend-item"><span class="gantt-legend-dot checked-out"></span>Checked-Out</span>
-                        <span class="gantt-legend-item"><span class="gantt-legend-dot completed"></span>Completed</span>
-                    
-                       
+                    {{-- Status filter --}}
+                    <select class="ac-status-sel" id="calStatusFilter">
+                        <option value="">All Statuses</option>
+                        <option value="pending">Pending</option>
+                        <option value="confirmed">Confirmed</option>
+                        <option value="checked-in">Checked-In</option>
+                        <option value="checked-out">Checked-Out</option>
+                        <option value="completed">Completed</option>
+                        <option disabled>──────────</option>
+                        <option value="cancelled">Cancelled</option>
+                        <option value="rejected">Rejected</option>
+                    </select>
+
+                    {{-- Display mode --}}
+                    <div class="ac-segmented" aria-label="Display mode">
+                        <button class="ac-mode-btn" data-mode="stacked">Stacked</button>
+                        <button class="ac-mode-btn active" data-mode="detailed">Detailed</button>
                     </div>
 
+                    {{-- View --}}
+                    <div class="ac-segmented" aria-label="Calendar view">
+                        <button class="ac-view-btn active" data-view="month">Month</button>
+                        <button class="ac-view-btn" data-view="week">Week</button>
+                    </div>
+
+                    {{-- Export PDF (keeps ganttExcelBtn id for existing JS handler) --}}
+                    <button class="ac-export-btn" id="ganttExcelBtn" title="Export Calendar PDF">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                        Export PDF
+                    </button>
                 </div>
-
-                <button class="gantt-nav-btn" id="ganttPrev" title="Previous">‹</button>
-                <span class="gantt-range-label" id="ganttRangeLabel"></span>
-                <button class="gantt-nav-btn" id="ganttNext" title="Next">›</button>
-                <button class="gantt-today-btn" id="ganttToday">Today</button>
-
-                <div class="gantt-range-group">
-                    <button data-r="7">7d</button>
-                    <button data-r="14">14d</button>
-                    <button data-r="30" class="active">30d</button>
-                    <button data-r="60">60d</button>
-                </div>
-
-                <button class="gantt-excel-btn" id="ganttExcelBtn" title="Export to Pdf">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="15" y2="17"/><polyline points="9 9 10 9 11 9"/></svg>
-                    PDF
-                </button>
             </div>
 
-            {{-- ── Excel Export Modal ── --}}
+            {{-- ── Legend ── --}}
+            <div class="ac-legend-bar">
+                <span class="ac-legend-item"><span class="ac-legend-dot" style="background:#f59e0b;"></span>Pending</span>
+                <span class="ac-legend-item"><span class="ac-legend-dot" style="background:#3b82f6;"></span>Confirmed</span>
+                <span class="ac-legend-item"><span class="ac-legend-dot" style="background:#22c55e;"></span>Checked-In</span>
+                <span class="ac-legend-item"><span class="ac-legend-dot" style="background:#9ca3af;"></span>Checked-Out</span>
+                <span class="ac-legend-item"><span class="ac-legend-dot" style="background:#8b5cf6;"></span>Completed</span>
+                <span class="ac-legend-note">Cancelled &amp; Rejected reservations are hidden</span>
+            </div>
+
+            {{-- ── Calendar Grid (rendered by JS) ── --}}
+            <div id="calGrid" class="ac-grid-wrap"></div>
+
+            {{-- ── Export Modal (kept for existing JS handler) ── --}}
             <div id="calExportModal" class="cal-export-overlay" style="display:none;">
                 <div class="cal-export-dialog">
                     <div class="cal-export-header">
-                        <span class="cal-export-title">Export Calendar to Excel</span>
+                        <span class="cal-export-title">Export Reservation Calendar</span>
                         <button class="cal-export-close" id="calExportClose">&times;</button>
                     </div>
                     <p class="cal-export-desc">
-                        Choose a start and end month, and year. The exported file will show all rooms and venues
-                        with their reservations as coloured bars across the selected month.
+                        Choose a date range and year to export reservations as an Apple Calendar-style PDF or a flat CSV spreadsheet.
                     </p>
                     <div class="cal-export-fields">
                         <div class="cal-export-field">
-                        
-                            <label for="calExportStartMonth">Start</label>
+                            <label for="calExportStartMonth">Month</label>
                             <select id="calExportStartMonth">
                                 <option value="1">January</option><option value="2">February</option>
                                 <option value="3">March</option><option value="4">April</option>
@@ -223,7 +230,7 @@
                             </select>
                         </div>
                         <div class="cal-export-field">
-                            <label for="calExportEndMonth">End</label>
+                            <label for="calExportEndMonth">End Month</label>
                             <select id="calExportEndMonth">
                                 <option value="1">January</option><option value="2">February</option>
                                 <option value="3">March</option><option value="4">April</option>
@@ -244,38 +251,19 @@
                     </div>
                     <div class="cal-export-actions">
                         <button class="cal-export-cancel" id="calExportCancelBtn">Cancel</button>
+                        <button class="cal-export-download cal-export-csv" id="calExportCsvBtn">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            Download CSV
+                        </button>
                         <button class="cal-export-download cal-export-pdf" id="calExportPdfBtn">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                            PDF
+                            Download PDF
                         </button>
                     </div>
                 </div>
             </div>
 
-            {{-- Body --}}
-            <div class="gantt-body">
-
-                {{-- Left sidebar --}}
-                <div class="gantt-sidebar">
-                    <div class="gantt-sidebar-head">
-                        <span class="gantt-sidebar-head-lbl">Client</span>
-                        <span class="gantt-sidebar-head-ct" id="ganttClientCount"></span>
-                    </div>
-                    <div class="gantt-sidebar-rows" id="ganttSidebarRows"></div>
-                </div>
-
-                {{-- Right scrollable chart --}}
-                <div class="gantt-right" id="ganttRight">
-                    <div class="gantt-inner" id="ganttInner">
-                        <div class="gantt-date-header" id="ganttDateHeader"></div>
-                        <div class="gantt-rows-wrap" id="ganttRowsWrap"></div>
-                    </div>
-                </div>
-
-            </div>{{-- /gantt-body --}}
-
-         
-        </div>{{-- /gantt-section --}}
+        </div>{{-- /ac-section --}}
 
         <!-- Export PDF Button -->
         <button class="export-btn" id="exportPdfBtn">Export Report</button>
@@ -291,6 +279,7 @@
         window.statChanges          = @json($changes);
         window.calendarExportRoute    = "{{ route('calendar.export') }}";
         window.calendarExportPDFRoute = "{{ route('calendar.export.pdf') }}";
+        window.calendarExportCSVRoute = "{{ route('calendar.export.csv') }}";
         window.reservationPage      = "{{ route('employee.reservations') }}";
         window.guestPage            = "{{ route('employee.guest') }}";
         window.calendarDataRoute    = "{{ route('calendar.fetchUpdatedData') }}";
@@ -340,12 +329,17 @@
         calMonthSelStart.value = nowDate.getMonth() + 1;
 
         function updateCalFilename() {
-            const m = parseInt(calMonthSelStart.value);
-            const y = calYearSel.value;
-            if (calFilename) calFilename.textContent = `reservation_calendar_${MONTH_NAMES_FULL[m-1]}_${y}.pdf`;
+            const mStart = parseInt(calMonthSelStart.value);
+            const mEnd   = parseInt(calMonthSelEnd.value);
+            const y      = calYearSel.value;
+            const range  = (mEnd > mStart)
+                ? `${MONTH_NAMES_FULL[mStart-1]}_to_${MONTH_NAMES_FULL[mEnd-1]}_${y}`
+                : `${MONTH_NAMES_FULL[mStart-1]}_${y}`;
+            if (calFilename) calFilename.textContent = `reservation_calendar_${range}`;
         }
         calMonthSelStart.addEventListener('change', updateCalFilename);
-        calYearSel.addEventListener('change',  updateCalFilename);
+        calMonthSelEnd.addEventListener('change',   updateCalFilename);
+        calYearSel.addEventListener('change',       updateCalFilename);
         updateCalFilename();
 
         document.getElementById('ganttExcelBtn')
@@ -355,7 +349,7 @@
         calModal    ?.addEventListener('click', e => { if (e.target === calModal) calModal.style.display = 'none'; });
 
         function calExportParams() {
-            return `month=${calMonthSelStart.value}&year=${calYearSel.value}`;
+            return `month=${calMonthSelStart.value}&end_month=${calMonthSelEnd.value}&year=${calYearSel.value}`;
         }
 
         calDownBtn?.addEventListener('click', () => {
@@ -367,6 +361,12 @@
             ?.addEventListener('click', () => {
                 calModal.style.display = 'none';
                 window.location.href = `${window.calendarExportPDFRoute}?${calExportParams()}`;
+            });
+
+        document.getElementById('calExportCsvBtn')
+            ?.addEventListener('click', () => {
+                calModal.style.display = 'none';
+                window.location.href = `${window.calendarExportCSVRoute}?${calExportParams()}`;
             });
 
         confirmBtn.addEventListener('click', async () => {

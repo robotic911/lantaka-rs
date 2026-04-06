@@ -9,6 +9,7 @@ use App\Models\FoodReservation;
 use App\Models\Room;
 use App\Models\Venue;
 use App\Models\Food;
+use App\Models\FoodSet;
 use App\Models\Account;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Mail;
@@ -91,13 +92,31 @@ class ReservationController extends Controller
             
             $foodTotal = 0;
 
-            $selectedFoods = collect();
-            $foodSelections = $item['food_selections'] ?? [];
-            $foodEnabled = $item['food_enabled'] ?? [];
-            $mealEnabled = $item['meal_enabled'] ?? [];
+            $selectedFoods    = collect();
+            $selectedSets     = collect();
+            $foodSelections   = $item['food_selections']    ?? [];
+            $foodEnabled      = $item['food_enabled']       ?? [];
+            $mealEnabled      = $item['meal_enabled']       ?? [];
+            $foodSetSelection = $item['food_set_selection'] ?? [];
+            $mealMode         = $item['meal_mode']          ?? [];
 
             if ($item['type'] === 'venue' && !empty($foodSelections)) {
                 $allFoodIds = [];
+
+                // Recursively collect all numeric food IDs (handles scalar fields like
+                // rice/viand1/viand2/drink as well as array fields like extra_viands[]/desserts[]).
+                $collectFoodIds = function ($data) use (&$collectFoodIds): array {
+                    $ids = [];
+                    if (is_array($data)) {
+                        foreach ($data as $k => $v) {
+                            if ($k === 'drink_choice') continue; // legacy text value, not a Food_ID
+                            $ids = array_merge($ids, $collectFoodIds($v));
+                        }
+                    } elseif (!empty($data) && is_numeric($data)) {
+                        $ids[] = (int) $data;
+                    }
+                    return $ids;
+                };
 
                 foreach ($foodSelections as $date => $meals) {
                     // skip whole date if food is disabled for that date
@@ -119,11 +138,7 @@ class ReservationController extends Controller
                             continue;
                         }
 
-                        foreach ($categories as $category => $foodId) {
-                            if (!empty($foodId)) {
-                                $allFoodIds[] = $foodId;
-                            }
-                        }
+                        $allFoodIds = array_merge($allFoodIds, $collectFoodIds($categories));
                     }
                 }
 
@@ -150,19 +165,47 @@ class ReservationController extends Controller
                                 continue;
                             }
 
-                            foreach ($categories as $category => $foodId) {
-                                if (empty($foodId)) {
-                                    continue;
+                            // Use recursive collector so extra_viands[], desserts[] arrays
+                            // and the new drink field are all counted in foodTotal.
+                            foreach ($collectFoodIds($categories) as $foodId) {
+                                $food = $selectedFoods->get($foodId);
+                                if (!$food) continue;
+                                $foodTotal += ($food->Food_Price ?? 0) * ($item['pax'] ?? 1);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fetch food set models so checkout can display set names AND sum their prices
+            if ($item['type'] === 'venue' && !empty($foodSetSelection)) {
+                $allSetIds = [];
+                foreach ($foodSetSelection as $dateSets) {
+                    foreach ((array) $dateSets as $setIdOrIds) {
+                        if (is_array($setIdOrIds)) {
+                            foreach ($setIdOrIds as $sid) {
+                                if (!empty($sid)) $allSetIds[] = (int) $sid;
+                            }
+                        } else {
+                            if (!empty($setIdOrIds)) $allSetIds[] = (int) $setIdOrIds;
+                        }
+                    }
+                }
+                $allSetIds = array_values(array_unique($allSetIds));
+                if (!empty($allSetIds)) {
+                    $selectedSets = FoodSet::whereIn('Food_Set_ID', $allSetIds)->get()->keyBy('Food_Set_ID');
+
+                    // Add set prices to the food total
+                    foreach ($foodSetSelection as $date => $meals) {
+                        if (($foodEnabled[$date] ?? '1') != '1') continue;
+                        foreach ((array) $meals as $mealKey => $setIdOrIds) {
+                            $ids = is_array($setIdOrIds) ? $setIdOrIds : [$setIdOrIds];
+                            foreach ($ids as $sid) {
+                                if (empty($sid)) continue;
+                                $set = $selectedSets->get((int) $sid);
+                                if ($set) {
+                                    $foodTotal += ($set->Food_Set_Price ?? 0) * ($item['pax'] ?? 1);
                                 }
-
-                                $food = $selectedFoods->get((int) $foodId);
-
-                                if (!$food) {
-                                    continue;
-                                }
-
-                                $foodPrice = $food->Food_Price ?? 0;
-                                $foodTotal += $foodPrice * ($item['pax'] ?? 1);
                             }
                         }
                     }
@@ -189,14 +232,17 @@ class ReservationController extends Controller
                 'total' => $itemTotal,
 
                 // new grouped structure
-                'food_enabled' => $foodEnabled,
-                'meal_enabled' => $mealEnabled,
-                'food_selections' => $foodSelections,
+                'food_enabled'       => $foodEnabled,
+                'meal_enabled'       => $mealEnabled,
+                'food_selections'    => $foodSelections,
+                'food_set_selection' => $foodSetSelection,
+                'meal_mode'          => $mealMode,
 
-                // selected food models
+                // selected food/set models
                 'selected_foods' => $selectedFoods->values(),
-                'base_total' => $accommodationTotal,
-                'food_total' => $foodTotal,
+                'selected_sets'  => $selectedSets->values(),
+                'base_total'     => $accommodationTotal,
+                'food_total'     => $foodTotal,
             ];
         }
 
@@ -234,23 +280,29 @@ class ReservationController extends Controller
         $id = $item['accommodation_id'];
         $type = $item['type']; // 'room' or 'venue'
 
-        // Venue: stash old food selections in session, then go back to food option page
+        // Venue: stash food selections + booking meta in session, then redirect to venue view
+        // so the user can optionally change dates before proceeding to food selection.
         if ($type === 'venue') {
             session([
-                'edit_food_selections' => $item['food_selections'] ?? [],
-                'edit_food_enabled'    => $item['food_enabled']    ?? [],
-                'edit_meal_enabled'    => $item['meal_enabled']    ?? [],
+                'edit_food_selections'    => $item['food_selections']    ?? [],
+                'edit_food_enabled'       => $item['food_enabled']       ?? [],
+                'edit_meal_enabled'       => $item['meal_enabled']       ?? [],
+                'edit_set_selections'     => $item['food_set_selection'] ?? [],
+                'edit_meal_mode'          => $item['meal_mode']          ?? [],
             ]);
 
-            return redirect()->route('booking.prepare', [
-                'accommodation_id' => $id,
-                'type'             => 'venue',
-                'res_name'         => $item['res_name'] ?? '',
-                'check_in'         => $item['check_in'],
-                'check_out'        => $item['check_out'],
-                'pax'              => $item['pax'] ?? 1,
-                'purpose'          => $item['purpose'] ?? '',
-            ]);
+            // Redirect back to the venue detail page with dates pre-filled so the user
+            // can reschedule if needed, then re-proceed through the food selection step.
+            return redirect()->to(
+                route('client.show', ['category' => 'venue', 'id' => $id])
+                    . '?' . http_build_query([
+                        'check_in'  => $item['check_in'],
+                        'check_out' => $item['check_out'],
+                        'pax'       => $item['pax'] ?? 1,
+                        'purpose'   => $item['purpose'] ?? '',
+                        'edit'      => '1',
+                    ])
+            );
         }
 
         // Room: go back to the room/venue viewing page with dates pre-filled
@@ -322,30 +374,166 @@ class ReservationController extends Controller
                             'Venue_Reservation_Status' => 'pending',
                         ]);
 
-                        $foodSelections = $item['food_selections'] ?? [];
+                        $foodSelections   = $item['food_selections']    ?? [];
+                        $foodSetSelection = $item['food_set_selection'] ?? [];
+                        $foodEnabledMap   = $item['food_enabled']       ?? [];
 
-                        if (!empty($foodSelections)) {
-                            foreach ($foodSelections as $date => $meals) {
-                                foreach ($meals as $mealType => $foodIds) {
-                                    if (!is_array($foodIds) || empty($foodIds)) {
-                                        continue;
+                        // ─────────────────────────────────────────────────────────────
+                        // STEP A – Build a per-date skip-list of mealKeys that belong
+                        // to set selections.  Their customisation values (rice, drinks,
+                        // dessert, fruit) are embedded directly in the Food_Set_ID text
+                        // column, so we must NOT also create separate individual rows.
+                        //
+                        //  Spiritual sets:  food_set_selection[date][mealKey] = "setId"
+                        //                   → skip mealKey (e.g. 'breakfast')
+                        //  General sets:    food_set_selection[date][mealKey][] = setId
+                        //                   → skip "gen_{setId}" (the customisation slot)
+                        // ─────────────────────────────────────────────────────────────
+                        $skipMealKeys = [];   // [$date][$mealKey] = true
+
+                        foreach ($foodSetSelection as $_d => $_meals) {
+                            foreach ((array) $_meals as $_mk => $_ids) {
+                                $isArray = is_array($_ids);
+                                $rawIds  = $isArray ? $_ids : [$_ids];
+
+                                foreach ($rawIds as $_id) {
+                                    if (!empty($_id)) {
+                                        // General set: skip the gen_XX customisation slot
+                                        $skipMealKeys[$_d]["gen_{$_id}"] = true;
                                     }
+                                }
+
+                                // Spiritual set: the mealKey itself is a set meal
+                                if (!$isArray && !empty($_ids)) {
+                                    $skipMealKeys[$_d][$_mk] = true;
+                                }
+                            }
+                        }
+
+                        // ─────────────────────────────────────────────────────────────
+                        // STEP B – Individual food selections
+                        // Only save mealKeys that are NOT in the skip-list (i.e. pure
+                        // individual-order meals and snack items).
+                        // ─────────────────────────────────────────────────────────────
+                        if (!empty($foodSelections)) {
+                            /**
+                             * Recursively extract valid numeric food IDs from a meal's
+                             * selection data.  Skips non-numeric strings (drink_choice
+                             * holds "softdrinks"/"juice", not a Food_ID).
+                             */
+                            $extractFoodIds = function ($data) use (&$extractFoodIds) {
+                                $ids = [];
+                                if (is_array($data)) {
+                                    foreach ($data as $k => $v) {
+                                        if ($k === 'drink_choice') continue; // text, not an ID
+                                        $ids = array_merge($ids, $extractFoodIds($v));
+                                    }
+                                } elseif (is_numeric($data) && !empty($data)) {
+                                    $ids[] = (int) $data;
+                                }
+                                return $ids;
+                            };
+
+                            foreach ($foodSelections as $date => $meals) {
+                                foreach ($meals as $mealType => $mealData) {
+                                    if (empty($mealData)) continue;
+
+                                    // Skip set-meal customisation slots
+                                    if (!empty($skipMealKeys[$date][$mealType])) continue;
+
+                                    $foodIds = $extractFoodIds($mealData);
 
                                     foreach ($foodIds as $foodId) {
                                         $food = Food::find($foodId);
-
                                         if ($food) {
-                                            $price = $food->Food_Price ?? 0;
-
                                             FoodReservation::create([
-                                                'Food_ID' => $foodId,
-                                                'Venue_Reservation_ID' => $reservation->Venue_Reservation_ID,
-                                                'Client_ID' => Auth::id(),
+                                                'Food_ID'                       => $foodId,
+                                                'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                                'Client_ID'                     => Auth::id(),
                                                 'Food_Reservation_Serving_Date' => $date,
-                                                'Food_Reservation_Meal_time' => $mealType,
-                                                'Food_Reservation_Total_Price' => $price * $item['pax'],
+                                                'Food_Reservation_Meal_time'    => $mealType,
+                                                'Food_Reservation_Total_Price'  => ($food->Food_Price ?? 0) * (int) ($item['pax'] ?? 1),
                                             ]);
                                         }
+                                    }
+                                }
+                            }
+                        }
+
+                        // ─────────────────────────────────────────────────────────────
+                        // STEP C – Food SET selections
+                        // One FoodReservation row per set.  Food_Set_ID is stored as a
+                        // TEXT string that encodes both the set ID and the user's chosen
+                        // customisations:
+                        //
+                        //   "setId",["riceId","drinksId","dessertId","fruitId"]
+                        //
+                        // Positions:  0=rice  1=drinks  2=dessert  3=fruit
+                        //
+                        // Spiritual:  customisations come from food_selections[date][mealKey]
+                        // General:    customisations come from food_selections[date][gen_setId]
+                        //             drink is stored as text → resolved to Food_ID here.
+                        // ─────────────────────────────────────────────────────────────
+                        if (!empty($foodSetSelection)) {
+                            foreach ($foodSetSelection as $date => $meals) {
+                                if (($foodEnabledMap[$date] ?? '1') != '1') continue;
+
+                                foreach ((array) $meals as $mealKey => $setIdOrIds) {
+                                    $isGeneralSet = is_array($setIdOrIds);
+                                    $setIds       = $isGeneralSet ? $setIdOrIds : [$setIdOrIds];
+
+                                    foreach ($setIds as $setId) {
+                                        if (empty($setId)) continue;
+
+                                        $set = FoodSet::find((int) $setId);
+                                        if (!$set) continue;
+
+                                        // ── Gather customisation IDs ───────────────────────
+                                        if ($isGeneralSet) {
+                                            // General event: customisations stored under gen_setId slot
+                                            $genKey    = "gen_{$setId}";
+                                            $genSel    = $foodSelections[$date][$genKey] ?? [];
+                                            $riceId    = (string) ($genSel['rice']         ?? '');
+                                            $dessertId = (string) ($genSel['dessert']       ?? '');
+                                            $fruitId   = '';   // not applicable for general events
+                                            $drinksId  = '';
+
+                                            // Drink is submitted as "softdrinks" / "juice" text
+                                            $drinkTxt = strtolower(trim($genSel['drink_choice'] ?? ''));
+                                            if ($drinkTxt) {
+                                                $drinkFood = Food::where(function ($q) use ($drinkTxt) {
+                                                    $q->where('Food_Name', 'ILIKE', $drinkTxt . '%')
+                                                      ->orWhere('Food_Name', 'ILIKE', '%' . $drinkTxt . '%');
+                                                })->first();
+                                                $drinksId = $drinkFood
+                                                    ? (string) $drinkFood->Food_ID
+                                                    : '';
+                                            }
+                                        } else {
+                                            // Spiritual event: customisations stored under the meal key
+                                            $mealSel   = $foodSelections[$date][$mealKey] ?? [];
+                                            $riceId    = (string) ($mealSel['rice_type']  ?? '');
+                                            $drinksId  = (string) ($mealKey === 'breakfast'
+                                                ? ($mealSel['hot_drink']   ?? '')
+                                                : ($mealSel['softdrinks']  ?? ''));
+                                            $dessertId = (string) ($mealSel['dessert']    ?? '');
+                                            $fruitId   = (string) ($mealSel['fruits']     ?? '');
+                                        }
+
+                                        // ── Build text format ──────────────────────────────
+                                        $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                                        $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
+
+                                        // ── Persist ───────────────────────────────────────
+                                        FoodReservation::create([
+                                            'Food_ID'                       => null,
+                                            'Food_Set_ID'                   => $foodSetIdText,
+                                            'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                            'Client_ID'                     => Auth::id(),
+                                            'Food_Reservation_Serving_Date' => $date,
+                                            'Food_Reservation_Meal_time'    => $mealKey,
+                                            'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * (int) ($item['pax'] ?? 1),
+                                        ]);
                                     }
                                 }
                             }
@@ -393,7 +581,7 @@ class ReservationController extends Controller
         // 1. Query Room Reservations (Global for Employees)
         $roomQuery = RoomReservation::with(['room', 'user'])
             ->where('Client_ID', $user->Account_ID);
-        $venueQuery = VenueReservation::with(['venue', 'user', 'foods'])
+        $venueQuery = VenueReservation::with(['venue', 'user', 'foods', 'foodSetReservations'])
             ->where('Client_ID', $user->Account_ID);
            
           
@@ -572,7 +760,7 @@ class ReservationController extends Controller
         $accType = $request->input('accommodation_type');
 
         $roomQuery = RoomReservation::with(['user', 'room']);
-        $venueQuery = VenueReservation::with(['user', 'venue']);
+        $venueQuery = VenueReservation::with(['user', 'venue', 'foods', 'foodSetReservations']);
 
         // 2. Filter by Client Type (Internal/External)
         if ($clientType) {
@@ -743,7 +931,7 @@ class ReservationController extends Controller
 
         // 1. Initialize Queries
         $roomQuery = RoomReservation::with(['user', 'room']);
-        $venueQuery = VenueReservation::with(['user', 'venue', 'foods']);
+        $venueQuery = VenueReservation::with(['user', 'venue', 'foods', 'foodSetReservations']);
 
         // 2. Apply Date Filter
         if ($dateFilter) {
@@ -822,7 +1010,8 @@ class ReservationController extends Controller
             $item->discount = $item->Venue_Reservation_Discount ?? 0;
             $item->additional_fees = $item->Venue_Reservation_Additional_Fees ?? 0;
             $item->additional_fees_desc = $item->Venue_Reservation_Additional_Fees_Desc ?? '';
-            $item->food_total = $item->foods->sum('pivot.Food_Reservation_Total_Price') ?? 0;
+            $item->food_total = ($item->foods->sum('pivot.Food_Reservation_Total_Price') ?? 0)
+                + ($item->foodSetReservations->sum('Food_Reservation_Total_Price') ?? 0);
             return $item;
         });
 
@@ -1403,54 +1592,140 @@ class ReservationController extends Controller
     // ─────────────────────────────────────────────────────────────────
     //  CALENDAR PDF EXPORT
     // ─────────────────────────────────────────────────────────────────
+    /**
+     * Export reservation calendar as a multi-month PDF.
+     * Each month occupies its own page; all events are fully expanded.
+     * Bar labels: Purpose · Guest · Room(s)/Venue
+     */
     public function exportCalendarPDF(Request $request)
     {
-        $month = max(1,    min(12,   (int) $request->query('month', now()->month)));
-        $year  = max(2020, min(2100, (int) $request->query('year',  now()->year)));
+        $startMonth = max(1,    min(12,   (int) $request->query('month',     now()->month)));
+        $endMonth   = max(1,    min(12,   (int) $request->query('end_month', $startMonth)));
+        $year       = max(2020, min(2100, (int) $request->query('year',      now()->year)));
+        if ($endMonth < $startMonth) $endMonth = $startMonth;
 
-        $data     = $this->buildCalendarPDFData($month, $year);
-        $filename = 'reservation_calendar_' . $data['month_label_filename'] . '.pdf';
+        $months = [];
+        for ($m = $startMonth; $m <= $endMonth; $m++) {
+            $months[] = $this->buildCalendarPDFData($m, $year);
+        }
 
-        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('employee.pdf.reservation_calendar', $data)
-            ->setPaper('a4', 'landscape');
+        $filenameTag = count($months) === 1
+            ? $months[0]['month_label_filename']
+            : Carbon::create($year, $startMonth)->format('M') . '_to_' .
+              Carbon::create($year, $endMonth)->format('M_Y');
 
-        return $pdf->download($filename);
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
+            'employee.pdf.reservation_calendar',
+            ['months' => $months, 'generated_at' => now()->format('M d, Y  H:i')]
+        )->setPaper('a4', 'landscape');
+
+        return $pdf->download("reservation_calendar_{$filenameTag}.pdf");
     }
 
-    /** Build the week/lane data structure for the PDF Blade view. */
+    /**
+     * Export reservation data as a CSV file.
+     * Columns: Type, Resource, Guest, Purpose, Check-In, Check-Out, Status
+     */
+    public function exportCalendarCSV(Request $request)
+    {
+        $startMonth = max(1,    min(12,   (int) $request->query('month',     now()->month)));
+        $endMonth   = max(1,    min(12,   (int) $request->query('end_month', $startMonth)));
+        $year       = max(2020, min(2100, (int) $request->query('year',      now()->year)));
+        if ($endMonth < $startMonth) $endMonth = $startMonth;
+
+        $rangeStart = Carbon::create($year, $startMonth, 1)->startOfDay();
+        $rangeEnd   = Carbon::create($year, $endMonth)->endOfMonth()->endOfDay();
+
+        $roomRows = RoomReservation::with(['room', 'user'])
+            ->where('Room_Reservation_Check_In_Time',  '<=', $rangeEnd)
+            ->where('Room_Reservation_Check_Out_Time', '>=', $rangeStart)
+            ->get()
+            ->map(fn($r) => [
+                'Type'      => 'Room',
+                'Resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
+                'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                'Purpose'   => $r->Room_Reservation_Purpose  ?? 'N/A',
+                'Check-In'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
+                'Check-Out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
+                'Status'    => $r->Room_Reservation_Status,
+            ]);
+
+        $venueRows = VenueReservation::with(['venue', 'user'])
+            ->where('Venue_Reservation_Check_In_Time',  '<=', $rangeEnd)
+            ->where('Venue_Reservation_Check_Out_Time', '>=', $rangeStart)
+            ->get()
+            ->map(fn($r) => [
+                'Type'      => 'Venue',
+                'Resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
+                'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                'Purpose'   => $r->Venue_Reservation_Purpose  ?? 'N/A',
+                'Check-In'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
+                'Check-Out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
+                'Status'    => $r->Venue_Reservation_Status,
+            ]);
+
+        $all = $roomRows->concat($venueRows)
+            ->sortBy('Check-In')
+            ->values();
+
+        $tag      = ($startMonth === $endMonth)
+            ? Carbon::create($year, $startMonth)->format('F_Y')
+            : Carbon::create($year, $startMonth)->format('M') . '_to_' .
+              Carbon::create($year, $endMonth)->format('M_Y');
+        $filename = "reservations_{$tag}.csv";
+
+        $headers = [
+            'Content-Type'        => 'text/csv; charset=UTF-8',
+            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
+            'Cache-Control'       => 'no-cache, no-store, must-revalidate',
+        ];
+
+        $callback = function () use ($all) {
+            $out = fopen('php://output', 'w');
+            // UTF-8 BOM so Excel opens it correctly
+            fputs($out, "\xEF\xBB\xBF");
+            fputcsv($out, ['Type', 'Resource', 'Guest', 'Purpose', 'Check-In', 'Check-Out', 'Status']);
+            foreach ($all as $row) {
+                fputcsv($out, array_values($row));
+            }
+            fclose($out);
+        };
+
+        return response()->stream($callback, 200, $headers);
+    }
+
+    /** Build the week/lane data structure for one month's PDF page. */
     private function buildCalendarPDFData(int $month, int $year): array
     {
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd   = $monthStart->copy()->endOfMonth()->endOfDay();
 
-        // Status colour palette passed to the view
         $statusColors = [
-            'pending'     => ['bg' => '#FDE68A', 'fg' => '#92400E', 'border' => '#F59E0B'],
-            'confirmed'   => ['bg' => '#BFDBFE', 'fg' => '#1E3A5F', 'border' => '#3B82F6'],
-            'checked-in'  => ['bg' => '#BBF7D0', 'fg' => '#14532D', 'border' => '#22C55E'],
-            'checked-out' => ['bg' => '#E5E7EB', 'fg' => '#374151', 'border' => '#9CA3AF'],
-            'completed'   => ['bg' => '#DDD6FE', 'fg' => '#4C1D95', 'border' => '#8B5CF6'],
-            'cancelled'   => ['bg' => '#FECACA', 'fg' => '#991B1B', 'border' => '#EF4444'],
+            'pending'     => ['bg' => '#FEF3C7', 'fg' => '#92400E', 'border' => '#F59E0B'],
+            'confirmed'   => ['bg' => '#DBEAFE', 'fg' => '#1E40AF', 'border' => '#60A5FA'],
+            'checked-in'  => ['bg' => '#DCFCE7', 'fg' => '#166534', 'border' => '#4ADE80'],
+            'checked-out' => ['bg' => '#F3F4F6', 'fg' => '#374151', 'border' => '#9CA3AF'],
+            'completed'   => ['bg' => '#EDE9FE', 'fg' => '#5B21B6', 'border' => '#A78BFA'],
+            'cancelled'   => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171'],
+            'rejected'    => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171'],
         ];
 
         $legend = [
-            ['label' => 'Pending',     'bg' => '#FDE68A', 'border' => '#F59E0B'],
-            ['label' => 'Confirmed',   'bg' => '#BFDBFE', 'border' => '#3B82F6'],
-            ['label' => 'Checked-in',  'bg' => '#BBF7D0', 'border' => '#22C55E'],
-            ['label' => 'Checked-out', 'bg' => '#E5E7EB', 'border' => '#9CA3AF'],
-            ['label' => 'Completed',   'bg' => '#DDD6FE', 'border' => '#8B5CF6'],
+            ['label' => 'Pending',     'bg' => '#FEF3C7', 'border' => '#F59E0B'],
+            ['label' => 'Confirmed',   'bg' => '#DBEAFE', 'border' => '#60A5FA'],
+            ['label' => 'Checked-In',  'bg' => '#DCFCE7', 'border' => '#4ADE80'],
+            ['label' => 'Checked-Out', 'bg' => '#F3F4F6', 'border' => '#9CA3AF'],
+            ['label' => 'Completed',   'bg' => '#EDE9FE', 'border' => '#A78BFA'],
         ];
 
-        // Load all reservations overlapping the month
         $allReservations = $this->loadReservationsForPDF($monthStart, $monthEnd);
 
-        // Build week rows: starting from the Sunday ≤ the 1st
         $calStart = $monthStart->copy()->startOfWeek(Carbon::SUNDAY);
         $calEnd   = $monthEnd->copy()->endOfWeek(Carbon::SATURDAY);
+        $dayAbbr  = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 
         $weeks   = [];
         $current = $calStart->copy();
-        $dayAbbr = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
         while ($current->lte($calEnd)) {
             $wStart = $current->copy();
@@ -1462,7 +1737,6 @@ class ReservationController extends Controller
                 $days[] = [
                     'num'        => $day->day,
                     'name'       => $dayAbbr[$d],
-                    'date'       => $day->format('Y-m-d'),
                     'in_month'   => (int) $day->month === $month,
                     'is_today'   => $day->isToday(),
                     'is_weekend' => ($d === 0 || $d === 6),
@@ -1470,7 +1744,6 @@ class ReservationController extends Controller
             }
 
             $weeks[] = [
-                'label' => $wStart->format('M d') . ' – ' . $wEnd->format('M d, Y'),
                 'days'  => $days,
                 'lanes' => $this->buildWeekLanes($allReservations, $wStart, $wEnd),
             ];
@@ -1484,61 +1757,102 @@ class ReservationController extends Controller
             'weeks'                => $weeks,
             'statusColors'         => $statusColors,
             'legend'               => $legend,
-            'generated_at'         => now()->format('M d, Y  H:i'),
         ];
     }
 
-    /** Fetch all room + venue reservations that overlap the given month. */
+    /**
+     * Fetch room + venue reservations for the PDF.
+     * Rooms with identical dates + guest + purpose are grouped into one record.
+     * Returns [ check_in, check_out, status, purpose, guest, resource, type ]
+     */
     private function loadReservationsForPDF(Carbon $monthStart, Carbon $monthEnd): array
     {
-        $roomRes = RoomReservation::with(['room', 'user'])
+        // ── Rooms ──────────────────────────────────────────────────────────
+        $roomRaw = RoomReservation::with(['room', 'user'])
             ->where('Room_Reservation_Check_In_Time',  '<=', $monthEnd)
             ->where('Room_Reservation_Check_Out_Time', '>=', $monthStart)
+            ->whereNotIn('Room_Reservation_Status', ['cancelled', 'rejected'])
             ->get()
             ->map(fn($r) => [
+                'id'        => $r->Room_Reservation_ID,
                 'check_in'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
                 'check_out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
                 'status'    => strtolower($r->Room_Reservation_Status),
-                'label'     => ($r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A')
-                               . '  ·  ' . (optional($r->user)->name ?? 'Guest'),
+                'purpose'   => $r->Room_Reservation_Purpose  ?? 'N/A',
+                'guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                'resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
+                'type'      => 'room',
             ])
             ->toArray();
 
+        // Group rooms: same (check_in, check_out, guest, purpose) → one bar
+        $processed = [];
+        $grouped   = [];
+        foreach ($roomRaw as $r) {
+            if (in_array($r['id'], $processed)) continue;
+            $siblings = array_values(array_filter($roomRaw, fn($o) =>
+                !in_array($o['id'], $processed) &&
+                $o['check_in']  === $r['check_in']  &&
+                $o['check_out'] === $r['check_out'] &&
+                $o['guest']     === $r['guest']     &&
+                $o['purpose']   === $r['purpose']
+            ));
+            foreach ($siblings as $s) $processed[] = $s['id'];
+            $grouped[] = [
+                'check_in'  => $r['check_in'],
+                'check_out' => $r['check_out'],
+                'status'    => $r['status'],
+                'purpose'   => $r['purpose'],
+                'guest'     => $r['guest'],
+                'resource'  => implode(', ', array_map(fn($s) => $s['resource'], $siblings)),
+                'type'      => 'room',
+            ];
+        }
+
+        // ── Venues ─────────────────────────────────────────────────────────
         $venueRes = VenueReservation::with(['venue', 'user'])
             ->where('Venue_Reservation_Check_In_Time',  '<=', $monthEnd)
             ->where('Venue_Reservation_Check_Out_Time', '>=', $monthStart)
+            ->whereNotIn('Venue_Reservation_Status', ['cancelled', 'rejected'])
             ->get()
             ->map(fn($r) => [
                 'check_in'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
                 'check_out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
                 'status'    => strtolower($r->Venue_Reservation_Status),
-                'label'     => ($r->venue ? $r->venue->Venue_Name : 'Venue N/A')
-                               . '  ·  ' . (optional($r->user)->name ?? 'Guest'),
+                'purpose'   => $r->Venue_Reservation_Purpose  ?? 'N/A',
+                'guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                'resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
+                'type'      => 'venue',
             ])
             ->toArray();
 
-        return array_merge($roomRes, $venueRes);
+        return array_merge($grouped, $venueRes);
     }
 
     /**
-     * Assign reservations visible in a week to greedy lanes.
-     * Returns array indexed [laneIndex][] = bar data.
-     * Uses the same greedy algorithm as the JS Gantt.
+     * Greedy lane assignment for one week row.
+     * No lane cap — all reservations are always visible (expanded).
+     * Bar label: Purpose · Guest · Resource
      */
     private function buildWeekLanes(array $reservations, Carbon $weekStart, Carbon $weekEnd): array
     {
         $wStartStr = $weekStart->format('Y-m-d');
         $wEndStr   = $weekEnd->format('Y-m-d');
 
-        // Only reservations that overlap this week
-        $visible = array_filter(
+        $visible = array_values(array_filter(
             $reservations,
-            fn($r) => $r['check_in'] <= $wEndStr && $r['check_out'] >= $wStartStr
-        );
+            fn($r) => $r['check_in'] <= $wEndStr && $r['check_out'] > $wStartStr
+        ));
 
         if (empty($visible)) return [];
 
-        usort($visible, fn($a, $b) => strcmp($a['check_in'], $b['check_in']));
+        // Longest span first, then by start date (mirrors JS behaviour)
+        usort($visible, function ($a, $b) {
+            $aLen = (int) Carbon::parse($a['check_in'])->diffInDays(Carbon::parse($a['check_out']));
+            $bLen = (int) Carbon::parse($b['check_in'])->diffInDays(Carbon::parse($b['check_out']));
+            if ($bLen !== $aLen) return $bLen - $aLen;
+            return strcmp($a['check_in'], $b['check_in']);
+        });
 
         $laneEnds = [];
         $lanes    = [];
@@ -1547,7 +1861,7 @@ class ReservationController extends Controller
             // Greedy lane pick
             $lane = -1;
             foreach ($laneEnds as $i => $end) {
-                if ($res['check_in'] > $end) { $lane = $i; break; }
+                if ($res['check_in'] >= $end) { $lane = $i; break; }
             }
             if ($lane === -1) {
                 $lane       = count($laneEnds);
@@ -1556,21 +1870,25 @@ class ReservationController extends Controller
                 $laneEnds[$lane] = $res['check_out'];
             }
 
-            // Clamp bar to the week's visible window
+            // Clamp bar to the week window
             $barStart = max($res['check_in'], $wStartStr);
             $barEnd   = min($res['check_out'], $wEndStr);
 
-            // Column positions (0 = Sunday … 6 = Saturday)
             $colStart = (int) $weekStart->diffInDays(Carbon::parse($barStart));
             $colEnd   = (int) $weekStart->diffInDays(Carbon::parse($barEnd));
-            $colSpan  = max(1, $colEnd - $colStart + 1);
+            // +1 so check-out day is visually included (matches JS fix)
+            $colSpan  = max(1, min($colEnd - $colStart + 1, 7 - max(0, $colStart)));
 
             if (!isset($lanes[$lane])) $lanes[$lane] = [];
+
+            $icon  = $res['type'] === 'room' ? '🛏' : '🏛';
+            $label = "{$res['purpose']}  ·  {$res['guest']}  ·  {$icon} {$res['resource']}";
+
             $lanes[$lane][] = [
-                'label'     => $res['label'],
+                'label'     => $label,
                 'status'    => $res['status'],
                 'col_start' => max(0, $colStart),
-                'col_span'  => min($colSpan, 7 - max(0, $colStart)),
+                'col_span'  => $colSpan,
                 'clips_l'   => $res['check_in'] < $wStartStr,
                 'clips_r'   => $res['check_out'] > $wEndStr,
             ];
@@ -1649,30 +1967,135 @@ class ReservationController extends Controller
                 $this->sendConfirmationEmail($reservation);
             }
 
-            // Process food_selections[date][mealType][category] from the food page
-            $foodSelections = $request->input('food_selections', []);
+            // ── Food saving: mirrors the three-step logic in the client store() ────
+            $foodSelections   = $request->input('food_selections',    []);
+            $foodSetSelection = $request->input('food_set_selection', []);
+            $foodEnabledMap   = $request->input('food_enabled',       []);
+            $pax              = (int) $request->pax;
 
-            foreach ($foodSelections as $date => $meals) {
-                foreach ($meals as $mealType => $foodIds) {
-                    if (!is_array($foodIds) || empty($foodIds)) {
-                        continue;
+            // ── STEP A: build skip-list of meal keys that belong to set selections ──
+            // Set customisations are embedded directly in Food_Set_ID text, so we
+            // must NOT also create separate individual rows for those slots.
+            //   Spiritual sets:  food_set_selection[date][mealKey] = "setId"
+            //                    → skip mealKey itself
+            //   General sets:    food_set_selection[date][mealKey][] = setId
+            //                    → skip "gen_{setId}" (the customisation slot)
+            $skipMealKeys = [];  // [$date][$mealKey] = true
+            foreach ($foodSetSelection as $_d => $_meals) {
+                foreach ((array) $_meals as $_mk => $_ids) {
+                    $isArray = is_array($_ids);
+                    $rawIds  = $isArray ? $_ids : [$_ids];
+                    foreach ($rawIds as $_id) {
+                        if (!empty($_id)) {
+                            $skipMealKeys[$_d]["gen_{$_id}"] = true;
+                        }
                     }
+                    if (!$isArray && !empty($_ids)) {
+                        $skipMealKeys[$_d][$_mk] = true;
+                    }
+                }
+            }
 
-                    foreach ($foodIds as $foodId) {
-                        if (!$foodId) continue;
+            // ── STEP B: individual food selections ───────────────────────────────
+            if (!empty($foodSelections)) {
+                // Recursively extract valid numeric food IDs; skip drink_choice (text).
+                $extractFoodIds = function ($data) use (&$extractFoodIds) {
+                    $ids = [];
+                    if (is_array($data)) {
+                        foreach ($data as $k => $v) {
+                            if ($k === 'drink_choice') continue;
+                            $ids = array_merge($ids, $extractFoodIds($v));
+                        }
+                    } elseif (is_numeric($data) && !empty($data)) {
+                        $ids[] = (int) $data;
+                    }
+                    return $ids;
+                };
 
-                        $food = \App\Models\Food::find($foodId);
+                foreach ($foodSelections as $date => $meals) {
+                    foreach ($meals as $mealType => $mealData) {
+                        if (empty($mealData)) continue;
+                        if (!empty($skipMealKeys[$date][$mealType])) continue;
 
-                        if ($food) {
-                            $price = $food->Food_Price ?? 0;
+                        $foodIds = $extractFoodIds($mealData);
+                        foreach ($foodIds as $foodId) {
+                            $food = Food::find($foodId);
+                            if ($food) {
+                                FoodReservation::create([
+                                    'Food_ID'                       => $foodId,
+                                    'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                    'Client_ID'                     => $reservation->Client_ID,
+                                    'Food_Reservation_Serving_Date' => $date,
+                                    'Food_Reservation_Meal_time'    => $mealType,
+                                    'Food_Reservation_Total_Price'  => ($food->Food_Price ?? 0) * $pax,
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
 
-                            \App\Models\FoodReservation::create([
-                                'Food_ID'                       => $foodId,
+            // ── STEP C: food SET selections ──────────────────────────────────────
+            // One FoodReservation row per set. Food_Set_ID stores set ID + custom
+            // choices as:  "setId",["riceId","drinksId","dessertId","fruitId"]
+            if (!empty($foodSetSelection)) {
+                foreach ($foodSetSelection as $date => $meals) {
+                    if (($foodEnabledMap[$date] ?? '1') != '1') continue;
+
+                    foreach ((array) $meals as $mealKey => $setIdOrIds) {
+                        $isGeneralSet = is_array($setIdOrIds);
+                        $setIds       = $isGeneralSet ? $setIdOrIds : [$setIdOrIds];
+
+                        foreach ($setIds as $setId) {
+                            if (empty($setId)) continue;
+
+                            $set = FoodSet::find((int) $setId);
+                            if (!$set) continue;
+
+                            if ($isGeneralSet) {
+                                // General event: customisations stored under gen_setId slot
+                                $genKey    = "gen_{$setId}";
+                                $genSel    = $foodSelections[$date][$genKey] ?? [];
+                                $riceId    = (string) ($genSel['rice']    ?? '');
+                                $dessertId = (string) ($genSel['dessert'] ?? '');
+                                $fruitId   = '';
+
+                                // Drink: Food_ID from searchable-select (or legacy text fallback)
+                                $drinkVal = $genSel['drink'] ?? ($genSel['drink_choice'] ?? '');
+                                if (is_numeric($drinkVal) && !empty($drinkVal)) {
+                                    $drinksId = (string) $drinkVal;
+                                } elseif (!empty($drinkVal)) {
+                                    $drinkTxt  = strtolower(trim((string) $drinkVal));
+                                    $drinkFood = Food::where(function ($q) use ($drinkTxt) {
+                                        $q->where('Food_Name', 'ILIKE', $drinkTxt . '%')
+                                          ->orWhere('Food_Name', 'ILIKE', '%' . $drinkTxt . '%');
+                                    })->first();
+                                    $drinksId = $drinkFood ? (string) $drinkFood->Food_ID : '';
+                                } else {
+                                    $drinksId = '';
+                                }
+                            } else {
+                                // Spiritual event: customisations stored under the meal key
+                                $mealSel   = $foodSelections[$date][$mealKey] ?? [];
+                                $riceId    = (string) ($mealSel['rice_type']  ?? '');
+                                $drinksId  = (string) ($mealKey === 'breakfast'
+                                    ? ($mealSel['hot_drink']  ?? '')
+                                    : ($mealSel['softdrinks'] ?? ''));
+                                $dessertId = (string) ($mealSel['dessert'] ?? '');
+                                $fruitId   = (string) ($mealSel['fruits']  ?? '');
+                            }
+
+                            $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                            $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
+
+                            FoodReservation::create([
+                                'Food_ID'                       => null,
+                                'Food_Set_ID'                   => $foodSetIdText,
                                 'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
                                 'Client_ID'                     => $reservation->Client_ID,
                                 'Food_Reservation_Serving_Date' => $date,
-                                'Food_Reservation_Meal_time'    => $mealType,
-                                'Food_Reservation_Total_Price'  => $price * $request->pax,
+                                'Food_Reservation_Meal_time'    => $mealKey,
+                                'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * $pax,
                             ]);
                         }
                     }
@@ -1800,19 +2223,105 @@ class ReservationController extends Controller
             $previousFoodSelections = [];
             $previousFoodEnabled    = [];
             $previousMealEnabled    = [];
+            $previousMealMode       = [];
+            $previousSetSelections  = [];
 
-            // Load foods() relationship (withPivot for Food_Reservation_Serving_Date, Food_Reservation_Meal_time)
+            $isSpiritual = in_array(
+                strtolower($request->purpose ?? ''),
+                ['retreat', 'recollection']
+            );
+
+            // ── 1. Snapshot individual food rows ─────────────────────────────────
+            // Map DB Food_Category values to the exact form field keys used by
+            // client_food_option.js so the JS restore functions can pre-fill them.
+            $viandCountSnap = [];  // [$date][$mealType] = int — track viand position
+
+            // Snack slots are always individual-style regardless of the date's
+            // set/individual mode toggle, so they must NOT influence cardModes[date].
+            $snackMealTypes = ['am_snack', 'pm_snack', 'snacks'];
+
             foreach ($reservation->foods as $food) {
                 $date     = $food->pivot->Food_Reservation_Serving_Date ?? null;
                 $mealType = $food->pivot->Food_Reservation_Meal_time    ?? null;
-                $category = $food->Food_Category       ?? null;
-                $foodId   = $food->Food_ID ?? $food->Food_ID ?? null;
+                $category = strtolower($food->Food_Category ?? '');
+                $foodId   = $food->Food_ID ?? null;
 
                 if (!$date || !$mealType || !$category || !$foodId) continue;
 
-                $previousFoodEnabled[$date]                        = '1';
-                $previousMealEnabled[$date][$mealType]             = '1';
-                $previousFoodSelections[$date][$mealType][$category] = (string) $foodId;
+                $previousFoodEnabled[$date]            = '1';
+                $previousMealEnabled[$date][$mealType] = '1';
+                // Only mark main meal slots as 'individual' — snack slots are
+                // always individually-selectable and must not flip the mode toggle.
+                if (!in_array($mealType, $snackMealTypes)) {
+                    $previousMealMode[$date][$mealType] = 'individual';
+                }
+
+                if ($category === 'rice') {
+                    $previousFoodSelections[$date][$mealType]['rice'] = (string) $foodId;
+
+                } elseif (in_array($category, ['viand', 'viands'])) {
+                    // Assign to viand1, viand2 in order (extra viands use chip UI — not restorable here)
+                    $cnt = $viandCountSnap[$date][$mealType] ?? 0;
+                    if ($cnt === 0) {
+                        $previousFoodSelections[$date][$mealType]['viand1'] = (string) $foodId;
+                    } elseif ($cnt === 1) {
+                        $previousFoodSelections[$date][$mealType]['viand2'] = (string) $foodId;
+                    }
+                    // 3rd+ viands stored as chips — skip (no simple prefill)
+                    $viandCountSnap[$date][$mealType] = $cnt + 1;
+
+                } elseif (in_array($category, ['drink', 'drinks'])) {
+                    $previousFoodSelections[$date][$mealType]['drink'] = (string) $foodId;
+
+                } elseif ($mealType === 'snacks') {
+                    // Multi-select snacks — append to array so ALL selections are preserved
+                    $previousFoodSelections[$date]['snacks'][] = (string) $foodId;
+
+                } else {
+                    // dessert, desserts, fruits, etc. — pass through as-is
+                    $previousFoodSelections[$date][$mealType][$category] = (string) $foodId;
+                }
+            }
+
+            // ── 2. Snapshot food SET rows ─────────────────────────────────────────
+            $reservation->load('foodSetReservations');
+            foreach ($reservation->foodSetReservations as $setRes) {
+                $date    = $setRes->Food_Reservation_Serving_Date ?? null;
+                $mealKey = $setRes->Food_Reservation_Meal_time    ?? null;
+                if (!$date || !$mealKey) continue;
+
+                $parsed    = $setRes->parseFoodSetId();
+                $setId     = $parsed['set_id'];
+                $customIds = $parsed['custom_ids'];  // [riceId, drinksId, dessertId, fruitId]
+                if (!$setId) continue;
+
+                $previousFoodEnabled[$date]          = '1';
+                $previousMealEnabled[$date][$mealKey] = '1';
+                $previousMealMode[$date][$mealKey]    = 'set';
+
+                if ($isSpiritual) {
+                    // Spiritual: scalar set ID per meal key
+                    $previousSetSelections[$date][$mealKey] = (string) $setId;
+
+                    // Customisations stored under mealKey in food_selections
+                    $previousFoodSelections[$date][$mealKey]['rice_type'] = (string) ($customIds[0] ?? '');
+                    if ($mealKey === 'breakfast') {
+                        $previousFoodSelections[$date][$mealKey]['hot_drink']  = (string) ($customIds[1] ?? '');
+                    } else {
+                        $previousFoodSelections[$date][$mealKey]['softdrinks'] = (string) ($customIds[1] ?? '');
+                    }
+                    $previousFoodSelections[$date][$mealKey]['dessert'] = (string) ($customIds[2] ?? '');
+                    $previousFoodSelections[$date][$mealKey]['fruits']  = (string) ($customIds[3] ?? '');
+                } else {
+                    // General: array of set IDs per meal key
+                    $previousSetSelections[$date][$mealKey][] = (string) $setId;
+
+                    // Customisations stored under gen_setId in food_selections
+                    $genKey = "gen_{$setId}";
+                    $previousFoodSelections[$date][$genKey]['rice']    = (string) ($customIds[0] ?? '');
+                    $previousFoodSelections[$date][$genKey]['drink']   = (string) ($customIds[1] ?? '');
+                    $previousFoodSelections[$date][$genKey]['dessert'] = (string) ($customIds[2] ?? '');
+                }
             }
 
             // Clear old food records so the employee can re-select on the food page
@@ -1830,6 +2339,8 @@ class ReservationController extends Controller
                 'prefill_food_selections' => $previousFoodSelections,
                 'prefill_food_enabled'    => $previousFoodEnabled,
                 'prefill_meal_enabled'    => $previousMealEnabled,
+                'prefill_meal_mode'       => $previousMealMode,
+                'prefill_set_selections'  => $previousSetSelections,
             ]);
             session(['employee_pending_bookings' => $allBookings]);
 

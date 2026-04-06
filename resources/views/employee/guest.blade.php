@@ -179,11 +179,61 @@
                             }
                             $extraFees = $res->Venue_Reservation_Additional_Fees ?? 0;
                             $discount = $res->Venue_Reservation_Discount ?? 0;
-                            $foodTotal = $res->foods ? $res->foods->sum('pivot.Food_Reservation_Total_Price') : 0;
+                            $foodTotal = ($res->foods ? $res->foods->sum('pivot.Food_Reservation_Total_Price') : 0)
+                                       + ($res->foodSetReservations ? $res->foodSetReservations->sum('Food_Reservation_Total_Price') : 0);
+
+                            // Pre-process set reservations into card-display data (mirrors reservations.blade.php)
+                            $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
+                            $foodSets = $res->foodSetReservations ? $res->foodSetReservations->map(function($r) use ($_customPosLabels) {
+                                $raw = $r->Food_Set_ID ?? '';
+                                $setId = null; $customIds = [];
+                                if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
+                                    $setId = (int)$m[1];
+                                    $customIds = json_decode($m[2], true) ?: [];
+                                } elseif (is_numeric($raw) && $raw !== '') {
+                                    $setId = (int)$raw;
+                                }
+                                $set = $setId ? \App\Models\FoodSet::find($setId) : null;
+
+                                $setFoods = [];
+                                if ($set && !empty($set->Food_Set_Food_IDs)) {
+                                    $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
+                                        ->get()
+                                        ->map(fn($f) => [
+                                            'name'     => $f->Food_Name,
+                                            'category' => ucfirst(strtolower($f->Food_Category ?? 'Food')),
+                                        ])->toArray();
+                                }
+
+                                $customItems = [];
+                                foreach ($customIds as $i => $cid) {
+                                    if (!empty($cid) && is_numeric($cid)) {
+                                        $food = \App\Models\Food::find((int)$cid);
+                                        if ($food) {
+                                            $customItems[] = [
+                                                'name'     => $food->Food_Name,
+                                                'category' => $_customPosLabels[$i]
+                                                    ?? ucfirst(strtolower($food->Food_Category ?? 'Custom')),
+                                            ];
+                                        }
+                                    }
+                                }
+
+                                return [
+                                    'date'         => $r->Food_Reservation_Serving_Date,
+                                    'meal_time'    => $r->Food_Reservation_Meal_time,
+                                    'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                    'set_name'     => $set?->Food_Set_Name ?? 'Unknown Set',
+                                    'set_price'    => (float)($set?->Food_Set_Price ?? 0),
+                                    'set_foods'    => $setFoods,
+                                    'custom_items' => $customItems,
+                                ];
+                            })->toArray() : [];
                         }
 
                         $userId = $res->Client_ID;
                         $reservationType = $res->type == 'room' ? 'Room' : 'Venue';
+                        $foodSets = $foodSets ?? [];
                   @endphp
                   
                   <td class="action-cell">
@@ -207,7 +257,8 @@
                             'check_out'     => \Carbon\Carbon::parse($res->check_out)->format('F d, Y'),
                             'check_in_raw'  => \Carbon\Carbon::parse($res->check_in)->format('Y-m-d'),
                             'check_out_raw' => \Carbon\Carbon::parse($res->check_out)->format('Y-m-d'),
-                            'foods' => $res->foods,
+                            'foods'     => $res->foods,
+                            'food_sets' => $foodSets,
                             'userId' => $userId,
                             'discount' => $discount,
         

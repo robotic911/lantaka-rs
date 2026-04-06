@@ -15,5 +15,12 @@ class FoodSet extends Model
         'Food_Set_Purpose',
         'Food_Set_Meal_Time',
         'Food_Set_Status',
+        'Food_Set_Food_IDs',
+    ];
+
+    protected $casts = [
+        'Food_Set_Meal_Time' => 'array',
+        'Food_Set_Purpose'   => 'array',
+        'Food_Set_Food_IDs'  => 'array',
     ];
 }

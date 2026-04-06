@@ -13,6 +13,10 @@ return new class extends Migration
      */
     public function up()
     {
+        if (Schema::hasTable('accommodations')) {
+            return;
+        }
+
        Schema::create('accommodations', function (Blueprint $table) {
             $table->id(); // This creates the 'id' column
             $table->string('display_name'); // e.g., "Hall A" or "Single Room"

@@ -55,9 +55,10 @@
   </script>
 
   <style>
-    .past-date {
-      color: #bbb;
-      background: #f5f5f5;
+    /* Past dates — grayish background, very faint text, not selectable */
+    .day.past-date {
+      color: #c2c2c2;
+      background: #efefef;
       cursor: not-allowed;
       pointer-events: none;
     }

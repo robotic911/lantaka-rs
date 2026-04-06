@@ -4,35 +4,49 @@
 @vite('resources/js/client_food_option.js')
 
 @php
-    // Pull saved edit selections from session (only set when coming from Edit cart)
-    $editFoodSelections     = session()->pull('edit_food_selections', []);
-    $editFoodEnabled        = session()->pull('edit_food_enabled',    []);
-    $editMealEnabled        = session()->pull('edit_meal_enabled',    []);
-    $editMealMode           = session()->pull('edit_meal_mode',       []);   {{-- 'individual'|'set' --}}
-    $editSetSelections      = session()->pull('edit_set_selections',  []);
+    // Access control: food reservation is only for venue bookings
+    if (($bookingData['type'] ?? '') !== 'venue') {
+        redirect()->route('checkout')->send();
+        exit;
+    }
+
+    $purpose      = strtolower($bookingData['purpose'] ?? '');
+    $isSpiritual  = in_array($purpose, ['retreat', 'recollection']);
+
+    // Restore edit-cart state
+    $editFoodSelections = session()->pull('edit_food_selections', []);
+    $editFoodEnabled    = session()->pull('edit_food_enabled', []);
+    $editMealEnabled    = session()->pull('edit_meal_enabled', []);
+    $editMealMode       = session()->pull('edit_meal_mode', []);
+    $editSetSelections  = session()->pull('edit_set_selections', []);
 @endphp
+
 <script>
+    window.IS_SPIRITUAL        = {{ $isSpiritual ? 'true' : 'false' }};
+    window.RESERVATION_PURPOSE = "{{ $purpose }}";
     window.previousFoodSelections = @json($editFoodSelections);
     window.previousFoodEnabled    = @json($editFoodEnabled);
     window.previousMealEnabled    = @json($editMealEnabled);
     window.previousMealMode       = @json($editMealMode);
     window.previousSetSelections  = @json($editSetSelections);
     window.foodAjaxUrl     = "{{ route('foods.ajax.list') }}";
-    window.foodSetsAjaxUrl = "{{ route('foods.ajax.sets') }}";
+    window.foodSetsAjaxUrl = "{{ route('foods.ajax.sets') }}?purpose={{ urlencode($bookingData['purpose'] ?? '') }}";
+    window.BOOKING_PAX         = {{ (int)($bookingData['pax'] ?? 1) }};
+    window.FOOD_MIN_PAX        = 30; {{-- Minimum pax required for food reservation --}}
 </script>
 
 @section('content')
-<main class="main-content">
+<main class="main-content" style="padding: 20px;">
     <form action="{{ route('checkout') }}" method="GET" id="foodReservationForm">
         <input type="hidden" name="accommodation_id" value="{{ $bookingData['accommodation_id'] }}">
         <input type="hidden" name="res_name"         value="{{ $bookingData['res_name'] }}">
         <input type="hidden" name="type"             value="{{ $bookingData['type'] }}">
         <input type="hidden" name="check_in"         value="{{ $bookingData['check_in'] }}">
         <input type="hidden" name="check_out"        value="{{ $bookingData['check_out'] }}">
-        <input type="hidden" name="pax" id="paxValue" value="{{ $bookingData['pax'] ?? 1 }}">
+        <input type="hidden" name="pax"   id="paxValue" value="{{ $bookingData['pax'] ?? 1 }}">
         <input type="hidden" name="purpose"          value="{{ $bookingData['purpose'] ?? '' }}">
 
-        {{-- ── Back button ── --}}
+        {{-- Back button --}}
         <div class="back-section">
             <button type="button" class="back-btn" onclick="window.history.back();">
                 <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -42,60 +56,117 @@
             </button>
         </div>
 
-        {{-- ── Page heading ── --}}
+        {{-- Page heading --}}
         <div class="fo-page-heading">
             <h1 class="fo-page-title">Food Reservation</h1>
-            <p class="fo-page-sub">Select food for each meal time on each day of your stay.</p>
-        </div>
-
-        {{-- ── PAX POLICY NOTICE ── --}}
-        <div class="fo-pax-policy">
-            <div class="fo-pax-policy__icon">ℹ</div>
-            <div class="fo-pax-policy__body">
-                <strong>Food Service Policy</strong>
-                <ul class="fo-pax-policy__list">
-                    <li>Food service is available for <strong>venues only</strong> (not applicable to room bookings).</li>
-                    <li>Minimum of <strong>10 pax</strong> is required to avail food service.</li>
-                    <li>Maximum of <strong>500 pax</strong> per meal service.</li>
-                    <li>Prices shown are <strong>per pax</strong>. The total will be multiplied by your group size ({{ $bookingData['pax'] ?? 1 }} pax).</li>
-                    <li>You may choose between <strong>Individual Items</strong> (select per food category) or a <strong>Food Set</strong> (pre-arranged package) for each meal time.</li>
-                    <li>Selections can be toggled per meal time — disable meals you do not need.</li>
-                </ul>
-            </div>
+            <p class="fo-page-sub">
+                @if($isSpiritual)
+                    Retreat / Recollection package — ₱220.00/pax. Select a set for each meal time.
+                @else
+                    Select a meal set (₱150.00/pack) and optional snacks (₱80.00/pax) for your event.
+                @endif
+            </p>
         </div>
 
         @php
             $startDate = \Carbon\Carbon::parse($bookingData['check_in']);
             $endDate   = \Carbon\Carbon::parse($bookingData['check_out']);
             $period    = \Carbon\CarbonPeriod::create($startDate, $endDate);
-
-            $mealTypes = [
-                'breakfast' => 'Breakfast',
-                'am_snack'  => 'AM Snack',
-                'lunch'     => 'Lunch',
-                'pm_snack'  => 'PM Snack',
-                'dinner'    => 'Dinner',
-            ];
-
-            $categories = [
-                'rice'        => 'Rice',
-                'set_viand'   => 'Set Viand',
-                'sidedish'    => 'Sidedish',
-                'drinks'      => 'Drinks',
-                'desserts'    => 'Desserts',
-                'other_viand' => 'Other Viand',
-                'snacks'      => 'Snack',
-            ];
         @endphp
+
+        {{-- Business logic guide --}}
+        <div class="fo-guide-panel">
+            <button type="button" class="fo-guide-toggle" id="foGuideToggle">
+                <span>📋 Food Reservation Guide</span>
+                <span class="fo-guide-caret">▾</span>
+            </button>
+            <div class="fo-guide-body" id="foGuideBody">
+
+                @if($isSpiritual)
+                {{-- Spiritual / retreat guide --}}
+                <div class="fo-guide-grid fo-guide-grid--spiritual">
+                    <div class="fo-guide-item">
+                        <span class="fo-guide-icon">🍱</span>
+                        <div>
+                            <strong>Food Sets</strong>
+                            <p>All served with rice (plain or fried).</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item">
+                        <span class="fo-guide-icon">☕</span>
+                        <div>
+                            <strong>Breakfast</strong>
+                            <p>Served with drinks (hot coffee, tea or chocolate drink), and a slice of fruit in season.</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item">
+                        <span class="fo-guide-icon">🥤</span>
+                        <div>
+                            <strong>Lunch / Dinner</strong>
+                            <p>Served with 1 round softdrinks, and dessert or fruit.</p>
+                        </div>
+                    </div>
+                </div>
+                @else
+                {{-- General event guide --}}
+                <div class="fo-guide-grid">
+                    <div class="fo-guide-item">
+                        <span class="fo-guide-icon">🍚</span>
+                        <div>
+                            <strong>Rice</strong>
+                            <p>Choose between fried rice or plain rice for your set.</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item">
+                        <span class="fo-guide-icon">🥤</span>
+                        <div>
+                            <strong>Softdrinks or Juice</strong>
+                            <p>Every set includes one drink — pick softdrinks or juice.</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item fo-guide-item--upgrade">
+                        <span class="fo-guide-icon">🔄</span>
+                        <div>
+                            <strong>Switch Viand <span class="fo-guide-price">+₱20</span></strong>
+                            <p>Replace the included viand with another viand of your choice.</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item fo-guide-item--upgrade">
+                        <span class="fo-guide-icon">➕</span>
+                        <div>
+                            <strong>Extra Viand <span class="fo-guide-price">+₱40 each</span></strong>
+                            <p>Add one or more additional viands from the menu.</p>
+                        </div>
+                    </div>
+                    <div class="fo-guide-item fo-guide-item--upgrade">
+                        <span class="fo-guide-icon">🍮</span>
+                        <div>
+                            <strong>Add Dessert <span class="fo-guide-price">+₱20</span></strong>
+                            <p>Add a dessert of your choice to any set.</p>
+                        </div>
+                    </div>
+                </div>
+                @endif
+
+            </div>
+        </div>
 
         @foreach ($period as $venueDates)
             @php $dateKey = $venueDates->format('Y-m-d'); @endphp
 
             <div class="reservation-card" data-date="{{ $dateKey }}">
+
+                {{-- Card header --}}
                 <div class="card-header">
                     <div class="card-title-wrap">
-                        <h2>Venue — {{ $bookingData['res_name'] }}</h2>
-                        <span class="reservation-date-text">Food Reservation for {{ $venueDates->format('F d, Y') }}</span>
+                        <h2>{{ $bookingData['res_name'] }}</h2>
+                        <span class="reservation-date-text">Food Reservations for {{ $venueDates->format('F d, Y') }}</span>
+                    </div>
+
+                    {{-- Individual / Set toggle (all reservations) --}}
+                    <div class="fo-mode-toggle" data-date="{{ $dateKey }}">
+                    <button type="button" class="fo-mode-btn fo-mode-btn--active" data-mode="set">Set</button>
+                        <button type="button" class="fo-mode-btn" data-mode="individual">Individual Order</button>
                     </div>
 
                     <div class="food-toggle-section">
@@ -109,105 +180,15 @@
 
                 <input type="hidden" name="food_enabled[{{ $dateKey }}]" value="1" class="food-enabled-input">
 
-                <div class="meals-container">
-                    <table class="food-table">
-                        <thead>
-                            <tr>
-                                <th class="meal-column">Meal Time</th>
-                                <th class="meal-mode-col">Mode</th>
-                                {{-- Individual-food columns (hidden when set-mode is active for a row) --}}
-                                @foreach($categories as $categoryKey => $categoryLabel)
-                                    <th class="indiv-col">{{ $categoryLabel }}</th>
-                                @endforeach
-                                {{-- Food-set column (hidden when individual-mode is active) --}}
-                                <th class="set-col" style="display:none;">Food Set</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($mealTypes as $mealKey => $mealLabel)
-                                <tr class="meal-row" data-meal-row="{{ $dateKey }}-{{ $mealKey }}" data-mode="individual">
-                                    {{-- Meal label + include toggle --}}
-                                    <td class="meal-label-cell">
-                                        <div class="meal-header">
-                                            <span class="meal-name">{{ $mealLabel }}</span>
-                                            <label class="meal-toggle-wrap">
-                                                <input
-                                                    type="checkbox"
-                                                    class="meal-toggle-checkbox"
-                                                    data-date="{{ $dateKey }}"
-                                                    data-meal="{{ $mealKey }}"
-                                                    checked
-                                                >
-                                                <span class="meal-toggle-text">Include</span>
-                                            </label>
-                                            <input type="hidden"
-                                                name="meal_enabled[{{ $dateKey }}][{{ $mealKey }}]"
-                                                value="1"
-                                                class="meal-enabled-hidden">
-                                        </div>
-                                    </td>
-
-                                    {{-- Mode switcher: Individual ↔ Set --}}
-                                    <td class="meal-mode-col meal-mode-cell">
-                                        <div class="meal-mode-switcher">
-                                            <button type="button"
-                                                class="mode-btn mode-btn--indiv active"
-                                                data-date="{{ $dateKey }}"
-                                                data-meal="{{ $mealKey }}"
-                                                data-mode="individual"
-                                                title="Choose individual food items per category">
-                                                Items
-                                            </button>
-                                            <button type="button"
-                                                class="mode-btn mode-btn--set"
-                                                data-date="{{ $dateKey }}"
-                                                data-meal="{{ $mealKey }}"
-                                                data-mode="set"
-                                                title="Choose a pre-arranged food set package">
-                                                Set
-                                            </button>
-                                        </div>
-                                        {{-- Hidden: tracks current mode for this meal --}}
-                                        <input type="hidden"
-                                            name="meal_mode[{{ $dateKey }}][{{ $mealKey }}]"
-                                            value="individual"
-                                            class="meal-mode-hidden">
-                                    </td>
-
-                                    {{-- Individual food selects (one per category) --}}
-                                    @foreach($categories as $categoryKey => $categoryLabel)
-                                        <td class="food-cell indiv-cell">
-                                            <select
-                                                name="food_selections[{{ $dateKey }}][{{ $mealKey }}][{{ $categoryKey }}]"
-                                                class="food-select"
-                                                data-category="{{ $categoryKey }}"
-                                            >
-                                                <option value="">Loading…</option>
-                                            </select>
-                                        </td>
-                                    @endforeach
-
-                                    {{-- Food-set select (hidden by default) --}}
-                                    <td class="food-cell set-cell" style="display:none;">
-                                        <select
-                                            name="food_set_selection[{{ $dateKey }}][{{ $mealKey }}]"
-                                            class="food-set-select"
-                                            data-date="{{ $dateKey }}"
-                                            data-meal="{{ $mealKey }}"
-                                            disabled
-                                        >
-                                            <option value="">Loading sets…</option>
-                                        </select>
-                                    </td>
-                                </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
+                {{-- Columns populated by JS --}}
+                <div class="fo-columns fo-columns--loading" data-date="{{ $dateKey }}">
+                    <div class="fo-loading-msg">Loading menu…</div>
                 </div>
+
             </div>
         @endforeach
 
-        {{-- ── Sticky footer: total + submit ── --}}
+        {{-- Sticky footer --}}
         <div class="action-section">
             <div class="total-section">
                 <span class="total-label">Food Total</span>
@@ -216,221 +197,177 @@
                     × <span id="paxDisplay">{{ $bookingData['pax'] ?? 1 }}</span> pax
                 </span>
             </div>
-            <button type="submit" class="add-to-cart-btn">ADD TO BOOKING CART</button>
+            <button type="button" id="addToCartBtn" class="add-to-cart-btn">ADD TO BOOKING CART</button>
         </div>
     </form>
+
+    {{-- Pax-too-low warning modal --}}
+    <div id="paxWarnModal" class="nfm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pwmTitle">
+        <div class="nfm-box">
+            <div class="nfm-icon">👥</div>
+            <h3 id="pwmTitle" class="nfm-title">Minimum pax not met</h3>
+            <p class="nfm-body" id="pwmBody">Food reservation requires a minimum of <strong>{{ config('reservation.food_min_pax', 30) }}</strong> pax. Your current booking has fewer guests. You may proceed without food or go back to edit your pax count.</p>
+            <div class="nfm-actions">
+                <button type="button" id="pwmGoBack" class="nfm-btn nfm-btn--secondary">← Go Back &amp; Edit Pax</button>
+                <button type="button" id="pwmProceed" class="nfm-btn nfm-btn--primary">Proceed without food</button>
+            </div>
+        </div>
+    </div>
+
+    {{-- No-food-selected confirmation modal --}}
+    <div id="noFoodModal" class="nfm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="nfmTitle">
+        <div class="nfm-box">
+            <div class="nfm-icon">🍽️</div>
+            <h3 id="nfmTitle" class="nfm-title">No food selected</h3>
+            <p class="nfm-body">You haven't added any food to this reservation. Would you like to go back and select food, or proceed without food?</p>
+            <div class="nfm-actions">
+                <button type="button" id="nfmGoBack" class="nfm-btn nfm-btn--secondary">← Go Back</button>
+                <button type="button" id="nfmProceed" class="nfm-btn nfm-btn--primary">Proceed without food</button>
+            </div>
+        </div>
+    </div>
 </main>
-@endsection
-
 <style>
-/* ── Page heading ── */
-.fo-page-heading {
-    padding: 0 0 4px;
-    margin-bottom: 4px;
+/* ── No-Food Modal ─────────────────────────────────────────── */
+.nfm-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.45);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 9999;
+  animation: nfmFade .18s ease;
 }
-.fo-page-title {
-    font-size: 1.55rem;
-    font-weight: 700;
-    color: #1a1a2e;
-    margin: 0 0 4px;
+@keyframes nfmFade { from { opacity:0; } to { opacity:1; } }
+.nfm-box {
+  background: #fff;
+  border-radius: 14px;
+  padding: 36px 32px 28px;
+  max-width: 420px; width: 92%;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,.18);
 }
-.fo-page-sub {
-    font-size: 0.85rem;
-    color: #6b7280;
-    margin: 0;
+.nfm-icon  { font-size: 44px; margin-bottom: 12px; }
+.nfm-title { font-size: 19px; font-weight: 700; color: #1e3a8a; margin-bottom: 10px; }
+.nfm-body  { font-size: 14px; color: #4b5563; line-height: 1.55; margin-bottom: 24px; }
+.nfm-actions { display: flex; gap: 12px; justify-content: center; }
+.nfm-btn {
+  padding: 10px 20px; border-radius: 8px; font-size: 14px;
+  font-weight: 600; border: none; cursor: pointer; transition: opacity .15s;
 }
-
-/* ── PAX policy box ── */
-.fo-pax-policy {
-    display: flex;
-    gap: 14px;
-    background: #fffbeb;
-    border: 1px solid #fcd34d;
-    border-radius: 10px;
-    padding: 14px 18px;
-    margin-bottom: 22px;
-    align-items: flex-start;
-}
-.fo-pax-policy__icon {
-    font-size: 1.1rem;
-    color: #d97706;
-    flex-shrink: 0;
-    margin-top: 1px;
-}
-.fo-pax-policy__body {
-    font-size: 0.82rem;
-    color: #78350f;
-    line-height: 1.5;
-}
-.fo-pax-policy__body strong { color: #92400e; }
-.fo-pax-policy__list {
-    margin: 6px 0 0 16px;
-    padding: 0;
-}
-.fo-pax-policy__list li { margin-bottom: 3px; }
-
-/* ── Card header ── */
-.card-title-wrap {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    align-items: flex-start;
-}
-.reservation-date-text {
-    font-size: 14px;
-    color: #666;
-}
-
-/* ── Meal mode switcher ── */
-.meal-mode-col { width: 100px; min-width: 90px; }
-.meal-mode-cell { vertical-align: middle; }
-.meal-mode-switcher {
-    display: flex;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    overflow: hidden;
-    width: fit-content;
-}
-.mode-btn {
-    padding: 5px 10px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    border: none;
-    background: #f9fafb;
-    color: #6b7280;
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s;
-    font-family: inherit;
-}
-.mode-btn + .mode-btn { border-left: 1px solid #d1d5db; }
-.mode-btn.active { background: #2563eb; color: #fff; }
-.mode-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-/* ── Food table ── */
-.food-table {
-    width: 100%;
-    border-collapse: collapse;
-    text-align: left;
-    table-layout: fixed;
-    margin-top: 15px;
-    background: #fff;
-}
-.food-table th,
-.food-table td {
-    border: 1px solid #d9d9d9;
-    padding: 10px;
-    vertical-align: middle;
-}
-.food-table th {
-    background: #f5f5f5;
-    font-weight: 700;
-    font-size: 14px;
-    text-align: center;
-}
-.meal-column {
-    width: 160px;
-    min-width: 160px;
-}
-.meal-label-cell {
-    background: #fafafa;
-    width: 160px;
-}
-.meal-header {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.meal-name {
-    font-weight: 700;
-    font-size: 15px;
-    color: #222;
-}
-.meal-toggle-wrap {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 13px;
-    color: #666;
-    cursor: pointer;
-    width: fit-content;
-}
-.meal-toggle-wrap input { cursor: pointer; }
-
-/* ── Food cells ── */
-.food-cell {
-    min-width: 130px;
-    background: #fff;
-}
-.set-cell { min-width: 220px; }
-.food-select,
-.food-set-select {
-    width: 100%;
-    min-width: 110px;
-    padding: 8px 10px;
-    border: 1px solid #d6d6d6;
-    border-radius: 8px;
-    background: #fff;
-    font-size: 13px;
-    color: #333;
-    outline: none;
-}
-.food-select:focus,
-.food-set-select:focus {
-    border-color: #7aa7e0;
-    box-shadow: 0 0 0 3px rgba(122, 167, 224, 0.12);
-}
-
-/* ── Disabled states ── */
-.cell-disabled { background: #f2f2f2 !important; }
-.cell-disabled .food-select,
-.cell-disabled .food-set-select {
-    background: #ebebeb;
-    color: #999;
-    cursor: not-allowed;
-    border-color: #dddddd;
-}
-.meal-row.row-disabled td { background: #efefef !important; }
-.meal-row.row-disabled .meal-name,
-.meal-row.row-disabled .meal-toggle-text { color: #9a9a9a; }
-.meal-row.row-disabled .food-select,
-.meal-row.row-disabled .food-set-select {
-    background: #e5e5e5;
-    color: #9c9c9c;
-    border-color: #d0d0d0;
-    cursor: not-allowed;
-}
-
-.reservation-card.food-disabled-card { opacity: 0.85; }
-.reservation-card.food-disabled-card .food-table,
-.reservation-card.food-disabled-card .meal-label-cell,
-.reservation-card.food-disabled-card .food-cell { background: #f1f1f1; }
-
-/* ── Sticky footer ── */
-.action-section {
-    position: sticky;
-    bottom: 0;
-    background: #fff;
-    border-top: 2px solid #e5e7eb;
-    padding: 14px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    z-index: 50;
-    box-shadow: 0 -4px 16px rgba(0,0,0,0.07);
-}
-.total-section {
-    display: flex;
-    align-items: baseline;
-    gap: 8px;
-}
-.total-label { font-size: 0.85rem; color: #6b7280; }
-.total-amount { font-size: 1.4rem; font-weight: 700; color: #111; }
-.total-pax    { font-size: 0.78rem; color: #9ca3af; }
-
-/* ── Scroll ── */
-.meals-container { overflow-x: auto; }
-@media (max-width: 1024px) {
-    .food-table { min-width: 1200px; }
-}
+.nfm-btn:hover { opacity: .85; }
+.nfm-btn--secondary { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.nfm-btn--primary   { background: #1e3a8a; color: #fff; }
 </style>
+<script>
+(function () {
+    /* ── Guide toggle ── */
+    const guideBtn  = document.getElementById('foGuideToggle');
+    const guideBody = document.getElementById('foGuideBody');
+    if (guideBtn && guideBody) {
+        guideBtn.addEventListener('click', function () {
+            const open = guideBody.classList.toggle('fo-guide-body--open');
+            guideBtn.querySelector('.fo-guide-caret').textContent = open ? '▴' : '▾';
+        });
+    }
+
+    /* ── Pax warning modal ── */
+    const paxWarnModal  = document.getElementById('paxWarnModal');
+    const pwmGoBack     = document.getElementById('pwmGoBack');
+    const pwmProceed    = document.getElementById('pwmProceed');
+
+    if (pwmGoBack) {
+        pwmGoBack.addEventListener('click', function () {
+            paxWarnModal.style.display = 'none';
+            window.history.back();
+        });
+    }
+    if (pwmProceed) {
+        pwmProceed.addEventListener('click', function () {
+            paxWarnModal.style.display = 'none';
+            // Disable all food so form submits with no food
+            document.getElementById('foodReservationForm')
+                ?.querySelectorAll('.food-enabled-input')
+                .forEach(inp => { inp.value = '0'; });
+            const f = document.getElementById('foodReservationForm');
+            f && (f.requestSubmit ? f.requestSubmit() : f.submit());
+        });
+    }
+    if (paxWarnModal) {
+        paxWarnModal.addEventListener('click', e => { if (e.target === paxWarnModal) paxWarnModal.style.display = 'none'; });
+    }
+
+    /* ── Auto-show pax warning on page load if pax is below minimum ── */
+    (function () {
+        const pax    = window.BOOKING_PAX  || 1;
+        const minPax = window.FOOD_MIN_PAX || 30;
+        if (pax < minPax && paxWarnModal) {
+            paxWarnModal.style.display = 'flex';
+        }
+    })();
+
+    /* ── No-food modal ── */
+    const form       = document.getElementById('foodReservationForm');
+    const addBtn     = document.getElementById('addToCartBtn');
+    const modal      = document.getElementById('noFoodModal');
+    const goBackBtn  = document.getElementById('nfmGoBack');
+    const proceedBtn = document.getElementById('nfmProceed');
+
+    function hasFoodSelected() {
+        // Check any food-select (set selections, individual selects)
+        const anySelect = form.querySelectorAll('.food-select');
+        for (const sel of anySelect) {
+            if (sel.value && sel.name) return true;
+        }
+        // Check radio buttons (drink_choice)
+        const anyChecked = form.querySelector('input[type="radio"]:checked');
+        if (anyChecked) return true;
+        // Check chips (extra viand / dessert hidden inputs)
+        const chips = form.querySelectorAll('.fo-indiv-chip-price[name]');
+        if (chips.length > 0) return true;
+        return false;
+    }
+
+    function isAnyDateEnabled() {
+        const enabled = form.querySelectorAll('.food-enabled-input');
+        for (const inp of enabled) {
+            if (inp.value === '1') return true;
+        }
+        return false;
+    }
+
+    if (addBtn && form && modal) {
+        addBtn.addEventListener('click', function () {
+            // 1. Pax minimum check (only when food dates are enabled)
+            const pax    = window.BOOKING_PAX  || 1;
+            const minPax = window.FOOD_MIN_PAX || 30;
+            if (isAnyDateEnabled() && pax < minPax) {
+                paxWarnModal.style.display = 'flex';
+                return;
+            }
+
+            // 2. No-food selected check
+            if (isAnyDateEnabled() && !hasFoodSelected()) {
+                modal.style.display = 'flex';
+                return;
+            }
+
+            form.requestSubmit ? form.requestSubmit() : form.submit();
+        });
+
+        goBackBtn.addEventListener('click', function () {
+            modal.style.display = 'none';
+        });
+
+        proceedBtn.addEventListener('click', function () {
+            modal.style.display = 'none';
+            // Disable all food-enabled inputs so no food is submitted
+            form.querySelectorAll('.food-enabled-input').forEach(inp => { inp.value = '0'; });
+            form.requestSubmit ? form.requestSubmit() : form.submit();
+        });
+
+        modal.addEventListener('click', function (e) {
+            if (e.target === modal) modal.style.display = 'none';
+        });
+    }
+})();
+</script>
+@endsection

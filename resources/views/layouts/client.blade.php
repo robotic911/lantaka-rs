@@ -6,6 +6,7 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Lantaka Room and Venue Reservation Portal</title>
     <link rel="stylesheet" href="{{ asset('css/client.css') }}">
+    
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">

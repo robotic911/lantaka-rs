@@ -128,6 +128,16 @@ body {
   font-size: 30px;
 }
 
+.checkout-flash {
+  padding: 12px 18px;
+  border-radius: 8px;
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.checkout-flash--error   { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.checkout-flash--success { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
+
 .back-btn {
   background-color: white;
   border: 2px solid #ddd;
@@ -241,21 +251,251 @@ body {
   margin: 8px 0;
 }
 
-/* Food Section Styling */
+/* ═══════════════════════════════════════════════════════
+   LEFT CARD — Food Reservation Display
+═══════════════════════════════════════════════════════ */
+
+/* Purpose badge */
+.item-purpose {
+  font-size: 12px;
+  color: #777;
+}
+
+/* Price unit (/night, /day) */
+.item-price-unit {
+  font-size: 13px;
+  font-weight: 400;
+  color: #999;
+}
+
+/* Dates nights/days suffix */
+.item-dates-nights {
+  font-size: 12px;
+  color: #aaa;
+  margin-left: 4px;
+}
+
+/* ── Food section wrapper ── */
 .item-food-section {
-  margin-top: 16px;
-  padding-top: 16px;
+  margin-top: 14px;
+  padding-top: 14px;
   border-top: 1px solid #eee;
 }
 
 .item-food-section-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
-  color: #333;
+  color: #555;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.6px;
+  margin-bottom: 10px;
+}
+
+/* Date group */
+.food-date-group {
   margin-bottom: 12px;
 }
+
+.food-date-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2c3e7f;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Set / meal row */
+.food-sets-group {
+  margin-bottom: 6px;
+}
+
+.food-meal-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #444;
+  padding: 3px 0;
+}
+
+.food-meal-row--snack {
+  color: #666;
+}
+
+.food-meal-label {
+  min-width: 72px;
+  font-weight: 600;
+  font-size: 11px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  flex-shrink: 0;
+}
+
+.food-set-name {
+  flex: 1;
+  font-weight: 500;
+  color: #222;
+  font-size: 12px;
+}
+
+.food-set-extras {
+  display: inline;
+  font-weight: 400;
+  color: #555;
+  font-size: 11px;
+  margin-left: 3px;
+}
+
+.food-set-price {
+  font-size: 11px;
+  color: #2c3e7f;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Snacks sub-group */
+.food-snacks-group {
+  margin-top: 6px;
+}
+
+.food-snacks-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin-bottom: 4px;
+}
+
+/* Individual order items */
+.food-indiv-meal-group {
+  margin-bottom: 8px;
+  padding: 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 3px solid #ffc107;
+}
+
+.food-indiv-meal-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2c3e7f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.food-indiv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.food-indiv-item--extra .food-indiv-cat {
+  color: #16a34a;
+}
+
+.food-indiv-cat {
+  min-width: 58px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.food-indiv-name {
+  color: #222;
+  font-weight: 500;
+  flex: 1;
+}
+
+.food-indiv-price {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2c3e7f;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Per-meal subtotal inside individual meal group (left panel) */
+.food-meal-subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+  padding: 4px 6px;
+  background: #fff8e1;
+  border-top: 1px dashed #ffc107;
+  border-radius: 0 0 4px 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a5200;
+}
+
+/* Food subtotal (date-level, left panel) */
+.food-subtotal-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 6px 8px;
+  background: #fef9e7;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #7a5200;
+}
+
+/* Cart action buttons */
+.cart-item-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.cart-action-btn {
+  padding: 6px 16px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  letter-spacing: 0.3px;
+  transition: opacity 0.15s;
+}
+
+.cart-action-btn:hover { opacity: 0.8; }
+.cart-remove-btn { background: #fee2e2; color: #b91c1c; }
+.cart-edit-btn   { background: #e0f2fe; color: #0369a1; }
+
+/* Empty cart state */
+.cart-empty-state {
+  background: white;
+  border-radius: 12px;
+  padding: 48px 24px;
+  text-align: center;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+.cart-empty-icon { font-size: 48px; margin-bottom: 12px; }
+.cart-empty-text { font-size: 15px; color: #888; margin-bottom: 16px; }
+.cart-browse-btn {
+  display: inline-block;
+  padding: 10px 20px;
+  background: #2c3e7f;
+  color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: opacity 0.15s;
+}
+.cart-browse-btn:hover { opacity: 0.85; }
 
 .food-by-category {
   display: flex;
@@ -380,44 +620,280 @@ body {
   font-weight: 500;
 }
 
-/* Checkout Summary */
+/* ═══════════════════════════════════════════════════════
+   RIGHT PANEL — Checkout Summary
+═══════════════════════════════════════════════════════ */
 .checkout-summary {
   background-color: white;
   border-radius: 12px;
-  padding: 25px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   height: fit-content;
   position: sticky;
   top: 20px;
+  max-height: calc(100vh - 60px);
+  overflow-y: auto;
 }
 
 .summary-title {
-  font-size: 18px;
-  font-weight: 600;
-  margin-bottom: 20px;
+  font-size: 17px;
+  font-weight: 700;
+  margin-bottom: 18px;
   color: #1a1a1a;
+  padding-bottom: 12px;
+  border-bottom: 2px solid #f3f4f6;
 }
 
+/* Empty state */
+.summary-empty {
+  text-align: center;
+  padding: 32px 16px;
+  color: #aaa;
+  font-size: 13px;
+}
+.summary-empty-icon {
+  font-size: 28px;
+  margin-bottom: 10px;
+  opacity: 0.4;
+}
+
+/* ── Venue / room block ── */
 .summary-items {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 15px;
+  margin-bottom: 4px;
 }
 
+.summary-venue-block {
+  margin-bottom: 14px;
+  padding-bottom: 14px;
+  border-bottom: 1px dashed #e5e7eb;
+}
+
+.summary-venue-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 4px;
+}
+
+.summary-venue-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+}
+
+.summary-venue-rate {
+  color: #888;
+}
+
+.summary-venue-amt {
+  font-weight: 600;
+  color: #1a1a1a;
+  font-size: 13px;
+}
+
+/* ── summary-item (legacy compat) ── */
 .summary-item {
   display: flex;
   justify-content: space-between;
-  font-size: 14px;
+  font-size: 13px;
+  padding: 3px 0;
+}
+.item-label  { color: #666; }
+.item-amount { font-weight: 600; color: #1a1a1a; }
+
+/* ── Summary food groups (sf-*) ── */
+#summary-foods {
+  margin-top: 0;
 }
 
-.item-label {
-  color: #666;
+.sf-date-block {
+  margin-bottom: 14px;
+  padding-bottom: 10px;
+  border-bottom: 1px dashed #e5e7eb;
 }
 
-.item-amount {
+.sf-date-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c3e7f;
+  margin-bottom: 8px;
+  letter-spacing: 0.2px;
+}
+
+.sf-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: #aaa;
+  margin: 6px 0 4px;
+}
+
+.sf-section-label--snack {
+  color: #c07a00;
+}
+
+.sf-pax-note {
+  font-weight: 400;
+  font-size: 10px;
+  color: #bbb;
+  text-transform: none;
+  margin-left: 4px;
+}
+
+/* Meal row (sets + snacks) */
+.sf-meal-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.sf-meal-row--snack .sf-meal-name {
+  color: #555;
+}
+
+.sf-meal-icon {
+  font-size: 12px;
+  flex-shrink: 0;
+  width: 16px;
+  text-align: center;
+}
+
+.sf-meal-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  min-width: 60px;
+  flex-shrink: 0;
+}
+
+.sf-meal-name {
+  flex: 1;
+  font-weight: 500;
+  color: #222;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sf-meal-name--full {
+  /* no min-width override needed */
+}
+
+.sf-meal-price {
+  font-size: 11px;
   font-weight: 600;
   color: #1a1a1a;
+  white-space: nowrap;
+}
+
+.sf-price-formula {
+  font-size: 10px;
+  font-weight: 400;
+  color: #6b7280;
+  margin-right: 2px;
+}
+
+/* Individual order sub-display */
+.sf-indiv-meal {
+  margin-bottom: 8px;
+  padding: 7px 8px;
+  background: #f9fafb;
+  border-radius: 6px;
+  border-left: 3px solid #ffc107;
+}
+
+.sf-indiv-meal-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2c3e7f;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.sf-indiv-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  padding: 1px 0;
+}
+
+.sf-indiv-item--extra .sf-indiv-cat {
+  color: #16a34a;
+}
+
+.sf-indiv-cat {
+  min-width: 50px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.sf-indiv-name {
+  color: #444;
+  font-weight: 500;
+  flex: 1;
+}
+
+/* Per-meal subtotal inside sf-indiv-meal block (right panel) */
+.sf-indiv-meal-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  padding: 3px 6px;
+  background: #fff8e1;
+  border-top: 1px dashed #ffc107;
+  border-radius: 0 0 4px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #7a5200;
+}
+
+.sf-indiv-price {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2c3e7f;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* Per-date food subtotal */
+.sf-date-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding: 5px 8px;
+  background: #fef9e7;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a5200;
+}
+
+/* Food total row (below all dates) */
+.sf-food-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0 4px;
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c3e7f;
+  border-top: 1px solid #e5e7eb;
+  margin-bottom: 8px;
 }
 
 .summary-divider {

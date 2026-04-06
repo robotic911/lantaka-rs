@@ -41,6 +41,10 @@
               <span class="crm-label">Duration</span>
               <span class="crm-value" id="crmDuration">—</span>
             </div>
+            <div class="crm-field crm-field--full" id="crmPurposeRow" style="display:none;">
+              <span class="crm-label">Purpose</span>
+              <span class="crm-value" id="crmPurpose">—</span>
+            </div>
           </div>
         </div>
 
@@ -58,6 +62,19 @@
 
         <div class="crm-summary">
           <p class="crm-card-title">Summary</p>
+
+          {{-- Breakdown (venue + food) shown above grand total when food exists --}}
+          <div id="crmBreakdown" style="display:none;">
+            <div class="crm-breakdown-row">
+              <span class="crm-breakdown-label">🏛 Venue</span>
+              <span class="crm-breakdown-val" id="crmVenueTotal">₱ 0.00</span>
+            </div>
+            <div class="crm-breakdown-row">
+              <span class="crm-breakdown-label">🍽 Food</span>
+              <span class="crm-breakdown-val" id="crmFoodTotal">₱ 0.00</span>
+            </div>
+            <div class="crm-breakdown-divider"></div>
+          </div>
 
           <div class="crm-summary-amount">
             <span class="crm-summary-label">Total Amount</span>
@@ -298,45 +315,88 @@
 }
 
 /* ── Food list ── */
-.crm-food-list { display: flex; flex-direction: column; gap: 12px; }
+.crm-food-list { display: flex; flex-direction: column; gap: 14px; }
 .crm-empty { font-size: 13px; color: #9ca3af; margin: 0; }
 
+.crm-food-date-group { display: flex; flex-direction: column; gap: 8px; }
 .crm-food-date-header {
   font-size: 10px;
   font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
   letter-spacing: .6px;
-  margin: 0 0 6px;
+  margin: 0 0 4px;
   padding-bottom: 5px;
   border-bottom: 1px solid #f0f1f3;
 }
-.crm-food-items { display: flex; flex-direction: column; gap: 4px; }
+
+/* Meal group (Breakfast / Lunch / etc.) */
+.crm-meal-group { margin-bottom: 8px; }
+.crm-meal-header {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 5px;
+}
+.crm-meal-icon { font-size: 13px; line-height: 1; }
+.crm-meal-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #374151;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+}
+.crm-meal-items { display: flex; flex-direction: column; gap: 4px; padding-left: 2px; }
+
+/* ── Unified food line ── */
+.crm-food-line {
+  font-size: 13px;
+  color: #374151;
+  margin: 0 0 4px;
+  line-height: 1.5;
+  padding-left: 10px;
+}
+
+/* Set line: "Set 3 (Fried Rice, Pork Adobo, ...)" — bold name */
+.crm-food-line--set {
+  font-weight: 600;
+  color: #1e3a8a;
+  padding-left: 0;
+}
+
+/* Meal label: "Snacks", "Lunch" — small uppercase separator */
+.crm-food-line--meal {
+  font-size: 10px;
+  font-weight: 700;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  padding-left: 0;
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+/* ── Legacy individual food row (kept for backward compat) ── */
 .crm-food-item {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
+  gap: 7px;
+  font-size: 12px;
   color: #374151;
-  padding: 5px 8px;
-  background: #f8f9fb;
-  border-radius: 6px;
 }
-.crm-food-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #93c5fd;
-  flex-shrink: 0;
-}
-.crm-food-meal {
-  font-size: 10px;
-  color: #9ca3af;
-  font-weight: 600;
+.crm-food-cat-pill {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1d4ed8;
+  white-space: nowrap;
   text-transform: uppercase;
   letter-spacing: .3px;
-  margin-left: auto;
+  flex-shrink: 0;
 }
+.crm-food-name { flex: 1; color: #1f2937; }
 
 /* ── Summary box ── */
 .crm-summary {
@@ -363,6 +423,16 @@
 }
 .crm-divider { height: 1px; background: #f0f1f3; }
 .crm-payment-row { display: flex; flex-direction: column; gap: 6px; }
+/* Breakdown rows (venue + food above grand total) */
+.crm-breakdown-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 4px 0; font-size: 12px;
+}
+.crm-breakdown-label { color: #6b7280; font-weight: 500; }
+.crm-breakdown-val   { color: #1f2937; font-weight: 600; }
+.crm-breakdown-divider { height: 1px; background: #e5e7eb; margin: 6px 0 10px; }
+/* Purpose row in booking details */
+#crmPurposeRow .crm-value { text-transform: capitalize; }
 .crm-payment-badge {
   font-size: 11px;
   font-weight: 700;

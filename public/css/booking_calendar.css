@@ -16,7 +16,7 @@
   justify-content:space-between;
   background-color: var(--white);
   border-radius: 12px;
-  padding: 20px;
+  padding: 10px;
   /* box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08); */
   max-width: 500px;
   width: 100%;
@@ -29,7 +29,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  margin-bottom: 30px;
+  margin: 5px 0px;
   width: 70%;
 }
 
@@ -60,7 +60,7 @@
   width: 100%;
   justify-content: space-between;
   align-items: center;
-  margin: 20px 0;
+  margin: 10px 0;
 }
 
 .month {
@@ -155,16 +155,28 @@
   background-color: #fafaf8;
 }
 
-/* Other Month Days (Gray Overlay) */
-.day.other-month {
-  background-color: #e8e6e1;
-  color: #aaa;
+/* Previous month overflow — medium gray, not selectable */
+.day.prev-month {
+  background-color: #fff;
+  color: #b8b8b8;
   cursor: not-allowed;
-  font-weight: 500;
+  font-weight: 400;
 }
 
-.day.other-month:hover {
-  background-color: #e8e6e1;
+.day.prev-month:hover {
+  background-color: #fff;
+}
+
+/* Next month overflow — medium gray but selectable */
+.day.next-month {
+  background-color: #fff;
+  color: #b8b8b8;
+  cursor: pointer;
+  font-weight: 400;
+}
+
+.day.next-month:hover {
+  background-color: var(--light-gray);
 }
 
 /* Occupied Dates (Red Overlay) */
@@ -179,15 +191,15 @@
   background-color: #ff5252;
 }
 
-/* Range Start (Red) */
+/* Range Start (Blue) */
 .day.range-start {
-  background-color: var(--accent-red);
+  background-color: var(--primary-blue);
   color: var(--white);
   font-weight: 700;
 }
 
 .day.range-start:hover {
-  background-color: #e06b6b;
+  background-color: #243470;
 }
 
 /* Range End (Blue) */

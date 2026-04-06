@@ -88,6 +88,7 @@ Route::middleware(['role:admin,staff'])->group(function () {
     Route::get('/employee/calendar-data', [ReservationController::class, 'fetchUpdatedCalendarData'])->name('calendar.fetchUpdatedData');
     Route::get('/employee/calendar-export',     [ReservationController::class, 'exportCalendar'])->name('calendar.export');
     Route::get('/employee/calendar-export-pdf', [ReservationController::class, 'exportCalendarPDF'])->name('calendar.export.pdf');
+    Route::get('/employee/calendar-export-csv', [ReservationController::class, 'exportCalendarCSV'])->name('calendar.export.csv');
     Route::get('/employee/analytics-report-data', [ReservationController::class, 'analyticsReportData'])->name('employee.analytics.report.data');
     // Cancellation request management (employee)
     Route::get('/employee/reservations/{id}/cancellation-request', [ReservationController::class, 'getCancellationRequest'])->name('employee.reservations.cancellationRequest');

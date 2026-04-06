@@ -99,33 +99,108 @@
 
               <td style="display:flex; flex-direction:column; align-items: center; justify-content:center; width:100%; gap:4px;">
                   {{-- Main reservation status badge --}}
-                  @if($res->type === 'room' && $res->room)
-                    <span class="status-badge {{ strtolower($res->Room_Reservation_Status) }}">
-                        {{ ucfirst($res->Room_Reservation_Status) }}
-                    </span>
-                  @elseif($res->type === 'venue' && $res->venue)
-                    <span class="status-badge {{ strtolower($res->Venue_Reservation_Status) }}">
-                        {{ ucfirst($res->Venue_Reservation_Status) }}
-                    </span>
+                  @php
+                    $status = null;
+
+                    if ($res->type === 'room' && $res->room) {
+                        $status = $res->Room_Reservation_Status;
+                    } elseif ($res->type === 'venue' && $res->venue) {
+                        $status = $res->Venue_Reservation_Status;
+                    }
+                  @endphp
+
+                  {{-- Cancellation badge --}}
+                  
+
+                  {{-- Reservation status badge --}}
+                  @if($status)
+                    @if($res->cancellation_status === 'pending')
+                      <span class="status-badge client-cancel-req-badge">⏳ Cancel Request</span>
+                    @else
+                      <span class="status-badge {{ strtolower($status) }}">
+                        {{ ucfirst($status) }}
+                      </span>
+                    @endif
                   @endif
                   {{-- Cancellation pending indicator --}}
-                  @if($res->cancellation_status === 'pending')
-                    <span class="status-badge client-cancel-req-badge">⏳ Cancel Req.</span>
-                  @endif
+                  
               </td>
 
               <td class="action-cell">
                 @php
                     $accName = '';
-                    if($res->type === 'room' && $res->room){
-                      $accName = 'Room' . ' ' . $res->room->Room_Number;
-                      $res->pax = $res->Room_Reservation_Pax;
+                    if ($res->type === 'room' && $res->room) {
+                        $accName  = 'Room ' . $res->room->Room_Number;
+                        $res->pax = $res->Room_Reservation_Pax;
+                    } elseif ($res->type === 'venue' && $res->venue) {
+                        $accName  = $res->venue->Venue_Name;
+                        $res->pax = $res->Venue_Reservation_Pax;
                     }
 
-                    elseif($res->type === 'venue' && $res->venue){
-                      $accName = $res->venue->Venue_Name;
-                      $res->pax = $res->Venue_Reservation_Pax;
-                    }
+                    // Individual food items (Food_ID-based rows via BelongsToMany)
+                    $indivFoodTotal = ($res->type === 'venue' && isset($res->foods) && $res->foods)
+                        ? $res->foods->sum('pivot.Food_Reservation_Total_Price')
+                        : 0;
+
+                    // Set reservation rows (Food_Set_ID-based, one row per set selection)
+                    $setRows      = ($res->type === 'venue') ? ($res->foodSetReservations ?? collect()) : collect();
+                    $setFoodTotal = $setRows->sum('Food_Reservation_Total_Price');
+                    $resFoodTotal = $indivFoodTotal + $setFoodTotal;
+
+                    // Build food_set_rows for JS display.
+                    // Food_Set_ID is now a TEXT field:  "setId",["riceId","drinksId","dessertId","fruitId"]
+                    // We parse it here and look up all food names (set definition + customisations).
+                    $foodSetRows = $setRows->map(function ($r) {
+                        $rawText   = $r->Food_Set_ID ?? '';
+                        $setId     = null;
+                        $customIds = ['', '', '', ''];
+
+                        // New format: "5",["12","18","21","9"]
+                        if (preg_match('/^"(\d+)",(\[.*\])$/', $rawText, $m)) {
+                            $setId     = (int) $m[1];
+                            $decoded   = json_decode($m[2], true);
+                            $customIds = is_array($decoded) ? $decoded : ['', '', '', ''];
+                        } elseif (is_numeric($rawText) && $rawText !== '') {
+                            // Legacy: plain integer (records saved before the migration)
+                            $setId = (int) $rawText;
+                        }
+
+                        $set = $setId ? \App\Models\FoodSet::find($setId) : null;
+
+                        // Base set foods (non-rice, non-drinks — those come from customIds)
+                        $setFoodNames = [];
+                        if ($set) {
+                            $setFoodNames = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs ?? [])
+                                ->whereNotIn('Food_Category', ['rice', 'drinks'])
+                                ->pluck('Food_Name')
+                                ->toArray();
+                        }
+
+                        // Customisation food names: [rice, drinks, dessert, fruit]
+                        $customFoodNames = [];
+                        foreach ($customIds as $fid) {
+                            if (!empty($fid) && is_numeric($fid)) {
+                                $food = \App\Models\Food::find((int) $fid);
+                                if ($food) {
+                                    $customFoodNames[] = $food->Food_Name;
+                                }
+                            }
+                        }
+
+                        return [
+                            'serving_date' => $r->Food_Reservation_Serving_Date,
+                            'meal_time'    => $r->Food_Reservation_Meal_time,
+                            'total_price'  => (float) $r->Food_Reservation_Total_Price,
+                            'set_id'       => $setId,
+                            'set_name'     => $set ? $set->Food_Set_Name : 'Unknown Set',
+                            // food_names = set definition foods + user's rice/drinks/dessert/fruit choices
+                            'food_names'   => array_merge($setFoodNames, $customFoodNames),
+                        ];
+                    })->toArray();
+
+                    $resTotalRaw   = $res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0;
+                    $resVenueTotal = max(0, $resTotalRaw - $resFoodTotal);
+                    $resPurpose    = $res->Room_Reservation_Purpose ?? $res->Venue_Reservation_Purpose ?? null;
                 @endphp
 
                 <button class="expand-button"
@@ -139,9 +214,13 @@
                         'check_out'           => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
                         'check_in_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
                         'check_out_raw'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
-                        'total'               => number_format($res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0, 2),
+                        'total'               => number_format($resTotalRaw, 2),
+                        'food_total'          => number_format($resFoodTotal, 2),
+                        'venue_total'         => number_format($resVenueTotal, 2),
                         'payment_status'      => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
-                        'foods'               => $res->foods,
+                        'foods'               => $res->type === 'venue' ? ($res->foods ?? []) : [],
+                        'food_set_rows'       => $foodSetRows ?? [],
+                        'purpose'             => $resPurpose,
                         'status'              => $res->status,
                         'cancellation_status' => $res->cancellation_status,
                     ]) }}">

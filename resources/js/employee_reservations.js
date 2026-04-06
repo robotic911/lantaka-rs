@@ -261,13 +261,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (currentStatus === 'cancelled' || currentStatus === 'completed' || currentStatus === 'pending' || currentStatus === 'checked-out') {
         if (blockCheckin) blockCheckin.style.display = 'none';
         document.querySelector('#editLink').style.display = 'none';
-        document.querySelector('.modal-left-column').style.display = 'none';
+        // For room reservations there is no food — hide the left column entirely.
+        // For venue reservations keep it visible so the food table is always shown.
+        if (data.accommodationType !== 'Venue') {
+          document.querySelector('.modal-left-column').style.display = 'none';
+        }
       }
 
       if (currentStatus !== 'checked-in') {
         showSOA.style.display = 'none';
         showAddChSection.style.display = 'none';
-        document.querySelector('.meals-container').style.maxHeight = '75vh';
+        document.querySelector('.meals-container').style.maxHeight = '100vh';
       } else {
         showSOA.style.display = 'flex';
         showAddChSection.style.display = 'flex';
@@ -299,15 +303,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.accommodationType == "Venue") {
         document.getElementById('meal-container-left').style.display = "block";
         document.querySelector('.modal-body').classList.remove('room-mode');
-        // Populate the food table with the actual reserved foods
-        if (Array.isArray(data.foods) && data.foods.length > 0) {
-          createFoodTables(data.foods);
-        } else {
-          // No foods — reset all cells in the current container tables back to "None"
-          document.querySelectorAll('#foodTablesContainer .food-display').forEach(el => {
-            el.textContent = 'None';
-          });
-        }
+        // Render card-based food display
+        renderFoodCards(data.foods || [], data.food_sets || [], data.pax || 1);
     } else {
         document.getElementById('meal-container-left').style.display = "none";
         document.querySelector('.modal-body').classList.add('room-mode');
@@ -518,6 +515,152 @@ if (addChargesBtn) {
 function resetSingleFoodTable(table) {
   table.querySelectorAll('.food-display').forEach(el => {
     el.textContent = 'None';
+  });
+}
+
+/**
+ * Render food reservation details as client-style cards.
+ * Replaces the old table-based createFoodTables().
+ *
+ * @param {Array}  foods    – individual food items (Food_Name, Food_Category, Food_Price, pivot.*)
+ * @param {Array}  foodSets – pre-processed set rows {date, meal_time, total_price, set_name, set_price, custom_names}
+ * @param {number} pax      – number of guests
+ */
+function renderFoodCards(foods, foodSets, pax) {
+  const container = document.getElementById('foodTablesContainer');
+  if (!container) return;
+  container.innerHTML = '';
+  pax = Number(pax) || 1;
+
+  const MEAL_ORDER  = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'snacks'];
+  const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', snacks: 'Snack' };
+  const MEAL_ICONS  = { breakfast: '🌅', am_snack: '🍪', lunch: '☀️', pm_snack: '🍃', dinner: '🌙', snacks: '🍪' };
+
+  function peso(amount) {
+    return '₱' + Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 });
+  }
+  function fmtDate(raw) {
+    const d = new Date(raw + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  }
+  function capLabel(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1).replace(/_/g, ' ');
+  }
+
+  // Collect all unique dates
+  const dateSet = new Set();
+  (foods    || []).forEach(f => { const d = f.pivot?.Food_Reservation_Serving_Date; if (d) dateSet.add(d); });
+  (foodSets || []).forEach(s => { if (s.date) dateSet.add(s.date); });
+
+  if (!dateSet.size) {
+    container.innerHTML = '<p class="em-food-empty">No food reservations for this booking.</p>';
+    return;
+  }
+
+  [...dateSet].sort().forEach(date => {
+    // Group individual foods by meal time
+    const indivByMeal = {};
+    (foods || []).forEach(f => {
+      if (f.pivot?.Food_Reservation_Serving_Date !== date) return;
+      const mt = (f.pivot?.Food_Reservation_Meal_time || 'other').toLowerCase();
+      (indivByMeal[mt] = indivByMeal[mt] || []).push(f);
+    });
+
+    // Group set rows by meal time
+    const setsByMeal = {};
+    (foodSets || []).forEach(s => {
+      if (s.date !== date) return;
+      const mt = (s.meal_time || 'other').toLowerCase();
+      (setsByMeal[mt] = setsByMeal[mt] || []).push(s);
+    });
+
+    const allMeals   = new Set([...Object.keys(indivByMeal), ...Object.keys(setsByMeal)]);
+    const sortedMeals = MEAL_ORDER.filter(m => allMeals.has(m))
+                                  .concat([...allMeals].filter(m => !MEAL_ORDER.includes(m)));
+
+    let dateSubtotal = 0;
+    let html = `<div class="em-food-date-group">`;
+    html += `<div class="em-food-date-label">📅 ${fmtDate(date)}</div>`;
+
+    sortedMeals.forEach(mealKey => {
+      const indivItems = indivByMeal[mealKey] || [];
+      const setItems   = setsByMeal[mealKey]  || [];
+      if (!indivItems.length && !setItems.length) return;
+
+      const mealLabel = MEAL_LABELS[mealKey] || capLabel(mealKey);
+      const mealIcon  = MEAL_ICONS[mealKey]  || '🍽';
+      let mealSubtotal = 0;
+
+      html += `<div class="em-food-meal-group">`;
+      html += `<div class="em-food-meal-label">${mealIcon} ${mealLabel}</div>`;
+
+      // Individual items
+      indivItems.forEach(food => {
+        const price = Number(food.Food_Price || 0);
+        mealSubtotal += price * pax;
+        html += `
+          <div class="em-food-item">
+            <span class="em-food-cat">${capLabel(food.Food_Category || '')}</span>
+            <span class="em-food-name">${food.Food_Name}</span>
+            <span class="em-food-price">₱${price.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span>
+          </div>`;
+      });
+
+      // Set items
+      setItems.forEach(s => {
+        const baseP = Number(s.set_price || 0);
+        mealSubtotal += Number(s.total_price || 0);
+
+        // Set header row
+        html += `
+          <div class="em-food-item em-food-item--set-header">
+            <span class="em-food-cat">Set</span>
+            <span class="em-food-name">${s.set_name}</span>
+            <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
+          </div>`;
+
+        // Base foods included in the set definition (viands, sides, etc.)
+        (s.set_foods || []).forEach(sf => {
+          html += `
+            <div class="em-food-item em-food-item--set-food">
+              <span class="em-food-cat">${sf.category}</span>
+              <span class="em-food-name">${sf.name}</span>
+              <span class="em-food-price"></span>
+            </div>`;
+        });
+
+        // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
+        (s.custom_items || []).forEach(ci => {
+          html += `
+            <div class="em-food-item em-food-item--custom">
+              <span class="em-food-cat">${ci.category}</span>
+              <span class="em-food-name">${ci.name}</span>
+              <span class="em-food-price"></span>
+            </div>`;
+        });
+      });
+
+      if (mealSubtotal > 0) {
+        html += `
+          <div class="em-meal-subtotal">
+            <span>${mealLabel} Subtotal</span>
+            <span>${peso(mealSubtotal)}</span>
+          </div>`;
+      }
+      dateSubtotal += mealSubtotal;
+      html += `</div>`;  // .em-food-meal-group
+    });
+
+    if (dateSubtotal > 0) {
+      html += `
+        <div class="em-date-subtotal">
+          <span>Subtotal</span>
+          <span>${peso(dateSubtotal)}</span>
+        </div>`;
+    }
+
+    html += `</div>`;  // .em-food-date-group
+    container.insertAdjacentHTML('beforeend', html);
   });
 }
 

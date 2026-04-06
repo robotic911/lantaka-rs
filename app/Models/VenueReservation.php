@@ -47,9 +47,27 @@ class VenueReservation extends Model
     {
         return $this->belongsToMany(
             Food::class,
-            'Food_Reservation',    // Table name
-            'Venue_Reservation_ID', // Foreign key for VenueReservation
-            'Food_ID'               // Foreign key for Food
-        )->withPivot('Food_Reservation_Status', 'Food_Reservation_Serving_Date', 'Food_Reservation_Meal_time', 'Food_Reservation_Total_Price');
+            'Food_Reservation',     // pivot table
+            'Venue_Reservation_ID', // FK for this model
+            'Food_ID'               // FK for Food
+        )->withPivot(
+            'Food_Reservation_ID',
+            'Food_Reservation_Status',
+            'Food_Reservation_Serving_Date',
+            'Food_Reservation_Meal_time',
+            'Food_Reservation_Total_Price',
+            'Food_Set_ID'
+        )->whereNotNull('Food_Reservation.Food_ID');
+    }
+
+    /**
+     * Food-set reservation rows — one row per set selection.
+     * Food_Set_ID is now a TEXT column containing the set ID and customisation IDs;
+     * use FoodReservation::parseFoodSetId() to decode it.
+     */
+    public function foodSetReservations()
+    {
+        return $this->hasMany(FoodReservation::class, 'Venue_Reservation_ID', 'Venue_Reservation_ID')
+                    ->whereNotNull('Food_Set_ID');
     }
 }

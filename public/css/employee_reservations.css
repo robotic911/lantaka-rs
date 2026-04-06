@@ -309,14 +309,6 @@ tr.row-cancel-requested:hover {
   color: #7c2d12;
   border: 1px solid #fb923c;
   margin-top: 4px;
-  font-size: 11px;
-  padding: 3px 10px;
-  border-radius: 20px;
-  font-weight: 700;
-  display: flex;
-  width: 100px;
-  justify-content: center;
-  align-items: center;
 }
 
 .action-cell {
@@ -499,7 +491,7 @@ tr.row-cancel-requested:hover {
 
   background: #f8f8f8;
   border-radius: 12px;
-  overflow: hidden;
+  overflow: auto;
   display: flex;
   flex-direction: column;
   animation: slideUp 0.3s ease;
@@ -567,6 +559,7 @@ tr.row-cancel-requested:hover {
 
 .modal-left-column {
   display: flex;
+  width: 100%;
   flex: 2;
   gap: 20px;
 }
@@ -601,6 +594,7 @@ tr.row-cancel-requested:hover {
 .modal-body.room-mode .modal-form {
   gap: 12px;
   height: 100%;
+  width: 100%;
 }
 
 /* EDIT button — full width, prominent */
@@ -714,7 +708,7 @@ tr.row-cancel-requested:hover {
   display: flex;
   flex:1;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: space-around;
   border-left: 1px solid #e5e7eb;
   border-right: 1px solid #e5e7eb;
   padding-left: 19px;
@@ -725,6 +719,7 @@ tr.row-cancel-requested:hover {
 /* Modal Form Styles */
 .modal-form {
   display: flex;
+  height: 100%;
   flex-direction: column;
   gap: 16px;
 }
@@ -963,6 +958,7 @@ tr.row-cancel-requested:hover {
   cursor: pointer;
   transition: background-color 0.2s ease;
   text-decoration: none;
+
 }
 
 .export-btn:hover {
@@ -1267,5 +1263,174 @@ tr.row-cancel-requested:hover {
 
 .food-display{
   font-size: 10px;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EMPLOYEE FOOD RESERVATION CARDS  (replaces old table)
+   Mirrors the client-side checkout display style
+═══════════════════════════════════════════════════════════ */
+
+/* Scrollable wrapper */
+.em-food-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  height: 100%;
+
+  padding-right: 4px;
+}
+
+/* Per-date block */
+.em-food-date-group {
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  height: 100%;
+}
+
+.em-food-date-label {
+  background: #2c3e7f;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 5px 10px;
+  letter-spacing: 0.3px;
+}
+
+/* Per-meal block */
+.em-food-meal-group {
+  padding: 7px 10px 4px;
+  border-bottom: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+.em-food-meal-group:last-of-type {
+  border-bottom: none;
+}
+
+.em-food-meal-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #2c3e7f;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+  padding-bottom: 3px;
+  border-bottom: 2px solid #ffc107;
+  display: inline-block;
+}
+
+/* Individual food item row */
+.em-food-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  padding: 2px 0;
+}
+
+.em-food-cat {
+  min-width: 64px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+  flex-shrink: 0;
+}
+
+.em-food-name {
+  flex: 1;
+  color: #222;
+  font-weight: 500;
+}
+
+.em-food-price {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 600;
+  color: #2c3e7f;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.em-price-formula {
+  font-size: 9px;
+  color: #666;
+  font-weight: 400;
+}
+
+/* Set header row — amber accent, bold name */
+.em-food-item--set-header {
+  margin-top: 2px;
+  padding: 3px 6px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 3px;
+}
+.em-food-item--set-header .em-food-cat {
+  color: #b45309;
+  font-weight: 700;
+}
+.em-food-item--set-header .em-food-name {
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+/* Base set foods (viands, sides included in set definition) */
+.em-food-item--set-food {
+  padding-left: 10px;
+}
+.em-food-item--set-food .em-food-cat {
+  color: #6b7280;
+}
+.em-food-item--set-food .em-food-name {
+  color: #374151;
+}
+
+/* Customised items (Rice, Drink, Dessert, Fruit chosen by client) */
+.em-food-item--custom {
+  padding-left: 10px;
+}
+.em-food-item--custom .em-food-cat {
+  color: #2563eb;
+  font-weight: 700;
+}
+.em-food-item--custom .em-food-name {
+  color: #1d4ed8;
+}
+
+/* Per-meal subtotal */
+.em-meal-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+  padding: 3px 6px;
+  background: #fff8e1;
+  border-top: 1px dashed #ffc107;
+  border-radius: 0 0 4px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #7a5200;
+}
+
+/* Per-date subtotal */
+.em-date-subtotal {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 5px 10px;
+  background: #fef9e7;
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a5200;
+  border-top: 1px solid #ffc107;
+}
+
+/* Empty state */
+.em-food-empty {
+  font-size: 12px;
+  color: #888;
+  text-align: center;
+  padding: 12px 0;
+  font-style: italic;
 }
 
