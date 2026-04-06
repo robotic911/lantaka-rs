@@ -596,11 +596,12 @@ function renderFoodCards(foods, foodSets, pax) {
 
       // Individual items
       indivItems.forEach(food => {
-        const price = Number(food.Food_Price || 0);
+        const price   = Number(food.Food_Price || 0);
+        const catKey  = (food.Food_Category || '').toLowerCase().trim();
         mealSubtotal += price * pax;
         html += `
           <div class="em-food-item">
-            <span class="em-food-cat">${capLabel(food.Food_Category || '')}</span>
+            <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
             <span class="em-food-name">${food.Food_Name}</span>
             <span class="em-food-price">₱${price.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span>
           </div>`;
@@ -614,16 +615,17 @@ function renderFoodCards(foods, foodSets, pax) {
         // Set header row
         html += `
           <div class="em-food-item em-food-item--set-header">
-            <span class="em-food-cat">Set</span>
+            <span class="em-food-cat" data-cat="set">Set</span>
             <span class="em-food-name">${s.set_name}</span>
             <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
           </div>`;
 
         // Base foods included in the set definition (viands, sides, etc.)
         (s.set_foods || []).forEach(sf => {
+          const sfCat = (sf.category || '').toLowerCase().trim();
           html += `
             <div class="em-food-item em-food-item--set-food">
-              <span class="em-food-cat">${sf.category}</span>
+              <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
               <span class="em-food-name">${sf.name}</span>
               <span class="em-food-price"></span>
             </div>`;
@@ -631,9 +633,10 @@ function renderFoodCards(foods, foodSets, pax) {
 
         // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
         (s.custom_items || []).forEach(ci => {
+          const ciCat = (ci.category || '').toLowerCase().trim();
           html += `
             <div class="em-food-item em-food-item--custom">
-              <span class="em-food-cat">${ci.category}</span>
+              <span class="em-food-cat" data-cat="${ciCat}">${ci.category}</span>
               <span class="em-food-name">${ci.name}</span>
               <span class="em-food-price"></span>
             </div>`;

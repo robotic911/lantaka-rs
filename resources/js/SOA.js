@@ -18,10 +18,13 @@ document.addEventListener('DOMContentLoaded', function () {
     let grandTotal = 0;
 
     selectedRows.forEach(row => {
-      const name     = row.dataset.name || '';
-      const days     = row.dataset.days || 1;
-      const price    = Number(row.dataset.price    || 0);
-      const discount = Number(row.dataset.discount || 0);
+      const name      = row.dataset.name || '';
+      const days      = row.dataset.days || 1;
+      const price     = Number(row.dataset.price     || 0);
+      const discount  = Number(row.dataset.discount  || 0);
+      const foodTotal = Number(row.dataset.foodTotal || 0);
+      const foodPax   = Number(row.dataset.foodPax   || 0);
+      const pax       = Number(row.dataset.pax       || 0);
 
       let feeItems = [];
       try {
@@ -30,15 +33,25 @@ document.addEventListener('DOMContentLoaded', function () {
         feeItems = [];
       }
 
-      // Accurate item total: base price + all fees − discount
+      // Accurate item total: base price + food + all fees − discount
       const feeTotal  = feeItems.reduce((sum, item) => sum + Number(item.line_total || 0), 0);
-      const itemTotal = price + feeTotal - discount;
+      const itemTotal = price + foodTotal + feeTotal - discount;
       grandTotal += itemTotal;
 
       const previewItem = document.createElement('div');
       previewItem.classList.add('soa-preview-item');
 
       let feeHtml = '';
+
+      // Food sub-row (venue only, when food was ordered)
+      if (foodTotal > 0) {
+        feeHtml += `
+          <div class="soa-preview-subrow">
+            <span class="soa-preview-sublabel">* Food &times;${pax} pax</span>
+            <span class="soa-preview-subprice">₱ ${fmt(foodTotal)}</span>
+          </div>
+        `;
+      }
 
       if (Array.isArray(feeItems) && feeItems.length > 0) {
         feeItems.forEach(item => {

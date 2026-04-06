@@ -393,6 +393,11 @@ class RoomVenueController extends Controller
         // 2. If it's a Venue, fetch the food and go to the Food Options page
         if ($request->type === 'venue') {
 
+            // If the user chose to skip food (pax below minimum), go straight to checkout
+            if ($request->input('skip_food') == '1') {
+                return redirect()->route('checkout', $bookingData);
+            }
+
             // FETCH THE AVAILABLE FOOD HERE
 //            $foods = Food::where('status', 'available')->get()->groupBy('Food_Category');
                 $foods = Food::where('Food_Status', 'available')->get()->groupBy('Food_Category');

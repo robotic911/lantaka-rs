@@ -201,19 +201,6 @@
         </div>
     </form>
 
-    {{-- Pax-too-low warning modal --}}
-    <div id="paxWarnModal" class="nfm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pwmTitle">
-        <div class="nfm-box">
-            <div class="nfm-icon">👥</div>
-            <h3 id="pwmTitle" class="nfm-title">Minimum pax not met</h3>
-            <p class="nfm-body" id="pwmBody">Food reservation requires a minimum of <strong>{{ config('reservation.food_min_pax', 30) }}</strong> pax. Your current booking has fewer guests. You may proceed without food or go back to edit your pax count.</p>
-            <div class="nfm-actions">
-                <button type="button" id="pwmGoBack" class="nfm-btn nfm-btn--secondary">← Go Back &amp; Edit Pax</button>
-                <button type="button" id="pwmProceed" class="nfm-btn nfm-btn--primary">Proceed without food</button>
-            </div>
-        </div>
-    </div>
-
     {{-- No-food-selected confirmation modal --}}
     <div id="noFoodModal" class="nfm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="nfmTitle">
         <div class="nfm-box">
@@ -269,41 +256,6 @@
         });
     }
 
-    /* ── Pax warning modal ── */
-    const paxWarnModal  = document.getElementById('paxWarnModal');
-    const pwmGoBack     = document.getElementById('pwmGoBack');
-    const pwmProceed    = document.getElementById('pwmProceed');
-
-    if (pwmGoBack) {
-        pwmGoBack.addEventListener('click', function () {
-            paxWarnModal.style.display = 'none';
-            window.history.back();
-        });
-    }
-    if (pwmProceed) {
-        pwmProceed.addEventListener('click', function () {
-            paxWarnModal.style.display = 'none';
-            // Disable all food so form submits with no food
-            document.getElementById('foodReservationForm')
-                ?.querySelectorAll('.food-enabled-input')
-                .forEach(inp => { inp.value = '0'; });
-            const f = document.getElementById('foodReservationForm');
-            f && (f.requestSubmit ? f.requestSubmit() : f.submit());
-        });
-    }
-    if (paxWarnModal) {
-        paxWarnModal.addEventListener('click', e => { if (e.target === paxWarnModal) paxWarnModal.style.display = 'none'; });
-    }
-
-    /* ── Auto-show pax warning on page load if pax is below minimum ── */
-    (function () {
-        const pax    = window.BOOKING_PAX  || 1;
-        const minPax = window.FOOD_MIN_PAX || 30;
-        if (pax < minPax && paxWarnModal) {
-            paxWarnModal.style.display = 'flex';
-        }
-    })();
-
     /* ── No-food modal ── */
     const form       = document.getElementById('foodReservationForm');
     const addBtn     = document.getElementById('addToCartBtn');
@@ -336,15 +288,7 @@
 
     if (addBtn && form && modal) {
         addBtn.addEventListener('click', function () {
-            // 1. Pax minimum check (only when food dates are enabled)
-            const pax    = window.BOOKING_PAX  || 1;
-            const minPax = window.FOOD_MIN_PAX || 30;
-            if (isAnyDateEnabled() && pax < minPax) {
-                paxWarnModal.style.display = 'flex';
-                return;
-            }
-
-            // 2. No-food selected check
+            // No-food selected check
             if (isAnyDateEnabled() && !hasFoodSelected()) {
                 modal.style.display = 'flex';
                 return;

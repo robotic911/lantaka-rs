@@ -70,4 +70,13 @@ class VenueReservation extends Model
         return $this->hasMany(FoodReservation::class, 'Venue_Reservation_ID', 'Venue_Reservation_ID')
                     ->whereNotNull('Food_Set_ID');
     }
+
+    /**
+     * All food reservation rows (individual + set) for this venue reservation.
+     * Used to compute the total food cost.
+     */
+    public function foodReservations()
+    {
+        return $this->hasMany(FoodReservation::class, 'Venue_Reservation_ID', 'Venue_Reservation_ID');
+    }
 }

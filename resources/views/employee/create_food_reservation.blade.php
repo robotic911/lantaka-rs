@@ -109,4 +109,22 @@
         </div>
     </form>
 </main>
+
+@if(!empty($bookingData['skip_food']))
+{{-- User chose "Proceed without food" on the viewing page — auto-disable all food and submit. --}}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Disable food for every date card
+    document.querySelectorAll('.food-enabled-input').forEach(function (inp) {
+        inp.value = '0';
+    });
+    // Short delay to let client_food_option.js finish initialising, then submit
+    setTimeout(function () {
+        var form = document.getElementById('foodReservationForm');
+        if (form) { form.requestSubmit ? form.requestSubmit() : form.submit(); }
+    }, 300);
+});
+</script>
+@endif
+
 @endsection

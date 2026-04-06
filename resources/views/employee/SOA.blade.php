@@ -50,6 +50,9 @@
                     data-price="{{ $r['base_price'] ?? $r['total_price'] }}"
                     data-discount="{{ $r['discount'] ?? 0 }}"
                     data-fee-items='@json($r["additional_fee_items"] ?? [])'
+                    data-food-total="{{ $r['food_total'] ?? 0 }}"
+                    data-food-pax="{{ $r['food_per_pax'] ?? 0 }}"
+                    data-pax="{{ $r['pax'] ?? 1 }}"
                   >
                   <td>{{ $r['check_in'] }}</td>
 
@@ -63,6 +66,17 @@
                   <td>₱ {{ number_format((($r['base_price'] ?? 0) / ($r['days'] ?? 1)), 2) }}</td>
                   <td><strong>₱ {{ number_format($r['base_price'] ?? 0, 2) }}</strong></td>
                 </tr>
+
+                @if(!empty($r['food_total']) && $r['food_total'] > 0)
+                <tr class="soa-extra-row" data-group="soa-group-{{ $index }}">
+                  <td></td>
+                  <td style="padding-left:30px;">* Food</td>
+                  <td>{{ $r['pax'] ?? 1 }}</td>
+                  <td>pax</td>
+                  <td>₱ {{ number_format($r['food_per_pax'] ?? 0, 2) }}</td>
+                  <td>₱ {{ number_format($r['food_total'] ?? 0, 2) }}</td>
+                </tr>
+                @endif
 
                 @if(!empty($r['additional_fee_items']))
                   @foreach($r['additional_fee_items'] as $fee)

@@ -1270,51 +1270,55 @@ tr.row-cancel-requested:hover {
    Mirrors the client-side checkout display style
 ═══════════════════════════════════════════════════════════ */
 
-/* Scrollable wrapper */
+/* ─────────────────────────────────────────────
+   FOOD RESERVATION CARD DISPLAY  (em-food-*)
+───────────────────────────────────────────── */
 .em-food-container {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  height: 100%;
-
-  padding-right: 4px;
+  gap: 12px;
+  padding-right: 2px;
 }
 
 /* Per-date block */
 .em-food-date-group {
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  height: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
 }
 
 .em-food-date-label {
-  background: #2c3e7f;
+  background: linear-gradient(90deg, #1e3a8a 0%, #2c5282 100%);
   color: #fff;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
-  padding: 5px 10px;
+  padding: 8px 14px;
   letter-spacing: 0.3px;
 }
 
 /* Per-meal block */
 .em-food-meal-group {
-  padding: 7px 10px 4px;
-  border-bottom: 1px solid #f0f0f0;
-  background: #fafafa;
+  padding: 10px 14px 8px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fff;
 }
 .em-food-meal-group:last-of-type {
   border-bottom: none;
 }
 
 .em-food-meal-label {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
-  color: #2c3e7f;
+  color: #475569;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 4px;
-  padding-bottom: 3px;
-  border-bottom: 2px solid #ffc107;
+  letter-spacing: 0.6px;
+  margin-bottom: 8px;
+  padding: 3px 10px;
+  background: #f8fafc;
+  border-left: 3px solid #fbbf24;
+  border-radius: 0 4px 4px 0;
   display: inline-block;
 }
 
@@ -1322,94 +1326,108 @@ tr.row-cancel-requested:hover {
 .em-food-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   font-size: 12px;
-  padding: 2px 0;
+  padding: 4px 4px;
+  border-radius: 4px;
 }
 
+/* Category pill */
 .em-food-cat {
-  min-width: 64px;
-  font-size: 10px;
-  font-weight: 600;
-  color: #999;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 54px;
+  padding: 2px 7px;
+  border-radius: 20px;
+  font-size: 9px;
+  font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
   flex-shrink: 0;
+  background: #f1f5f9;
+  color: #64748b;
 }
+/* Category colour tokens */
+.em-food-cat[data-cat="rice"]                  { background: #dcfce7; color: #15803d; }
+.em-food-cat[data-cat="viand"]                 { background: #dbeafe; color: #1d4ed8; }
+.em-food-cat[data-cat="drink"]                 { background: #cffafe; color: #0e7490; }
+.em-food-cat[data-cat="dessert"]               { background: #f3e8ff; color: #7c3aed; }
+.em-food-cat[data-cat="fruit"]                 { background: #ffedd5; color: #c2410c; }
+.em-food-cat[data-cat="sidedish"],
+.em-food-cat[data-cat="side dish"],
+.em-food-cat[data-cat="side_dish"]             { background: #f1f5f9; color: #475569; }
+.em-food-cat[data-cat="snack"],
+.em-food-cat[data-cat="snacks"]                { background: #fef3c7; color: #d97706; }
+.em-food-cat[data-cat="set"]                   { background: #fef3c7; color: #b45309; }
 
 .em-food-name {
   flex: 1;
-  color: #222;
+  color: #1e293b;
   font-weight: 500;
+  font-size: 12px;
 }
 
 .em-food-price {
   margin-left: auto;
-  font-size: 10px;
-  font-weight: 600;
-  color: #2c3e7f;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1e40af;
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 .em-price-formula {
-  font-size: 9px;
-  color: #666;
-  font-weight: 400;
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 500;
 }
 
-/* Set header row — amber accent, bold name */
+/* Set header row */
 .em-food-item--set-header {
-  margin-top: 2px;
-  padding: 3px 6px;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  padding: 6px 10px;
   background: #fffbeb;
   border-left: 3px solid #f59e0b;
-  border-radius: 3px;
-}
-.em-food-item--set-header .em-food-cat {
-  color: #b45309;
-  font-weight: 700;
+  border-radius: 0 6px 6px 0;
 }
 .em-food-item--set-header .em-food-name {
   font-weight: 700;
   color: #1a1a1a;
+  font-size: 13px;
 }
 
-/* Base set foods (viands, sides included in set definition) */
-.em-food-item--set-food {
-  padding-left: 10px;
-}
-.em-food-item--set-food .em-food-cat {
-  color: #6b7280;
-}
-.em-food-item--set-food .em-food-name {
-  color: #374151;
-}
-
-/* Customised items (Rice, Drink, Dessert, Fruit chosen by client) */
+/* Set sub-items — indented with left accent border */
+.em-food-item--set-food,
 .em-food-item--custom {
-  padding-left: 10px;
+  padding-left: 18px;
+  margin-left: 4px;
+  border-left: 2px solid #e2e8f0;
 }
-.em-food-item--custom .em-food-cat {
-  color: #2563eb;
-  font-weight: 700;
+.em-food-item--custom {
+  border-left-color: #bfdbfe;
 }
-.em-food-item--custom .em-food-name {
-  color: #1d4ed8;
-}
+.em-food-item--set-food .em-food-name { color: #475569; }
+.em-food-item--custom .em-food-name   { color: #1d4ed8; }
 
 /* Per-meal subtotal */
 .em-meal-subtotal {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-top: 5px;
-  padding: 3px 6px;
-  background: #fff8e1;
-  border-top: 1px dashed #ffc107;
-  border-radius: 0 0 4px 4px;
-  font-size: 10px;
+  margin-top: 6px;
+  padding: 5px 8px;
+  background: #f8fafc;
+  border-top: 1px dashed #e2e8f0;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #64748b;
+}
+.em-meal-subtotal span:last-child {
+  color: #b45309;
   font-weight: 700;
-  color: #7a5200;
 }
 
 /* Per-date subtotal */
@@ -1417,20 +1435,20 @@ tr.row-cancel-requested:hover {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 5px 10px;
-  background: #fef9e7;
-  font-size: 11px;
+  padding: 8px 14px;
+  background: #fffbeb;
+  font-size: 12px;
   font-weight: 700;
-  color: #7a5200;
-  border-top: 1px solid #ffc107;
+  color: #92400e;
+  border-top: 2px solid #fde68a;
 }
 
 /* Empty state */
 .em-food-empty {
   font-size: 12px;
-  color: #888;
+  color: #94a3b8;
   text-align: center;
-  padding: 12px 0;
+  padding: 20px 0;
   font-style: italic;
 }
 

@@ -2158,6 +2158,10 @@ class ReservationController extends Controller
             $allBookings = session('employee_pending_bookings', []);
 
             $uniqueKey = $request->type . '_' . $request->accommodation_id;
+            // Propagate skip_food flag so the food page auto-disables food when pax < minimum
+            if ($request->input('skip_food') == '1') {
+                $bookingData['skip_food'] = '1';
+            }
             $allBookings[$uniqueKey] = $bookingData;
 
             session(['employee_pending_bookings' => $allBookings]);
@@ -2379,7 +2383,7 @@ class ReservationController extends Controller
             ->where('Room_Reservation_Status', 'checked-in')
             ->get();
 
-        $venueReservations = VenueReservation::with('venue')
+        $venueReservations = VenueReservation::with('venue', 'foodReservations')
             ->where('Client_ID', $clientId)
             ->where('Venue_Reservation_Status', 'checked-in')
             ->get();
@@ -2458,7 +2462,10 @@ class ReservationController extends Controller
 
             $additionalFees = (float) ($v->Venue_Reservation_Additional_Fees ?? 0);
             $discount = (float) ($v->Venue_Reservation_Discount ?? 0);
-            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $additionalFees + $discount;
+            $foodTotal = (float) $v->foodReservations->sum('Food_Reservation_Total_Price');
+            $pax = (int) ($v->Venue_Reservation_Pax ?? 1);
+            $foodPerPax = $pax > 0 ? round($foodTotal / $pax, 2) : 0;
+            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $additionalFees + $discount - $foodTotal;
 
             $reservations->push([
                 'type' => 'venue',
@@ -2466,13 +2473,15 @@ class ReservationController extends Controller
                 'name' => 'Venue ' . ($v->venue->Venue_Name ?? 'Error'),
                 'check_in' => $checkIn->format('m/d/Y'),
                 'check_out' => $checkOut->format('m/d/Y'),
-                'pax' => $v->Venue_Reservation_Pax,
+                'pax' => $pax,
                 'days' => $days,
                 'base_price' => $baseAmount,
                 'total_price' => $v->Venue_Reservation_Total_Price ?? 0,
                 'additional_fees' => $additionalFees,
                 'discount' => $discount,
                 'additional_fee_items' => $parsedItems,
+                'food_total' => $foodTotal,
+                'food_per_pax' => $foodPerPax,
             ]);
         }
 
@@ -2507,7 +2516,7 @@ class ReservationController extends Controller
             })
             ->get();
 
-        $venueReservations = VenueReservation::with('venue')
+        $venueReservations = VenueReservation::with('venue', 'foodReservations')
             ->where('Client_ID', $clientId)
             ->where('Venue_Reservation_Status', 'checked-in')
             ->when(!empty($venueIds), function ($query) use ($venueIds) {
@@ -2567,7 +2576,10 @@ class ReservationController extends Controller
 
             $addFees    = (float) ($v->Venue_Reservation_Additional_Fees ?? 0);
             $discount   = (float) ($v->Venue_Reservation_Discount ?? 0);
-            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $addFees + $discount;
+            $foodTotal  = (float) $v->foodReservations->sum('Food_Reservation_Total_Price');
+            $venuePax   = (int) ($v->Venue_Reservation_Pax ?? 1);
+            $foodPerPax = $venuePax > 0 ? round($foodTotal / $venuePax, 2) : 0;
+            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $addFees + $discount - $foodTotal;
             $ratePerDay = $days > 0 ? $baseAmount / $days : $baseAmount;
 
             $reservations->push([
@@ -2580,6 +2592,20 @@ class ReservationController extends Controller
                 'is_subitem'  => false,
                 'is_discount' => false,
             ]);
+
+            // Food sub-item (only when food was ordered)
+            if ($foodTotal > 0) {
+                $reservations->push([
+                    'date'        => '',
+                    'particulars' => '* Food',
+                    'qty'         => $venuePax,
+                    'unit'        => 'pax',
+                    'rate'        => $foodPerPax,
+                    'amount'      => $foodTotal,
+                    'is_subitem'  => true,
+                    'is_discount' => false,
+                ]);
+            }
 
             $rawItems = json_decode($v->Venue_Reservation_Additional_Fees_Desc ?? '[]', true) ?? [];
             foreach ($rawItems as $item) {

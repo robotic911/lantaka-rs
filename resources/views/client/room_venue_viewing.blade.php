@@ -210,6 +210,8 @@
       paxInput?.addEventListener('input', validatePax);
 
       /* ── Form submit ── */
+      let skipFood = false; // set true when user chooses "Proceed without food" in pax modal
+
       document.getElementById('bookingForm').addEventListener('submit', function(e) {
 
         const checkIn  = document.getElementById('checkinDate').value;
@@ -242,7 +244,39 @@
           window.showToast('Select your purpose of stay.');
           return;
         }
+
+        // ── Minimum pax check for food reservation (venues only) ──
+        if (!IS_ROOM && !skipFood) {
+          const minPaxFood = {{ config('reservation.food_min_pax', 30) }};
+          const paxVal     = parseInt(paxInput?.value || 0);
+          if (paxVal < minPaxFood) {
+            e.preventDefault();
+            document.getElementById('paxWarnModal').style.display = 'flex';
+            return;
+          }
+        }
       });
+
+      /* ── Pax warning modal wiring ── */
+      (function () {
+        const modal = document.getElementById('paxWarnModal');
+        if (!modal) return;
+        document.getElementById('pwmGoBack')?.addEventListener('click', function () {
+          modal.style.display = 'none';
+        });
+        document.getElementById('pwmProceed')?.addEventListener('click', function () {
+          modal.style.display = 'none';
+          skipFood = true;
+          const form = document.getElementById('bookingForm');
+          const inp  = document.createElement('input');
+          inp.type = 'hidden'; inp.name = 'skip_food'; inp.value = '1';
+          form.appendChild(inp);
+          form.requestSubmit ? form.requestSubmit() : form.submit();
+        });
+        modal.addEventListener('click', function (e) {
+          if (e.target === modal) modal.style.display = 'none';
+        });
+      })();
 
       /* ── Prefill pax & purpose from URL params (used when editing a cart item) ── */
       (function prefillFromUrl() {
@@ -275,4 +309,32 @@
 
     });
   </script>
+
+  {{-- ── Minimum-pax warning modal (venues only) ── --}}
+  @if (strtolower($category) === 'venue')
+  <style>
+    .nfm-overlay{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9999;display:flex;align-items:center;justify-content:center}
+    .nfm-box{background:#fff;border-radius:14px;padding:36px 32px;max-width:440px;width:90%;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,.18)}
+    .nfm-icon{font-size:2.5rem;margin-bottom:12px}
+    .nfm-title{margin:0 0 10px;font-size:1.25rem;font-weight:700;color:#1a1a2e}
+    .nfm-body{color:#555;font-size:.95rem;line-height:1.55;margin:0 0 24px}
+    .nfm-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+    .nfm-btn{padding:10px 22px;border:none;border-radius:8px;font-size:.9rem;font-weight:600;cursor:pointer;transition:opacity .15s}
+    .nfm-btn--secondary{background:#f0f0f0;color:#333}
+    .nfm-btn--primary{background:#2d6a4f;color:#fff}
+    .nfm-btn:hover{opacity:.85}
+  </style>
+  <div id="paxWarnModal" class="nfm-overlay" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pwmTitle">
+    <div class="nfm-box">
+      <div class="nfm-icon">👥</div>
+      <h3 id="pwmTitle" class="nfm-title">Minimum pax not met</h3>
+      <p class="nfm-body">Food reservation requires a minimum of <strong>{{ config('reservation.food_min_pax', 30) }}</strong> pax. Your current booking has fewer guests. You may proceed without food or go back to edit your pax count.</p>
+      <div class="nfm-actions">
+        <button type="button" id="pwmGoBack"  class="nfm-btn nfm-btn--secondary">← Go Back &amp; Edit Pax</button>
+        <button type="button" id="pwmProceed" class="nfm-btn nfm-btn--primary">Proceed without food</button>
+      </div>
+    </div>
+  </div>
+  @endif
+
 @endsection

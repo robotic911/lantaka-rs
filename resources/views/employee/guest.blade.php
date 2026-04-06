@@ -143,7 +143,8 @@
 
                   <td>
                     @if($res->status === 'confirmed')
-                      <span class="badge confirmed-badge">Confirmed</span>
+                    <!-- confirmed reservation = pending guest status -->
+                      <span class="badge pending-badge">Pending</span>
                     @else
                       <span class="badge {{ strtolower($res->status) }}-badge">
                         {{ ucfirst($res->status) }}

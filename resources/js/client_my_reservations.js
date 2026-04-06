@@ -155,8 +155,8 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       return `<div class="crm-food-date-group">
-        <p class="crm-food-date-header">${dateLabel}</p>
-        ${inner}
+        <p class="crm-food-date-header">📅 ${dateLabel}</p>
+        <div class="crm-food-date-inner">${inner}</div>
       </div>`;
     }).join('');
   }
@@ -315,7 +315,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset to normal idle state
       if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
       if (idleTitle) idleTitle.textContent = 'Need to cancel?';
-      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly.";
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team.";
       if (idleBtn) {
         idleBtn.disabled    = false;
         idleBtn.textContent = 'Request Cancellation';
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset idle card to normal so they can retry via the card below
       if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
       if (idleTitle) idleTitle.textContent = 'Need to cancel?';
-      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly.";
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team.";
       if (idleBtn) {
         idleBtn.disabled    = false;
         idleBtn.textContent = 'Request Cancellation';

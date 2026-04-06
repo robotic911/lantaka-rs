@@ -101,7 +101,7 @@
             <div class="crm-cancel-idle-card" id="crmCancelIdleCard">
               <p class="crm-cancel-idle-title" id="crmCancelIdleTitle">Need to cancel?</p>
               <p class="crm-cancel-idle-body" id="crmCancelIdleBody">
-                You can submit a cancellation request and our team will review it shortly.
+                You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team. 
               </p>
               <button type="button" id="crmCancelOpenFormBtn" class="crm-cancel-open-btn">
                 Request Cancellation
@@ -315,65 +315,66 @@
 }
 
 /* ── Food list ── */
-.crm-food-list { display: flex; flex-direction: column; gap: 14px; }
+.crm-food-list { display: flex; flex-direction: column; gap: 12px; }
 .crm-empty { font-size: 13px; color: #9ca3af; margin: 0; }
 
-.crm-food-date-group { display: flex; flex-direction: column; gap: 8px; }
+/* Per-date group: card with header */
+.crm-food-date-group {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
 .crm-food-date-header {
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(90deg, #1e3a8a, #2c5282);
+  padding: 7px 13px;
+  margin: 0;
+  letter-spacing: .4px;
+}
+.crm-food-date-inner {
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: #fff;
+}
+
+/* Set line — amber card */
+.crm-food-line--set {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e3a8a;
+  padding: 6px 10px;
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 6px 6px 0;
+  margin: 2px 0;
+  line-height: 1.4;
+}
+
+/* Individual food line — light indent */
+.crm-food-line {
+  font-size: 12px;
+  color: #374151;
+  margin: 0;
+  line-height: 1.6;
+  padding: 2px 4px 2px 10px;
+  border-left: 2px solid #e5e7eb;
+}
+
+/* Meal separator — small uppercase label */
+.crm-food-line--meal {
   font-size: 10px;
   font-weight: 700;
   color: #6b7280;
   text-transform: uppercase;
-  letter-spacing: .6px;
-  margin: 0 0 4px;
-  padding-bottom: 5px;
-  border-bottom: 1px solid #f0f1f3;
-}
-
-/* Meal group (Breakfast / Lunch / etc.) */
-.crm-meal-group { margin-bottom: 8px; }
-.crm-meal-header {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-bottom: 5px;
-}
-.crm-meal-icon { font-size: 13px; line-height: 1; }
-.crm-meal-label {
-  font-size: 11px;
-  font-weight: 700;
-  color: #374151;
-  text-transform: uppercase;
-  letter-spacing: .4px;
-}
-.crm-meal-items { display: flex; flex-direction: column; gap: 4px; padding-left: 2px; }
-
-/* ── Unified food line ── */
-.crm-food-line {
-  font-size: 13px;
-  color: #374151;
-  margin: 0 0 4px;
-  line-height: 1.5;
-  padding-left: 10px;
-}
-
-/* Set line: "Set 3 (Fried Rice, Pork Adobo, ...)" — bold name */
-.crm-food-line--set {
-  font-weight: 600;
-  color: #1e3a8a;
-  padding-left: 0;
-}
-
-/* Meal label: "Snacks", "Lunch" — small uppercase separator */
-.crm-food-line--meal {
-  font-size: 10px;
-  font-weight: 700;
-  color: #9ca3af;
-  text-transform: uppercase;
-  letter-spacing: .6px;
-  padding-left: 0;
-  margin-top: 6px;
-  margin-bottom: 2px;
+  letter-spacing: .5px;
+  padding: 6px 0 2px;
+  border-left: none;
+  margin-top: 2px;
 }
 
 /* ── Legacy individual food row (kept for backward compat) ── */
