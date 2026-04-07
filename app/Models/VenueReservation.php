@@ -33,6 +33,19 @@ class VenueReservation extends Model
         'cancellation_processed_by',
         'cancellation_requested_at',
         'cancellation_processed_at',
+        // Request for Changes fields (reschedule / food modification)
+        'change_request_status',
+        'change_request_type',
+        'change_request_reason',
+        'change_request_details',
+        'change_request_admin_note',
+        'change_request_processed_by',
+        'change_request_requested_at',
+        'change_request_processed_at',
+    ];
+
+    protected $casts = [
+        'change_request_details' => 'array',
     ];
 
     public function venue() {

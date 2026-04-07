@@ -365,19 +365,55 @@ class RoomVenueController extends Controller
                 $dateFieldOut = 'Venue_Reservation_Check_Out_Time';
             }
 
-            // 2. Map the occupied dates
+            // 2a. Check if this is a change-request redirect — if so, the client's own
+            //     reservation dates should be selectable (blue), not blocked (red).
+            $currentReservationDates = [];
+            $changeResId   = session('change_request_reservation_id');
+            $changeResType = session('change_request_reservation_type');
+
+            if ($changeResId && $changeResType) {
+                try {
+                    $origRes = ($changeResType === 'room')
+                        ? \App\Models\RoomReservation::findOrFail($changeResId)
+                        : \App\Models\VenueReservation::findOrFail($changeResId);
+
+                    // Only use dates from THIS room/venue so other calendars aren't affected
+                    $origAccId  = $changeResType === 'room' ? $origRes->Room_ID  : $origRes->Venue_ID;
+                    $origIn     = $changeResType === 'room'
+                        ? $origRes->Room_Reservation_Check_In_Time
+                        : $origRes->Venue_Reservation_Check_In_Time;
+                    $origOut    = $changeResType === 'room'
+                        ? $origRes->Room_Reservation_Check_Out_Time
+                        : $origRes->Venue_Reservation_Check_Out_Time;
+
+                    if ((int) $origAccId === (int) $data->id) {
+                        $period = CarbonPeriod::create($origIn, $origOut);
+                        foreach ($period as $d) {
+                            $currentReservationDates[] = $d->format('Y-m-d');
+                        }
+                        $currentReservationDates = array_values(array_unique($currentReservationDates));
+                    }
+                } catch (\Throwable $e) {
+                    // Silently ignore — worst case the dates stay blocked
+                }
+            }
+
+            // 2b. Map the occupied dates, excluding the client's own reservation dates
             $occupiedDates = [];
             foreach ($reservations as $res) {
                 $period = CarbonPeriod::create($res->$dateFieldIn, $res->$dateFieldOut);
                 foreach ($period as $date) {
-                    $occupiedDates[] = $date->format('Y-m-d');
+                    $dateStr = $date->format('Y-m-d');
+                    if (!in_array($dateStr, $currentReservationDates)) {
+                        $occupiedDates[] = $dateStr;
+                    }
                 }
             }
             // Remove duplicate dates just in case, and reset array keys
             $occupiedDates = array_values(array_unique($occupiedDates));
 
-            // 3. Pass the data AND the occupiedDates to the view
-            return view('client.room_venue_viewing', compact('data', 'category', 'occupiedDates'));
+            // 3. Pass the data, occupiedDates, and currentReservationDates to the view
+            return view('client.room_venue_viewing', compact('data', 'category', 'occupiedDates', 'currentReservationDates'));
         }
     public function prepareBooking(Request $request)
     {
@@ -385,22 +421,30 @@ class RoomVenueController extends Controller
         $bookingData = $request->all();
         // dd($bookingData);
 
-        // 1. If it's a Room, skip food and go straight to Checkout
+        $isChangeRequest = ($request->input('change_request') == '1');
+
+        // 1. If it's a Room, skip food
         if ($request->type === 'room') {
+            // Change request: show confirmation page instead of adding to cart
+            if ($isChangeRequest) {
+                return view('client.change_request_confirm', compact('bookingData'));
+            }
             return redirect()->route('checkout', $bookingData);
         }
 
         // 2. If it's a Venue, fetch the food and go to the Food Options page
         if ($request->type === 'venue') {
 
-            // If the user chose to skip food (pax below minimum), go straight to checkout
+            // If the user chose to skip food (pax below minimum)
             if ($request->input('skip_food') == '1') {
+                // Change request: show confirmation page (no food step)
+                if ($isChangeRequest) {
+                    return view('client.change_request_confirm', compact('bookingData'));
+                }
                 return redirect()->route('checkout', $bookingData);
             }
 
-            // FETCH THE AVAILABLE FOOD HERE
-//            $foods = Food::where('status', 'available')->get()->groupBy('Food_Category');
-                $foods = Food::where('Food_Status', 'available')->get()->groupBy('Food_Category');
+            $foods = Food::where('Food_Status', 'available')->get()->groupBy('Food_Category');
 
             // PASS BOTH bookingData AND foods TO THE VIEW
             return view('client.food_option', compact('bookingData', 'foods'));

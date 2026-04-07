@@ -63,13 +63,17 @@
         <div class="crm-summary">
           <p class="crm-card-title">Summary</p>
 
-          {{-- Breakdown (venue + food) shown above grand total when food exists --}}
+          {{-- Breakdown: always shown, rows toggled per type --}}
           <div id="crmBreakdown" style="display:none;">
-            <div class="crm-breakdown-row">
+            <div class="crm-breakdown-row" id="crmRoomRow" style="display:none;">
+              <span class="crm-breakdown-label">🛏 Room</span>
+              <span class="crm-breakdown-val" id="crmRoomTotal">₱ 0.00</span>
+            </div>
+            <div class="crm-breakdown-row" id="crmVenueRow" style="display:none;">
               <span class="crm-breakdown-label">🏛 Venue</span>
               <span class="crm-breakdown-val" id="crmVenueTotal">₱ 0.00</span>
             </div>
-            <div class="crm-breakdown-row">
+            <div class="crm-breakdown-row" id="crmFoodRow" style="display:none;">
               <span class="crm-breakdown-label">🍽 Food</span>
               <span class="crm-breakdown-val" id="crmFoodTotal">₱ 0.00</span>
             </div>
@@ -96,12 +100,15 @@
         {{-- Cancellation request section — shown for pending / confirmed reservations --}}
         <div id="crmCancelSection" style="display:none;">
 
+          {{-- Section-level error (e.g. 3-day gate or time cutoff) --}}
+          <p id="crmCancelGateError" class="crm-cancel-error" style="display:none; margin-bottom:8px;"></p>
+
           {{-- STATE: idle / pending — same card, button changes state --}}
           <div id="crmCancelIdle">
             <div class="crm-cancel-idle-card" id="crmCancelIdleCard">
               <p class="crm-cancel-idle-title" id="crmCancelIdleTitle">Need to cancel?</p>
               <p class="crm-cancel-idle-body" id="crmCancelIdleBody">
-                You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team. 
+                You can submit a cancellation request 3 days prior to your check-in date.
               </p>
               <button type="button" id="crmCancelOpenFormBtn" class="crm-cancel-open-btn">
                 Request Cancellation
@@ -130,13 +137,59 @@
           {{-- STATE: rejected (admin rejected the request) --}}
           <div id="crmCancelRejected" style="display:none;">
             <div class="crm-cancel-status-card crm-cancel-status--rejected">
-              <span class="crm-cancel-status-icon">✕</span>
               <div>
                 <p class="crm-cancel-status-title">Request Not Approved</p>
                 <p class="crm-cancel-status-body" id="crmCancelRejectedNote">
                   Your cancellation request was not approved.
                 </p>
                 <button type="button" id="crmCancelRetryBtn" class="crm-cancel-open-btn" style="margin-top:8px;">
+                  Submit New Request
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>{{-- /crmCancelSection --}}
+
+        {{-- ── Request for Changes section — shown for pending / confirmed reservations ── --}}
+        {{-- Clicking the button redirects to the room/venue viewing page (mirrors checkout Edit flow) --}}
+        <div id="crmChangeSection" style="display:none; margin-top:10px;">
+
+          {{-- STATE: idle — redirect button --}}
+          <div id="crmChangeIdle">
+            <div class="crm-cancel-idle-card crm-change-idle-card">
+              <p class="crm-cancel-idle-title crm-change-idle-title">Request for Changes</p>
+              <p class="crm-cancel-idle-body">
+                Need to reschedule your stay or modify your food orders? Click below — you'll be taken through the same booking flow to update your details.
+              </p>
+              <button type="button" id="crmChangeOpenFormBtn" class="crm-change-open-btn">
+                Submit Request for Changes
+              </button>
+            </div>
+          </div>
+
+          {{-- STATE: pending --}}
+          <div id="crmChangePending" style="display:none;">
+            <div class="crm-cancel-status-card crm-cancel-status--pending">
+              <span class="crm-cancel-status-icon">⏳</span>
+              <div>
+                <p class="crm-cancel-status-title" style="color:#1e40af;">Request for Changes — Pending Review</p>
+                <p class="crm-cancel-status-body">
+                  Your request is under review. We'll notify you of the outcome soon.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {{-- STATE: rejected --}}
+          <div id="crmChangeRejected" style="display:none;">
+            <div class="crm-cancel-status-card crm-cancel-status--rejected">
+              <div>
+                <p class="crm-cancel-status-title">Request Not Approved</p>
+                <p class="crm-cancel-status-body" id="crmChangeRejectedNote">
+                  Your request for changes was not approved.
+                </p>
+                <button type="button" id="crmChangeRetryBtn" class="crm-change-open-btn" style="margin-top:8px;">
                   Submit New Request
                 </button>
               </div>
@@ -647,6 +700,60 @@
   margin: 0;
   line-height: 1.5;
 }
+
+/* ── Request for Changes UI ── */
+.crm-change-idle-card {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+}
+.crm-change-idle-title {
+  color: #1e40af;
+}
+.crm-change-open-btn {
+  align-self: flex-start;
+  background: #1e40af;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 14px;
+  cursor: pointer;
+  letter-spacing: .3px;
+  transition: background .15s, opacity .15s;
+}
+.crm-change-open-btn:hover:not(:disabled) { background: #1e3a8a; }
+.crm-change-open-btn:disabled {
+  background: #1e40af;
+  opacity: .6;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Request-type toggle buttons */
+.crm-change-type-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+}
+.crm-change-type-btn {
+  background: #f3f4f6;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #374151;
+  padding: 5px 10px;
+  cursor: pointer;
+  transition: background .15s, border-color .15s, color .15s;
+}
+.crm-change-type-btn.active {
+  background: #eff6ff;
+  border-color: #3b82f6;
+  color: #1e40af;
+}
+.crm-change-type-btn:hover:not(.active) { background: #e5e7eb; }
 
 /* ── Mobile ── */
 @media (max-width: 620px) {

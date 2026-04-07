@@ -62,7 +62,9 @@
 
       <div class="right-section">
         <div class="calendar-container">
-          <x-booking_calendar :occupiedDates="json_encode($occupiedDates)" />
+          <x-booking_calendar
+            :occupiedDates="json_encode($occupiedDates)"
+            :currentReservationDates="json_encode($currentReservationDates ?? [])" />
         </div>
 
         <div class="booking-section">
@@ -100,6 +102,7 @@
                     @if(strtolower($category) === 'room')
                       <button type="button" class="purpose-pill" data-value="overnight">Overnight Stay</button>
                       <button type="button" class="purpose-pill" data-value="retreat">Retreat</button>
+                      <button type="button" class="purpose-pill" data-value="recollection">Recollection</button>
                     @else
                       <button type="button" class="purpose-pill" data-value="meeting">Meeting</button>
                       <button type="button" class="purpose-pill" data-value="seminar">Seminar</button>
@@ -112,8 +115,8 @@
                     @endif
                     <button type="button" class="purpose-pill" data-value="others">Others</button>
                     <div id="othersWrapper" style="display:none; width:100%;">
-                    <input type="text" id="othersText" class="purpose-others-input"
-                           placeholder="Please specify your purpose...">
+                      <input type="text" id="othersText" class="purpose-others-input"
+                             placeholder="Please specify your purpose...">
                     </div>
                   </div>
                 </div>
@@ -283,6 +286,16 @@
         const params      = new URLSearchParams(window.location.search);
         const prefillPax  = params.get('pax');
         const prefillPurp = (params.get('purpose') || '').toLowerCase().trim();
+
+        // Forward change_request flag through the booking form so prepareBooking can detect it
+        const changeReq = params.get('change_request');
+        if (changeReq) {
+          const inp = document.createElement('input');
+          inp.type  = 'hidden';
+          inp.name  = 'change_request';
+          inp.value = changeReq;
+          document.getElementById('bookingForm')?.appendChild(inp);
+        }
 
         // Pax
         if (prefillPax && paxInput) {

@@ -255,7 +255,7 @@
 
 .badge {
   display: flex;
-  width: 120px;
+  width: 150px;
   justify-content: center;
   align-items: center;
   padding: 6px 12px;
@@ -308,6 +308,41 @@ tr.row-cancel-requested:hover {
   background-color: #fed7aa;
   color: #7c2d12;
   border: 1px solid #fb923c;
+  margin-top: 4px;
+}
+
+/* ── Change Requested — distinct indigo priority card ── */
+.status-card.change-requested {
+  --status-color: #6366f1;
+  border-left: 4px solid var(--status-color);
+  background: linear-gradient(135deg, #eef2ff 0%, #ffffff 60%);
+}
+
+.status-card.change-requested .status-label {
+  color: #3730a3;
+  font-weight: 700;
+  position: relative;
+}
+
+.status-card.change-requested .status-number {
+  color: #4338ca;
+}
+
+/* Row highlight for change-requested reservations */
+tr.row-change-requested {
+  background-color: #eef2ff !important;
+  border-left: 3px solid #6366f1;
+}
+
+tr.row-change-requested:hover {
+  background-color: #e0e7ff !important;
+}
+
+/* Inline change-requested row badge */
+.change-req-badge {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #818cf8;
   margin-top: 4px;
 }
 
@@ -470,7 +505,7 @@ tr.row-cancel-requested:hover {
 /* Modal Container */
 .modal-container {
   width: 100%;
-  max-width: 1230px;
+  max-width: 1280px;
   display: flex;
   justify-content: center;
 }
@@ -554,6 +589,7 @@ tr.row-cancel-requested:hover {
 .modal-body {
   padding: 5px 24px 24px;
   display: flex;
+  
   gap: 10px;
 }
 
@@ -734,18 +770,65 @@ tr.row-cancel-requested:hover {
   display: flex;
   height: 100%;
   flex-direction: row;
-  gap: 4px
+  gap: 4px;
+  align-content: flex-start;
 }
 .add-fees-container{
   display: flex;
   flex-direction: column;
   min-width: 60vh;
+  height: 100%;
 }
 
-#discountSection{
+#discountSection {
   display: flex;
-  align-content: normal;
-  justify-content: space-evenly;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Discount type dropdown */
+.disc-type-select {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: inherit;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.disc-type-select:focus {
+  outline: none;
+  border-color: #2563eb;
+}
+
+/* % / ₱ mode toggle */
+.disc-mode-toggle {
+  display: inline-flex;
+  border: 1.5px solid #d1d5db;
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.disc-mode-btn {
+  padding: 5px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  background: #fff;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  font-family: inherit;
+  transition: background .12s, color .12s;
+}
+.disc-mode-btn.active {
+  background: #2563eb;
+  color: #fff;
+}
+.disc-mode-btn:hover:not(.active) {
+  background: #f3f4f6;
 }
 .form-group-mini{
  width: 100%;
@@ -913,10 +996,10 @@ tr.row-cancel-requested:hover {
 .charges-container {
   display: flex;
   overflow-y: auto;
-  max-height: 50px;
+  height: 100%;
   justify-content: space-between;
   flex-direction: column;
-  gap: 8px;
+  gap: 3px;
 }
 .charges-container-sub{
   display: flex;

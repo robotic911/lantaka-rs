@@ -35,6 +35,23 @@ document.addEventListener('DOMContentLoaded', function () {
   // Persisted customization state for general set cards: { [date_setId]: {...} }
   const customizationState = {};
 
+  // ── Date remapping for pre-fill restore ────────────────────────────────
+  // When the user changes dates on a change request, the old session data uses
+  // old dates as keys but the new cards use new dates.  We map by day-index:
+  // the i-th new date gets the i-th old date's pre-fill data.
+  // If dates are identical this is a no-op (oldDate === newDate).
+  const _prevDateSources = [
+    window.previousFoodSelections || {},
+    window.previousSetSelections  || {},
+    window.previousMealMode       || {},
+  ];
+  const _prevDates = [...new Set(_prevDateSources.flatMap(o => Object.keys(o)))].sort();
+  const _newDates  = [...document.querySelectorAll('.reservation-card')]
+                       .map(c => c.dataset.date).sort();
+  // prevDateMap: { newDate -> oldDate }
+  const prevDateMap = {};
+  _newDates.forEach((nd, i) => { prevDateMap[nd] = _prevDates[i] !== undefined ? _prevDates[i] : nd; });
+
   /* ═══════════════════════════════════════════════════════════
      1. FETCH
   ═══════════════════════════════════════════════════════════ */
@@ -69,7 +86,9 @@ document.addEventListener('DOMContentLoaded', function () {
       const date = card.dataset.date;
 
       // ── Determine initial mode from previous edit state (if any) ──
-      const prevMealModeForDate = (window.previousMealMode || {})[date] || {};
+      // Use prevDateMap to translate the new date back to the corresponding old date
+      // so pre-fill works even when the user changes dates during a change request.
+      const prevMealModeForDate = (window.previousMealMode || {})[prevDateMap[date] || date] || {};
       // Snack slots (am_snack, pm_snack, snacks) are always individual-style
       // regardless of the date's set/individual toggle — exclude them so they
       // don't accidentally flip the whole card into individual mode.
@@ -128,8 +147,11 @@ document.addEventListener('DOMContentLoaded', function () {
     document.querySelectorAll('.reservation-card').forEach(card => {
       const date = card.dataset.date;
 
+      // Resolve the old-date key (handles date changes in change-request flow)
+      const oldDate = prevDateMap[date] || date;
+
       // 1. Restore food_enabled (Yes/No toggle) ──────────────────────
-      const foodEnabledVal = prevFoodEn[date];
+      const foodEnabledVal = prevFoodEn[oldDate];
       if (foodEnabledVal !== undefined && String(foodEnabledVal) === '0') {
         const hiddenInput = card.querySelector('.food-enabled-input');
         const cols        = card.querySelector('.fo-columns');
@@ -142,9 +164,9 @@ document.addEventListener('DOMContentLoaded', function () {
       }
 
       const mode        = cardModes[date] || 'set';
-      const dateFoodSel = prevFoodSel[date] || {};
-      const dateSetSel  = prevSetSel[date]  || {};
-      const dateMealEn  = prevMealEn[date]  || {};
+      const dateFoodSel = prevFoodSel[oldDate] || {};
+      const dateSetSel  = prevSetSel[oldDate]  || {};
+      const dateMealEn  = prevMealEn[oldDate]  || {};
 
       if (mode === 'individual') {
         restoreIndividualMode(date, card, dateFoodSel, dateMealEn);

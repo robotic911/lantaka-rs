@@ -158,10 +158,13 @@ function calendarRender() {
     if (dateStr === rangeEnd) cls += ' range-end'
     if (isInRange(dateStr)) cls += ' in-range'
 
-    // Show light-blue "current reservation" indicator only when the date is NOT
-    // already covered by the user's newly selected range (range colours take priority)
+    // Show light-blue "current reservation" indicator only when:
+    //  1. the date is not already covered by the user's newly selected range, AND
+    //  2. the user has NOT yet completed a full new range selection
+    //     (once both start + end are picked, old reservation dates should clear)
     const coveredByRange = dateStr === rangeStart || dateStr === rangeEnd || isInRange(dateStr)
-    if (isCurrentReservation(dateStr) && !coveredByRange) cls += ' current-reservation'
+    const hasCompleteNewRange = rangeStart !== null && rangeEnd !== null
+    if (isCurrentReservation(dateStr) && !coveredByRange && !hasCompleteNewRange) cls += ' current-reservation'
 
     html += `<div class="${cls}" data-date="${dateStr}">${dayNum}</div>`
   }

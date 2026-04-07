@@ -94,6 +94,10 @@ Route::middleware(['role:admin,staff'])->group(function () {
     Route::get('/employee/reservations/{id}/cancellation-request', [ReservationController::class, 'getCancellationRequest'])->name('employee.reservations.cancellationRequest');
     Route::post('/employee/cancellation-requests/{requestId}/process', [ReservationController::class, 'processCancellation'])->name('employee.cancellation.process');
 
+    // Request for Changes management (employee)
+    Route::get('/employee/reservations/{id}/change-request', [ReservationController::class, 'getChangeRequest'])->name('employee.reservations.changeRequest');
+    Route::post('/employee/change-requests/{requestId}/process', [ReservationController::class, 'processChangeRequest'])->name('employee.change.process');
+
     /* ── Food Management Page (admin + staff can view; CRUD is admin-only) ── */
     Route::get('/employee/food', [FoodController::class, 'showFoodManagementPage'])->name('employee.food');
 
@@ -130,6 +134,12 @@ Route::prefix('client')
         Route::post('/reservations/{id}/request-cancellation', [ReservationController::class, 'requestCancellation'])->name('reservations.requestCancellation');
         // Client checks their own cancellation request status
         Route::get('/reservations/{id}/cancellation-status', [ReservationController::class, 'getClientCancellationStatus'])->name('reservations.cancellationStatus');
+
+        // Request for Changes — redirect-based flow mirroring checkout "Edit"
+        // Step 1: Client clicks "Submit Request for Changes" → sets session + redirects to viewing page
+        Route::post('/reservations/{id}/initiate-change', [ReservationController::class, 'initiateChangeRequest'])->name('reservations.initiateChange');
+        // Step 2: Client submits booking form (from food_option or change_request_confirm) → saved as pending
+        Route::post('/reservations/store-change-request', [ReservationController::class, 'storeChangeRequest'])->name('reservations.storeChangeRequest');
 
         // Account page
         Route::get('/account', [AccountController::class, 'showClientAccount'])->name('account');

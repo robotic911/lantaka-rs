@@ -36,10 +36,22 @@
 </script>
 
 @section('content')
+@php
+    $isChangeReq = ($bookingData['change_request'] ?? '') == '1';
+@endphp
 <main class="main-content" style="padding: 20px;">
-    <form action="{{ route('checkout') }}" method="GET" id="foodReservationForm">
+    <form
+        action="{{ $isChangeReq ? route('client.reservations.storeChangeRequest') : route('checkout') }}"
+        method="{{ $isChangeReq ? 'POST' : 'GET' }}"
+        id="foodReservationForm">
+
+        @if($isChangeReq)
+            @csrf
+            <input type="hidden" name="change_request" value="1">
+        @endif
+
         <input type="hidden" name="accommodation_id" value="{{ $bookingData['accommodation_id'] }}">
-        <input type="hidden" name="res_name"         value="{{ $bookingData['res_name'] }}">
+        <input type="hidden" name="res_name"         value="{{ $bookingData['res_name'] ?? '' }}">
         <input type="hidden" name="type"             value="{{ $bookingData['type'] }}">
         <input type="hidden" name="check_in"         value="{{ $bookingData['check_in'] }}">
         <input type="hidden" name="check_out"        value="{{ $bookingData['check_out'] }}">
@@ -197,7 +209,9 @@
                     × <span id="paxDisplay">{{ $bookingData['pax'] ?? 1 }}</span> pax
                 </span>
             </div>
-            <button type="button" id="addToCartBtn" class="add-to-cart-btn">ADD TO BOOKING CART</button>
+            <button type="button" id="addToCartBtn" class="add-to-cart-btn">
+                {{ $isChangeReq ? 'SUBMIT CHANGE REQUEST' : 'ADD TO BOOKING CART' }}
+            </button>
         </div>
     </form>
 

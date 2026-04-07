@@ -75,8 +75,38 @@
                 margin-left: -10px;
                 margin-right: 7px;"/>
                 <div class="form-group-mini none" id="discountSection">
-                  <label for="discount">Discount:</label>
-                  <input class="charge-input" type="text" id="discount" placeholder="Enter Discount" name="discount">
+                  <label>Discount:</label>
+
+                  {{-- ── Discount type selector ── --}}
+                  <select id="discountType" class="charge-input disc-type-select">
+                    <option value="none">— No Discount —</option>
+                    <option value="pwd">PWD (20%)</option>
+                    <option value="senior">Senior Citizen (20%)</option>
+                    <option value="others">Others</option>
+                  </select>
+
+                  {{-- PWD / Senior Citizen: shows auto-computed 20% peso amount --}}
+                  <div id="discAutoRow" style="display:none; font-size:12px; color:#555; padding:4px 2px;">
+                    <span id="discAutoLabel">PWD</span> — 20% of subtotal
+                    = <strong id="discAutoComputed" style="color:#c0392b;">₱ 0.00</strong>
+                  </div>
+
+                  {{-- Others: custom label + mode toggle + value input --}}
+                  <div id="discOthersRow" style="display:none; flex-direction:column; gap:6px; margin-top:2px;">
+                    <input type="text" id="discOthersName" class="charge-input"
+                           placeholder="Discount label (e.g. Scholar)" style="width:100%; box-sizing:border-box;">
+                    <div style="display:flex; gap:6px; align-items:center;">
+                      <div class="disc-mode-toggle">
+                        <button type="button" id="discModePct"  class="disc-mode-btn active" data-mode="pct">%</button>
+                        <button type="button" id="discModeFlat" class="disc-mode-btn"         data-mode="flat">₱</button>
+                      </div>
+                      <input type="number" id="discOthersValue" class="charge-input"
+                             placeholder="0" min="0" step="0.01" style="flex:1; box-sizing:border-box;">
+                    </div>
+                  </div>
+
+                  {{-- Hidden field: always stores the final peso discount amount --}}
+                  <input type="hidden" id="discount" name="discount" value="0">
                 </div>
               </div>
 
@@ -205,11 +235,33 @@
             </div>
           </div>
 
+          {{-- ── Request for Changes banner ── --}}
+          <div id="empChangeRequestBanner" style="display:none; padding: 10px 16px 0;">
+            <div class="emp-cancel-banner emp-change-banner">
+              <div class="emp-cancel-banner-top">
+                <span class="emp-cancel-banner-label emp-change-banner-label">🔄 Request for Changes</span>
+                <span class="emp-cancel-banner-date" id="empChangeReqDate"></span>
+              </div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:4px;">
+                <span class="emp-change-type-pill" id="empChangeReqTypePill"></span>
+              </div>
+              <p class="emp-cancel-banner-reason" id="empChangeReqReason" style="display:none;"></p>
+              <div id="empChangeDetailsBox" style="display:none; background:#fff; border:1px solid #e5e7eb; border-radius:6px; padding:8px 10px; font-size:12px; color:#374151; line-height:1.6;"></div>
+              <div class="emp-cancel-banner-actions">
+                <button type="button" class="emp-cancel-reject-btn" id="empChangeRejectBtn">Reject Request</button>
+                <button type="button" class="emp-cancel-approve-btn" id="empChangeApproveBtn" style="background:#1e40af;">Approve Changes</button>
+              </div>
+              <input type="text" id="empChangeAdminNote" class="emp-cancel-note-input"
+                     placeholder="Note to client (optional)…" style="display:none;">
+              <p id="empChangeBannerMsg" class="emp-cancel-banner-msg" style="display:none;"></p>
+            </div>
+          </div>
+
           {{-- ── Cancellation request banner (shown when a client has a pending request) ── --}}
           <div id="empCancelRequestBanner" style="display:none; padding: 10px 16px 0;">
             <div class="emp-cancel-banner">
               <div class="emp-cancel-banner-top">
-                <span class="emp-cancel-banner-label">⚠ Cancellation Requested</span>
+                <span class="emp-cancel-banner-label">⚠ Request for Cancellation</span>
                 <span class="emp-cancel-banner-date" id="empCancelReqDate"></span>
               </div>
               <p class="emp-cancel-banner-reason" id="empCancelReqReason"></p>
@@ -334,6 +386,172 @@
         banner.style.display = '';
       })
       .catch(() => { banner.style.display = 'none'; });
+  }
+
+  /* ── Employee: Request for Changes banner ── */
+  let _empChangeReqId   = null;
+  let _empChangeResId   = null;
+  let _empChangeResType = null;
+
+  function loadChangeRequestBanner(resId, resType, status) {
+    _empChangeResId   = resId;
+    _empChangeResType = resType;
+
+    const banner    = document.getElementById('empChangeRequestBanner');
+    const noteInput = document.getElementById('empChangeAdminNote');
+    const msgEl     = document.getElementById('empChangeBannerMsg');
+
+    if (!banner) return;
+
+    if (!['pending', 'confirmed'].includes((status || '').toLowerCase())) {
+      banner.style.display = 'none';
+      return;
+    }
+
+    if (noteInput) { noteInput.style.display = 'none'; noteInput.value = ''; }
+    if (msgEl)     { msgEl.style.display = 'none'; msgEl.textContent = ''; msgEl.className = 'emp-cancel-banner-msg'; }
+
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(`/employee/reservations/${resId}/change-request?type=${resType}`, {
+      headers: { 'Accept': 'application/json', 'X-CSRF-TOKEN': csrf },
+    })
+      .then(r => r.json())
+      .then(data => {
+        const req = data.request;
+        if (!req || req.status !== 'pending') {
+          banner.style.display = 'none';
+          return;
+        }
+        _empChangeReqId = req.id;
+
+        document.getElementById('empChangeReqDate').textContent = req.created_at || '';
+
+        // Type pill
+        const typePill = document.getElementById('empChangeReqTypePill');
+        const typeLabels = {
+          reschedule:            '📅 Reschedule',
+          food_modification:     '🍽 Food Modification',
+          reschedule_and_food:   '📅🍽 Reschedule + Food',
+        };
+        if (typePill) typePill.textContent = typeLabels[req.request_type] || req.request_type || '—';
+
+        // Reason
+        const reasonEl = document.getElementById('empChangeReqReason');
+        if (reasonEl) {
+          if (req.reason) {
+            reasonEl.textContent   = req.reason;
+            reasonEl.style.display = '';
+          } else {
+            reasonEl.style.display = 'none';
+          }
+        }
+
+        // Details box — only relevant for reschedule types, not food-only changes
+        const detailsBox = document.getElementById('empChangeDetailsBox');
+        if (detailsBox) {
+          const isReschedule = req.request_type === 'reschedule' || req.request_type === 'reschedule_and_food';
+          if (isReschedule && req.details) {
+            let html = '';
+            if (req.details.check_in)  html += `<div><strong>New Check-in:</strong> ${req.details.check_in}</div>`;
+            if (req.details.check_out) html += `<div><strong>New Check-out:</strong> ${req.details.check_out}</div>`;
+            if (Array.isArray(req.details.foods) && req.details.foods.length) {
+              const desc = (req.details.foods[0] && req.details.foods[0].description) ? req.details.foods[0].description : JSON.stringify(req.details.foods);
+              html += `<div style="margin-top:4px;"><strong>Food changes:</strong> ${desc}</div>`;
+            }
+            if (html) {
+              detailsBox.innerHTML     = html;
+              detailsBox.style.display = '';
+            } else {
+              detailsBox.style.display = 'none';
+            }
+          } else {
+            detailsBox.style.display = 'none';
+          }
+        }
+
+        banner.style.display = '';
+      })
+      .catch(() => { banner.style.display = 'none'; });
+  }
+
+  /* Change request: Reject / Approve */
+  (function () {
+    const rejectBtn  = document.getElementById('empChangeRejectBtn');
+    const approveBtn = document.getElementById('empChangeApproveBtn');
+    const noteInput  = document.getElementById('empChangeAdminNote');
+    const msgEl      = document.getElementById('empChangeBannerMsg');
+
+    if (!rejectBtn || !approveBtn) return;
+
+    let rejectStep = 0;
+
+    rejectBtn.addEventListener('click', () => {
+      if (!_empChangeReqId) return;
+      if (rejectStep === 0) {
+        noteInput.style.display = '';
+        noteInput.placeholder   = 'Reason for rejection (optional)…';
+        rejectBtn.textContent   = 'Confirm Rejection';
+        rejectStep = 1;
+      } else {
+        processChangeReq('rejected', noteInput.value, rejectBtn, approveBtn, msgEl);
+      }
+    });
+
+    approveBtn.addEventListener('click', () => {
+      if (!_empChangeReqId) return;
+      approveBtn.disabled = true;
+      processChangeReq('approved', '', rejectBtn, approveBtn, msgEl);
+    });
+  })();
+
+  function processChangeReq(decision, adminNote, rejectBtn, approveBtn, msgEl) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+
+    fetch(`/employee/change-requests/${_empChangeReqId}/process`, {
+      method : 'POST',
+      headers: {
+        'Content-Type' : 'application/json',
+        'Accept'       : 'application/json',
+        'X-CSRF-TOKEN' : csrf,
+      },
+      body: JSON.stringify({ decision, admin_note: adminNote, res_type: _empChangeResType }),
+    })
+      .then(r => r.json())
+      .then(data => {
+        if (data.success) {
+          msgEl.textContent   = data.message;
+          msgEl.className     = 'emp-cancel-banner-msg success';
+          msgEl.style.display = '';
+          if (rejectBtn)  rejectBtn.style.display  = 'none';
+          if (approveBtn) approveBtn.style.display = 'none';
+
+          const label = decision === 'approved' ? 'Request for Changes approved.' : 'Request for Changes rejected.';
+          if (typeof window.showToast === 'function') {
+            window.showToast(label, decision === 'approved' ? 'success' : 'warning');
+          }
+          if (decision === 'approved') {
+            setTimeout(() => window.location.reload(), 1800);
+          }
+        } else {
+          msgEl.textContent   = data.message || 'Something went wrong.';
+          msgEl.className     = 'emp-cancel-banner-msg error';
+          msgEl.style.display = '';
+          if (approveBtn) approveBtn.disabled = false;
+          if (typeof window.showToast === 'function') {
+            window.showToast(data.message || 'Something went wrong.', 'error');
+          }
+        }
+      })
+      .catch(() => {
+        msgEl.textContent   = 'Network error. Please try again.';
+        msgEl.className     = 'emp-cancel-banner-msg error';
+        msgEl.style.display = '';
+        if (approveBtn) approveBtn.disabled = false;
+        if (typeof window.showToast === 'function') {
+          window.showToast('Network error. Please try again.', 'error');
+        }
+      });
   }
 
   /* Reject button — show note input then confirm */
@@ -511,6 +729,25 @@
   }
   .emp-cancel-banner-msg.success { background: #d1fae5; color: #065f46; }
   .emp-cancel-banner-msg.error   { background: #fee2e2; color: #991b1b; }
+
+  /* ── Request for Changes banner variant ── */
+  .emp-change-banner {
+    background: #eff6ff;
+    border-color: #bfdbfe;
+  }
+  .emp-change-banner-label {
+    color: #1e40af;
+  }
+  .emp-change-type-pill {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 2px 10px;
+    border-radius: 20px;
+    background: #dbeafe;
+    color: #1e40af;
+    letter-spacing: .3px;
+  }
 
   /* ── Payment status badges (shown after checkout) ── */
   .unpaid-badge,

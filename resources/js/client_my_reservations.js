@@ -207,17 +207,51 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      /* Price breakdown (above grand total) */
-      const breakdown = el('crmBreakdown');
-      const foodTotalNum  = parseFloat((data.food_total  || '0').replace(/,/g,'')) || 0;
-      const venueTotalNum = parseFloat((data.venue_total || '0').replace(/,/g,'')) || 0;
+      /* Price breakdown (room / venue / food rows) */
+      const breakdown    = el('crmBreakdown');
+      const foodTotalNum = parseFloat((data.food_total  || '0').replace(/,/g,'')) || 0;
       if (breakdown) {
-        if (foodTotalNum > 0) {
-          el('crmVenueTotal').textContent = `₱ ${data.venue_total || '0.00'}`;
-          el('crmFoodTotal').textContent  = `₱ ${data.food_total  || '0.00'}`;
+        // Hide all rows first, then show the relevant ones
+        ['crmRoomRow', 'crmVenueRow', 'crmFoodRow'].forEach(id => {
+          const e = el(id); if (e) e.style.display = 'none';
+        });
+
+        // Helper: build "₱ rate × N nights/days" sub-label
+        const nights = parseInt(data.nights_or_days || 1, 10);
+        const unit   = data.type === 'room' ? (nights === 1 ? 'night' : 'nights') : (nights === 1 ? 'day' : 'days');
+        const rateLabel = data.rate_per_night
+          ? ` (₱ ${data.rate_per_night} × ${nights} ${unit})`
+          : '';
+
+        if (data.type === 'room') {
+          // Room: show accommodation cost = rate × nights
+          const roomRow = el('crmRoomRow');
+          if (roomRow) {
+            roomRow.style.display = '';
+            const lbl = roomRow.querySelector('.crm-breakdown-label');
+            if (lbl) lbl.textContent = `🛏 Room${rateLabel}`;
+          }
+          const roomTotalEl = el('crmRoomTotal');
+          if (roomTotalEl) roomTotalEl.textContent = `₱ ${data.accommodation_total || data.total || '0.00'}`;
           breakdown.style.display = '';
         } else {
-          breakdown.style.display = 'none';
+          // Venue: show accommodation cost = rate × days
+          const venueRow = el('crmVenueRow');
+          if (venueRow) {
+            venueRow.style.display = '';
+            const lbl = venueRow.querySelector('.crm-breakdown-label');
+            if (lbl) lbl.textContent = `🏛 Venue`;
+          }
+          const venueTotalEl = el('crmVenueTotal');
+          if (venueTotalEl) venueTotalEl.textContent = `₱ ${data.accommodation_total || data.venue_total || '0.00'}`;
+
+          if (foodTotalNum > 0) {
+            const foodRow = el('crmFoodRow');
+            if (foodRow) foodRow.style.display = '';
+            const foodTotalEl = el('crmFoodTotal');
+            if (foodTotalEl) foodTotalEl.textContent = `₱ ${data.food_total || '0.00'}`;
+          }
+          breakdown.style.display = '';
         }
       }
 
@@ -255,24 +289,28 @@ document.addEventListener('DOMContentLoaded', () => {
         cancelSection.style.display = showCancel ? '' : 'none';
 
         if (showCancel) {
+          _cancelResId      = data.real_id;
+          _cancelResType    = data.type;
+          _cancelCheckInRaw = data.check_in_raw || null;
+
           const cancelStatus = (data.cancellation_status || '').toLowerCase();
           if (cancelStatus === 'pending') {
             // Already know it's pending from server-rendered data — apply immediately, no AJAX needed
-            _cancelResId   = data.real_id;
-            _cancelResType = data.type;
             setCancelState('crmCancelPending');
+            // Mutually hide change-request section when a cancellation is already pending
+            const chSec = el('crmChangeSection');
+            if (chSec) chSec.style.display = 'none';
           } else if (cancelStatus === 'rejected') {
-            _cancelResId   = data.real_id;
-            _cancelResType = data.type;
             setCancelState('crmCancelRejected');
           } else {
             // No cancellation request yet — just show idle
-            _cancelResId   = data.real_id;
-            _cancelResType = data.type;
             setCancelState('crmCancelIdle');
           }
         }
       }
+
+      /* ── Request for Changes section ── */
+      initChangeSection(data);
 
       overlay.classList.add('open');
     });
@@ -281,9 +319,24 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Cancellation request state machine ── */
 
   // Current reservation context (set when modal opens)
-  let _cancelResId   = null;
-  let _cancelResType = null;
-  let _activeBtn     = null;   // the expand button that opened the current modal
+  let _cancelResId      = null;
+  let _cancelResType    = null;
+  let _cancelCheckInRaw = null;  // ISO date string, e.g. "2025-12-20"
+  let _activeBtn        = null;  // the expand button that opened the current modal
+
+  /**
+   * Returns true if the check-in date is at least 3 calendar days from today.
+   * Uses the same calendar-day logic as the backend.
+   */
+  function isCancellationAllowed(checkInRaw) {
+    if (!checkInRaw) return false;
+    const today    = new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkIn  = new Date(checkInRaw + 'T00:00:00');
+    const diffMs   = checkIn - today;
+    const diffDays = Math.floor(diffMs / 86400000);
+    return diffDays >= 3;
+  }
 
   function setCancelState(state, adminNote) {
     // Hide form and rejected panels; idle card is always shown (button state changes)
@@ -307,7 +360,7 @@ document.addEventListener('DOMContentLoaded', () => {
         '<span class="crm-waiting-pulse"></span> Your request is under review. We\'ll notify you of the outcome soon.';
       if (idleBtn) {
         idleBtn.disabled    = true;
-        idleBtn.textContent = '⏳ Waiting for Cancellation';
+        idleBtn.textContent = '⏳ Cancellation Request Pending';
         idleBtn.classList.add('crm-cancel-waiting');
       }
 
@@ -315,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset to normal idle state
       if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
       if (idleTitle) idleTitle.textContent = 'Need to cancel?';
-      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team.";
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request 3 days prior to your check-in date.";
       if (idleBtn) {
         idleBtn.disabled    = false;
         idleBtn.textContent = 'Request Cancellation';
@@ -332,7 +385,7 @@ document.addEventListener('DOMContentLoaded', () => {
       // Reset idle card to normal so they can retry via the card below
       if (idleCard)  idleCard.classList.remove('crm-cancel-idle--waiting');
       if (idleTitle) idleTitle.textContent = 'Need to cancel?';
-      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request and our team will review it shortly. It would take 3 working days for the cancellation to be reviewed by our team.";
+      if (idleBody)  idleBody.textContent  = "You can submit a cancellation request 3 days prior to your check-in date.";
       if (idleBtn) {
         idleBtn.disabled    = false;
         idleBtn.textContent = 'Request Cancellation';
@@ -373,28 +426,56 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(() => setCancelState('crmCancelIdle')); // graceful fallback
   }
 
-  // Open form button
+  // Open form button — guarded by 3-day eligibility check
   const openFormBtn = el('crmCancelOpenFormBtn');
 
   if (openFormBtn) {
     openFormBtn.addEventListener('click', () => {
+      const gateErrEl = el('crmCancelGateError');
+
+      // ── Eligibility gate ──
+      if (!isCancellationAllowed(_cancelCheckInRaw)) {
+        // Not allowed — show blocking message, do NOT open the form
+        if (gateErrEl) {
+          gateErrEl.textContent   = 'You can no longer cancel your stay because your check-in date is less than 3 working days.';
+          gateErrEl.style.display = '';
+        }
+        return;
+      }
+
+      // Allowed — clear any gate error, clear the form, open form view
+      if (gateErrEl) { gateErrEl.style.display = 'none'; gateErrEl.textContent = ''; }
+
       const reasonEl = el('crmCancelReason');
       if (reasonEl) reasonEl.value = '';
-      const errEl = el('crmCancelError');
-      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+      const formErrEl = el('crmCancelError');
+      if (formErrEl) { formErrEl.style.display = 'none'; formErrEl.textContent = ''; }
       setCancelState('crmCancelForm');
-      crmCancelIdle.style.display = 'none';
+
+      const idleDiv = el('crmCancelIdle');
+      if (idleDiv) idleDiv.style.display = 'none';
     });
   }
 
-  // Retry button (after rejection → re-open form)
+  // Retry button (after rejection → re-open form), same 3-day gate
   const retryBtn = el('crmCancelRetryBtn');
   if (retryBtn) {
     retryBtn.addEventListener('click', () => {
-      const reasonEl = el('crmCancelReason');
+      const gateErrEl = el('crmCancelGateError');
+
+      if (!isCancellationAllowed(_cancelCheckInRaw)) {
+        if (gateErrEl) {
+          gateErrEl.textContent   = 'You can no longer cancel your stay because your check-in date is less than 3 working days.';
+          gateErrEl.style.display = '';
+        }
+        return;
+      }
+
+      if (gateErrEl) { gateErrEl.style.display = 'none'; gateErrEl.textContent = ''; }
+      const reasonEl  = el('crmCancelReason');
       if (reasonEl) reasonEl.value = '';
-      const errEl = el('crmCancelError');
-      if (errEl) { errEl.style.display = 'none'; errEl.textContent = ''; }
+      const formErrEl = el('crmCancelError');
+      if (formErrEl) { formErrEl.style.display = 'none'; formErrEl.textContent = ''; }
       setCancelState('crmCancelForm');
     });
   }
@@ -474,8 +555,109 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  /* ═══════════════════════════════════════════════════════════
+   |  REQUEST FOR CHANGES — state machine + redirect handler
+   |
+   |  Clicking "Submit Request for Changes" redirects the client
+   |  to the room/venue viewing page (same flow as checkout Edit).
+   |  The server (initiateChangeRequest) pre-fills dates + food.
+   ╚══════════════════════════════════════════════════════════ */
+
+  let _changeResId   = null;
+  let _changeResType = null;
+
+  function setChangeState(state, adminNote) {
+    const idle    = el('crmChangeIdle');
+    const pending = el('crmChangePending');
+    const rejected = el('crmChangeRejected');
+
+    [idle, pending, rejected].forEach(e => { if (e) e.style.display = 'none'; });
+
+    if (state === 'idle')     { if (idle)     idle.style.display     = ''; }
+    else if (state === 'pending')  { if (pending)  pending.style.display  = ''; }
+    else if (state === 'rejected') {
+      if (rejected) rejected.style.display = '';
+      if (adminNote) {
+        const n = el('crmChangeRejectedNote');
+        if (n) n.textContent = 'Your request for changes was not approved. ' + adminNote;
+      }
+    }
+  }
+
+  // Init change section when modal opens
+  function initChangeSection(data) {
+    _changeResId   = data.real_id;
+    _changeResType = data.type;
+
+    const changeSection = el('crmChangeSection');
+    if (!changeSection) return;
+
+    const showChange = ['pending', 'confirmed'].includes((data.status || '').toLowerCase());
+    if (!showChange) { changeSection.style.display = 'none'; return; }
+
+    // Mutual exclusion: if a cancellation is already pending, hide the change section entirely
+    const cancelPending = (data.cancellation_status || '').toLowerCase() === 'pending';
+    if (cancelPending) { changeSection.style.display = 'none'; return; }
+
+    changeSection.style.display = '';
+
+    const cs = (data.change_request_status || '').toLowerCase();
+    if (cs === 'pending') {
+      setChangeState('pending');
+      // Mutual exclusion: hide the cancel section when a change request is pending
+      const cancelSec = el('crmCancelSection');
+      if (cancelSec) cancelSec.style.display = 'none';
+    } else if (cs === 'rejected') {
+      setChangeState('rejected');
+    } else {
+      setChangeState('idle');
+    }
+  }
+
+  /**
+   * Programmatically POST to initiateChangeRequest so the server can
+   * set the session flag and redirect to the room/venue viewing page
+   * with the existing reservation data pre-filled.
+   */
+  function submitChangeRedirect(resId, resType) {
+    const csrf = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = `/client/reservations/${resId}/initiate-change?type=${resType}`;
+
+    const csrfEl = document.createElement('input');
+    csrfEl.type  = 'hidden';
+    csrfEl.name  = '_token';
+    csrfEl.value = csrf;
+    form.appendChild(csrfEl);
+
+    document.body.appendChild(form);
+    form.submit();
+  }
+
+  // "Submit Request for Changes" button — triggers server redirect
+  const changeOpenBtn = el('crmChangeOpenFormBtn');
+  if (changeOpenBtn) {
+    changeOpenBtn.addEventListener('click', () => {
+      submitChangeRedirect(_changeResId, _changeResType);
+    });
+  }
+
+  // Retry button (after rejection) — same redirect
+  const changeRetryBtn = el('crmChangeRetryBtn');
+  if (changeRetryBtn) {
+    changeRetryBtn.addEventListener('click', () => {
+      submitChangeRedirect(_changeResId, _changeResType);
+    });
+  }
+
   /* ── Close modal ── */
-  function closeModal() { overlay.classList.remove('open'); }
+  function closeModal() {
+    overlay.classList.remove('open');
+    // Reset gate error so next open is clean
+    const gateErrEl = el('crmCancelGateError');
+    if (gateErrEl) { gateErrEl.style.display = 'none'; gateErrEl.textContent = ''; }
+  }
   if (closeBtn)  closeBtn.addEventListener('click', closeModal);
   if (overlay)   overlay.addEventListener('click', e => { if (e.target === overlay) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });

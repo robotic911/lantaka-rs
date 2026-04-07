@@ -17,7 +17,7 @@
             </div>
 
             <div class="status-cards">
-              {{-- ── Priority card: Cancel Requested (shown first, distinct orange-red) ── --}}
+              {{-- ── Priority card: Cancel Requested ── --}}
               <a href="{{ request('status') == 'cancel_requested' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'cancel_requested'])) }}"
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card cancel-requested {{ request('status') == 'cancel_requested' ? 'active' : '' }}">
@@ -28,6 +28,20 @@
                     @endif
                   </div>
                   <div class="status-number">{{ $cancelRequestedCount ?? 0 }}</div>
+                </div>
+              </a>
+
+              {{-- ── Priority card: Change Requested ── --}}
+              <a href="{{ request('status') == 'change_requested' ? route('employee.reservations', request()->except('status')) : route('employee.reservations', array_merge(request()->except('status'), ['status' => 'change_requested'])) }}"
+                style="text-decoration:none;color:inherit;">
+                <div class="status-card change-requested {{ request('status') == 'change_requested' ? 'active' : '' }}">
+                  <div class="status-label">
+                    🔄 Change Requested
+                    @if(($changeRequestedCount ?? 0) > 0)
+                      <span class="cancel-req-dot" style="background:#6366f1;"></span>
+                    @endif
+                  </div>
+                  <div class="status-number">{{ $changeRequestedCount ?? 0 }}</div>
                 </div>
               </a>
 
@@ -118,6 +132,10 @@
               @forelse($reservations as $reservation)
                   @if(in_array($reservation->status, ['pending','confirmed','checked-in','rejected']))
                   @php
+                      // Reset per-row overrides (prevent bleed-over between loop iterations)
+                      $overrideFoods    = null;
+                      $overrideFoodSets = null;
+
                       // 1. IDENTIFY TYPE FIRST! (This fixes the undefined variable error)
                       $isRoom = ($reservation->display_type === 'room');
 
@@ -218,10 +236,164 @@
                                   'custom_items' => $customItems,
                               ];
                           })->toArray() : [];
+
+                          // ── Override foods/food_sets with change_request_details ──────────────
+                          // When the client has a pending food (or reschedule+food) change request,
+                          // display what they actually want instead of whatever is in FoodReservation.
+                          if (
+                              $reservation->change_request_status === 'pending' &&
+                              in_array($reservation->change_request_type ?? '', ['food_modification', 'reschedule_and_food'])
+                          ) {
+                              $crDetails      = $reservation->change_request_details ?? [];
+                              $crFoodSel      = $crDetails['food_selections']    ?? [];
+                              $crSetSel       = $crDetails['food_set_selection'] ?? [];
+                              $crFoodEnabled  = $crDetails['food_enabled']       ?? [];
+                              $crPax          = $reservation->Venue_Reservation_Pax ?? 1;
+
+                              if (!empty($crFoodSel) || !empty($crSetSel)) {
+
+                                  // ── Build individual foods array ──────────────────────────────
+                                  $crFoodIds = [];
+                                  $crCollect = function($data) use (&$crCollect, &$crFoodIds) {
+                                      if (is_array($data)) {
+                                          foreach ($data as $k => $v) {
+                                              if ($k === 'drink_choice') continue;
+                                              $crCollect($v);
+                                          }
+                                      } elseif (is_numeric($data) && !empty($data)) {
+                                          $crFoodIds[] = (int) $data;
+                                      }
+                                  };
+                                  foreach ($crFoodSel as $_d => $_meals) {
+                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                      $crCollect($_meals);
+                                  }
+                                  $crFoodIds    = array_values(array_unique($crFoodIds));
+                                  $crFoodModels = !empty($crFoodIds)
+                                      ? \App\Models\Food::whereIn('Food_ID', $crFoodIds)->get()->keyBy('Food_ID')
+                                      : collect();
+
+                                  $crFoodsArr = [];
+                                  foreach ($crFoodSel as $_d => $_meals) {
+                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                      foreach ($_meals as $_mealKey => $_mealData) {
+                                          if (empty($_mealData)) continue;
+                                          $mealIds = [];
+                                          $crExtract = function($data) use (&$crExtract, &$mealIds) {
+                                              if (is_array($data)) {
+                                                  foreach ($data as $k => $v) {
+                                                      if ($k === 'drink_choice') continue;
+                                                      $crExtract($v);
+                                                  }
+                                              } elseif (is_numeric($data) && !empty($data)) {
+                                                  $mealIds[] = (int) $data;
+                                              }
+                                          };
+                                          $crExtract($_mealData);
+                                          foreach (array_unique($mealIds) as $_fid) {
+                                              $f = $crFoodModels->get($_fid);
+                                              if (!$f) continue;
+                                              // Build plain array matching the shape renderFoodCards expects:
+                                              // top-level Food fields + nested 'pivot' key
+                                              $crFoodsArr[] = [
+                                                  'Food_ID'       => $f->Food_ID,
+                                                  'Food_Name'     => $f->Food_Name,
+                                                  'Food_Price'    => $f->Food_Price,
+                                                  'Food_Category' => $f->Food_Category,
+                                                  'pivot'         => [
+                                                      'Food_Reservation_Serving_Date' => $_d,
+                                                      'Food_Reservation_Meal_time'    => $_mealKey,
+                                                      'Food_Reservation_Total_Price'  => ($f->Food_Price ?? 0) * $crPax,
+                                                      'Food_Reservation_ID'           => null,
+                                                      'Food_Reservation_Status'       => null,
+                                                      'Food_Set_ID'                   => null,
+                                                  ],
+                                              ];
+                                          }
+                                      }
+                                  }
+
+                                  // ── Build food_sets array ─────────────────────────────────────
+                                  $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
+                                  $crFoodSetsArr = [];
+                                  foreach ($crSetSel as $_d => $_meals) {
+                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                      foreach ((array) $_meals as $_mealKey => $_setIdOrIds) {
+                                          $isArr  = is_array($_setIdOrIds);
+                                          $setIds = $isArr ? $_setIdOrIds : [$_setIdOrIds];
+                                          foreach ($setIds as $_setId) {
+                                              if (empty($_setId)) continue;
+                                              $set = \App\Models\FoodSet::find((int) $_setId);
+                                              if (!$set) continue;
+                                              $setFoods = [];
+                                              if (!empty($set->Food_Set_Food_IDs)) {
+                                                  $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
+                                                      ->get()
+                                                      ->map(fn($sf) => [
+                                                          'name'     => $sf->Food_Name,
+                                                          'category' => ucfirst(strtolower($sf->Food_Category ?? 'Food')),
+                                                      ])->toArray();
+                                              }
+                                              // Customisation IDs
+                                              if (!$isArr) {
+                                                  // Spiritual set — customisations live under the mealKey in food_selections
+                                                  $mSel  = $crFoodSel[$_d][$_mealKey] ?? [];
+                                                  $cids  = [
+                                                      $mSel['rice_type']  ?? '',
+                                                      ($_mealKey === 'breakfast' ? ($mSel['hot_drink'] ?? '') : ($mSel['softdrinks'] ?? '')),
+                                                      $mSel['dessert'] ?? '',
+                                                      $mSel['fruits']  ?? '',
+                                                  ];
+                                              } else {
+                                                  // General set — customisations live under gen_{setId} in food_selections
+                                                  $gSel = $crFoodSel[$_d]["gen_{$_setId}"] ?? [];
+                                                  $drinkVal = $gSel['drink'] ?? ($gSel['drink_choice'] ?? '');
+                                                  $cids  = [
+                                                      $gSel['rice']    ?? '',
+                                                      is_numeric($drinkVal) ? $drinkVal : '',
+                                                      $gSel['dessert'] ?? '',
+                                                      '',
+                                                  ];
+                                              }
+                                              $customItems = [];
+                                              foreach ($cids as $_i => $_cid) {
+                                                  if (!empty($_cid) && is_numeric($_cid)) {
+                                                      $cf = \App\Models\Food::find((int) $_cid);
+                                                      if ($cf) {
+                                                          $customItems[] = [
+                                                              'name'     => $cf->Food_Name,
+                                                              'category' => $_customPosLabels[$_i]
+                                                                  ?? ucfirst(strtolower($cf->Food_Category ?? 'Custom')),
+                                                          ];
+                                                      }
+                                                  }
+                                              }
+                                              $crFoodSetsArr[] = [
+                                                  'date'         => $_d,
+                                                  'meal_time'    => $_mealKey,
+                                                  'total_price'  => (float)(($set->Food_Set_Price ?? 0) * $crPax),
+                                                  'set_name'     => $set->Food_Set_Name ?? 'Unknown Set',
+                                                  'set_price'    => (float)($set->Food_Set_Price ?? 0),
+                                                  'set_foods'    => $setFoods,
+                                                  'custom_items' => $customItems,
+                                              ];
+                                          }
+                                      }
+                                  }
+
+                                  // Override the variables used for data-info
+                                  $overrideFoods    = $crFoodsArr;
+                                  $overrideFoodSets = $crFoodSetsArr;
+                                  $foodTotal = collect($crFoodsArr)->sum(fn($f) => ($f['Food_Price'] ?? 0) * $crPax)
+                                             + collect($crFoodSetsArr)->sum(fn($s) => $s['total_price']);
+                              }
+                          }
+                          $overrideFoods    ??= null;
+                          $overrideFoodSets ??= null;
                       }
                   @endphp
 
-                  <tr class="{{ $reservation->cancellation_status === 'pending' ? 'row-cancel-requested' : '' }}">
+                  <tr class="{{ $reservation->cancellation_status === 'pending' ? 'row-cancel-requested' : ($reservation->change_request_status === 'pending' ? 'row-change-requested' : '') }}">
                       <td class="name-cell">
                           <span class="user-icon">
                             <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
@@ -247,10 +419,12 @@
 
                      
 
-                      {{-- Cancellation request badge --}}
+                      {{-- Priority: cancellation request badge > change request badge > regular status --}}
                       @if($reservation->cancellation_status === 'pending')
-                        <span class="badge cancel-req-badge">Cancel Request</span>
-                        @else
+                        <span class="badge cancel-req-badge">⚠ Cancel Request</span>
+                      @elseif($reservation->change_request_status === 'pending')
+                        <span class="badge change-req-badge">Request for Changes</span>
+                      @else
                         {{-- Main status badge --}}
                         <span class="badge
                           {{ $isCheckedIn ? 'checked-in-badge' : strtolower($status) . '-badge' }}">
@@ -291,10 +465,12 @@
                                       'userId' => $reservation->Client_ID,
                                       'purpose' => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
                                                             :($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
-                                      'foods'     => $reservation->foods ?? [],
-                                      'food_sets' => $foodSets ?? [],
+                                      'foods'     => $overrideFoods    ?? ($reservation->foods ?? []),
+                                      'food_sets' => $overrideFoodSets ?? ($foodSets ?? []),
                                       'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
-                                      'cancellation_status' => $reservation->cancellation_status,
+                                      'cancellation_status'  => $reservation->cancellation_status,
+                                      'change_request_status' => $reservation->change_request_status,
+                                      'change_request_type'   => $reservation->change_request_type,
                                   ]) }}">
                               ⤢
                           </button>

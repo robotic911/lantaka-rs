@@ -276,8 +276,8 @@
         const othersPill = document.querySelector('.purpose-pill[data-value="others"]');
         if (othersPill) {
           othersPill.click();
-          othersText.value    = prefillPurpose;
-          purposeValue.value  = prefillPurpose;
+          othersText.value   = prefillPurpose;
+          purposeValue.value = prefillPurpose;
         }
       }
     }

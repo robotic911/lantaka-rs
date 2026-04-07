@@ -493,21 +493,23 @@ class ReservationController extends Controller
                                             // General event: customisations stored under gen_setId slot
                                             $genKey    = "gen_{$setId}";
                                             $genSel    = $foodSelections[$date][$genKey] ?? [];
-                                            $riceId    = (string) ($genSel['rice']         ?? '');
-                                            $dessertId = (string) ($genSel['dessert']       ?? '');
+                                            $riceId    = (string) ($genSel['rice']    ?? '');
+                                            $dessertId = (string) ($genSel['dessert'] ?? '');
                                             $fruitId   = '';   // not applicable for general events
-                                            $drinksId  = '';
 
-                                            // Drink is submitted as "softdrinks" / "juice" text
-                                            $drinkTxt = strtolower(trim($genSel['drink_choice'] ?? ''));
-                                            if ($drinkTxt) {
+                                            // Drink is submitted as Food_ID from searchable-select (with legacy text fallback)
+                                            $drinkVal = $genSel['drink'] ?? ($genSel['drink_choice'] ?? '');
+                                            if (is_numeric($drinkVal) && !empty($drinkVal)) {
+                                                $drinksId = (string) $drinkVal;
+                                            } elseif (!empty($drinkVal)) {
+                                                $drinkTxt  = strtolower(trim((string) $drinkVal));
                                                 $drinkFood = Food::where(function ($q) use ($drinkTxt) {
                                                     $q->where('Food_Name', 'ILIKE', $drinkTxt . '%')
                                                       ->orWhere('Food_Name', 'ILIKE', '%' . $drinkTxt . '%');
                                                 })->first();
-                                                $drinksId = $drinkFood
-                                                    ? (string) $drinkFood->Food_ID
-                                                    : '';
+                                                $drinksId = $drinkFood ? (string) $drinkFood->Food_ID : '';
+                                            } else {
+                                                $drinksId = '';
                                             }
                                         } else {
                                             // Spiritual event: customisations stored under the meal key
@@ -801,13 +803,34 @@ class ReservationController extends Controller
             });
         }
 
-        // 'cancel_requested' is a virtual filter — not a real status value
+        // Virtual filters — not real status column values
         if ($status === 'cancel_requested') {
             $roomQuery->where('cancellation_status', 'pending');
             $venueQuery->where('cancellation_status', 'pending');
+        } elseif ($status === 'change_requested') {
+            $roomQuery->where('change_request_status', 'pending');
+            $venueQuery->where('change_request_status', 'pending');
         } elseif ($status) {
             $roomQuery->where('Room_Reservation_Status', $status);
             $venueQuery->where('Venue_Reservation_Status', $status);
+            // Exclude reservations that have a pending cancel/change request —
+            // those already appear under their own dedicated tabs.
+            if ($status === 'pending') {
+                $roomQuery->where(function ($q) {
+                    $q->where('cancellation_status', '!=', 'pending')
+                      ->orWhereNull('cancellation_status');
+                })->where(function ($q) {
+                    $q->where('change_request_status', '!=', 'pending')
+                      ->orWhereNull('change_request_status');
+                });
+                $venueQuery->where(function ($q) {
+                    $q->where('cancellation_status', '!=', 'pending')
+                      ->orWhereNull('cancellation_status');
+                })->where(function ($q) {
+                    $q->where('change_request_status', '!=', 'pending')
+                      ->orWhereNull('change_request_status');
+                });
+            }
         }
 
         // 5. Filter by Accommodation Type (The Dropdown choice)
@@ -845,15 +868,37 @@ class ReservationController extends Controller
             ['path' => $request->url(), 'query' => $request->query()]
         );
 
-        // Status counts for the regular status cards
-        $allForCounts = RoomReservation::select('Room_Reservation_Status as status')->get()
-            ->concat(VenueReservation::select('Venue_Reservation_Status as status')->get());
+        // Status counts for the regular status cards.
+        // Reservations with a pending cancel/change request are counted under their own tabs,
+        // so exclude them from the main status counts (particularly 'pending').
+        $allForCounts = RoomReservation::select('Room_Reservation_Status as status')
+                ->where(function ($q) {
+                    $q->where('cancellation_status', '!=', 'pending')
+                      ->orWhereNull('cancellation_status');
+                })->where(function ($q) {
+                    $q->where('change_request_status', '!=', 'pending')
+                      ->orWhereNull('change_request_status');
+                })->get()
+            ->concat(
+                VenueReservation::select('Venue_Reservation_Status as status')
+                ->where(function ($q) {
+                    $q->where('cancellation_status', '!=', 'pending')
+                      ->orWhereNull('cancellation_status');
+                })->where(function ($q) {
+                    $q->where('change_request_status', '!=', 'pending')
+                      ->orWhereNull('change_request_status');
+                })->get()
+            );
 
         // Count of pending cancellation requests (shown as its own priority card)
         $cancelRequestedCount = RoomReservation::where('cancellation_status', 'pending')->count()
                               + VenueReservation::where('cancellation_status', 'pending')->count();
 
-        return view('employee.reservations', compact('reservations', 'allForCounts', 'cancelRequestedCount'));
+        // Count of pending change requests (shown as its own priority card)
+        $changeRequestedCount = RoomReservation::where('change_request_status', 'pending')->count()
+                              + VenueReservation::where('change_request_status', 'pending')->count();
+
+        return view('employee.reservations', compact('reservations', 'allForCounts', 'cancelRequestedCount', 'changeRequestedCount'));
     }
 
     public function adminIndexSpecificId(Request $request)
@@ -3183,48 +3228,669 @@ class ReservationController extends Controller
             'reason' => 'required|string|min:10|max:1000',
         ]);
 
+        // ── Server-side time cutoff: reject if current time is 4:00 PM or later ──
+        $now = Carbon::now();
+        if ($now->hour >= 16) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Cancellation requests can no longer be submitted for today. Our cut-off time is 4:00 PM. Please try again tomorrow.',
+            ], 422);
+        }
+
+        // Use a DB transaction — nothing is saved if any validation check below fails
+        return DB::transaction(function () use ($request, $id, $type, $now) {
+
+            try {
+                $reservation = ($type === 'room')
+                    ? \App\Models\RoomReservation::lockForUpdate()->findOrFail($id)
+                    : \App\Models\VenueReservation::lockForUpdate()->findOrFail($id);
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+                // Throw an HTTP exception — Laravel will roll back the transaction
+                abort(404, 'Reservation not found.');
+            }
+
+            // Verify the reservation belongs to the authenticated client
+            if ($reservation->Client_ID !== auth()->id()) {
+                abort(403, 'Unauthorised.');
+            }
+
+            $statusCol     = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+            $currentStatus = strtolower($reservation->$statusCol);
+
+            if (!in_array($currentStatus, ['pending', 'confirmed'])) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Cancellation requests can only be made for pending or confirmed reservations.',
+                ], 422);
+            }
+
+            // Reject duplicate pending request
+            if ($reservation->cancellation_status === 'pending') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You already have a pending cancellation request for this reservation.',
+                ], 422);
+            }
+
+            // ── 3-day rule: check-in must be at least 3 calendar days from today ──
+            $checkInCol  = $type === 'room' ? 'Room_Reservation_Check_In_Time' : 'Venue_Reservation_Check_In_Time';
+            $checkInDate = Carbon::parse($reservation->$checkInCol)->startOfDay();
+            $today       = $now->copy()->startOfDay();
+            $daysUntil   = $today->diffInDays($checkInDate, false); // negative if past
+
+            if ($daysUntil < 3) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'You can no longer cancel your stay because your check-in date is less than 3 working days.',
+                ], 422);
+            }
+
+            // All validations passed — save the cancellation request
+            $reservation->cancellation_status       = 'pending';
+            $reservation->cancellation_reason       = trim($request->input('reason'));
+            $reservation->cancellation_admin_note   = null;
+            $reservation->cancellation_processed_by = null;
+            $reservation->cancellation_requested_at = $now;
+            $reservation->cancellation_processed_at = null;
+            $reservation->save();
+
+            return response()->json([
+                'success'      => true,
+                'message'      => 'Your cancellation request has been submitted. We will get back to you shortly.',
+                'requested_at' => $now->format('M d, Y h:i A'),
+            ]);
+        });
+    }
+
+    /* ════════════════════════════════════════════════════════════════════
+     |  REQUEST FOR CHANGES FLOW  (reschedule + food modification)
+     |  Client submits a change request → admin approves or rejects it.
+     |  Changes are stored on the reservation row — no separate table.
+     ╚═══════════════════════════════════════════════════════════════════ */
+
+    /**
+     * CLIENT: Initiate a Request for Changes by redirecting to the booking flow.
+     *
+     * POST /client/reservations/{id}/initiate-change?type=room|venue
+     * Sets session context and reconstructs food selections (for venues), then
+     * redirects to the room/venue viewing page with existing reservation data
+     * pre-filled — mirroring the checkout "Edit" button flow.
+     */
+    public function initiateChangeRequest(Request $request, $id)
+    {
+        $type = $request->query('type');
+
+        if (!in_array($type, ['room', 'venue'])) {
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Invalid reservation type.');
+        }
+
         try {
             $reservation = ($type === 'room')
                 ? \App\Models\RoomReservation::findOrFail($id)
                 : \App\Models\VenueReservation::findOrFail($id);
         } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
-            return response()->json(['success' => false, 'message' => 'Reservation not found.'], 404);
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Reservation not found.');
         }
 
-        // Verify the reservation belongs to the authenticated client
         if ($reservation->Client_ID !== auth()->id()) {
-            return response()->json(['success' => false, 'message' => 'Unauthorised.'], 403);
+            abort(403, 'Unauthorised.');
         }
 
         $statusCol     = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
         $currentStatus = strtolower($reservation->$statusCol);
 
         if (!in_array($currentStatus, ['pending', 'confirmed'])) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Cancellation requests can only be made for pending or confirmed reservations.',
-            ], 422);
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Change requests can only be made for pending or confirmed reservations.');
         }
 
-        // Reject duplicate pending request
-        if ($reservation->cancellation_status === 'pending') {
-            return response()->json([
-                'success' => false,
-                'message' => 'You already have a pending cancellation request for this reservation.',
-            ], 422);
+        if ($reservation->change_request_status === 'pending') {
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'You already have a pending Request for Changes for this reservation.');
         }
 
-        $reservation->cancellation_status       = 'pending';
-        $reservation->cancellation_reason       = trim($request->input('reason'));
-        $reservation->cancellation_admin_note   = null;
-        $reservation->cancellation_processed_by = null;
-        $reservation->cancellation_requested_at = now();
-        $reservation->cancellation_processed_at = null;
-        $reservation->save();
+        // Store session context so storeChangeRequest knows which reservation this is for
+        session([
+            'change_request_reservation_id'   => (int) $id,
+            'change_request_reservation_type' => $type,
+        ]);
+
+        $checkIn  = $type === 'room'
+            ? $reservation->Room_Reservation_Check_In_Time
+            : $reservation->Venue_Reservation_Check_In_Time;
+        $checkOut = $type === 'room'
+            ? $reservation->Room_Reservation_Check_Out_Time
+            : $reservation->Venue_Reservation_Check_Out_Time;
+        $pax      = $type === 'room'
+            ? ($reservation->Room_Reservation_Pax ?? 1)
+            : ($reservation->Venue_Reservation_Pax ?? 1);
+        $purpose  = $type === 'room'
+            ? ($reservation->Room_Reservation_Purpose ?? '')
+            : ($reservation->Venue_Reservation_Purpose ?? '');
+        $accId    = $type === 'room'
+            ? $reservation->Room_ID
+            : $reservation->Venue_ID;
+
+        // For venues, reconstruct food selections in session so food_option.blade.php pre-fills
+        if ($type === 'venue') {
+            $this->buildFoodEditSession($reservation, $purpose);
+        }
+
+        return redirect()->to(
+            route('client.show', ['category' => $type, 'id' => $accId])
+            . '?' . http_build_query([
+                'check_in'       => Carbon::parse($checkIn)->toDateString(),
+                'check_out'      => Carbon::parse($checkOut)->toDateString(),
+                'pax'            => $pax,
+                'purpose'        => $purpose,
+                'edit'           => '1',
+                'change_request' => '1',
+            ])
+        );
+    }
+
+    /**
+     * CLIENT: Store a submitted Request for Changes.
+     *
+     * POST /client/reservations/store-change-request
+     * Receives full booking form data (same format as booking.prepare / food_option)
+     * then saves it as a pending change request on the reservation row.
+     */
+    public function storeChangeRequest(Request $request)
+    {
+        $id   = session('change_request_reservation_id');
+        $type = session('change_request_reservation_type');
+
+        if (!$id || !in_array($type, ['room', 'venue'])) {
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Invalid change request session. Please try again from My Reservations.');
+        }
+
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($id)
+                : \App\Models\VenueReservation::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Reservation not found.');
+        }
+
+        if ($reservation->Client_ID !== auth()->id()) {
+            session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
+            abort(403, 'Unauthorised.');
+        }
+
+        $statusCol     = $type === 'room' ? 'Room_Reservation_Status' : 'Venue_Reservation_Status';
+        $currentStatus = strtolower($reservation->$statusCol);
+
+        if (!in_array($currentStatus, ['pending', 'confirmed'])) {
+            session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'Change requests can only be made for pending or confirmed reservations.');
+        }
+
+        if ($reservation->change_request_status === 'pending') {
+            session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
+            return redirect()->route('client.my_reservations')
+                ->with('error', 'You already have a pending Request for Changes for this reservation.');
+        }
+
+        // Determine what kind of change is being requested
+        $origCheckIn  = Carbon::parse($type === 'room'
+            ? $reservation->Room_Reservation_Check_In_Time
+            : $reservation->Venue_Reservation_Check_In_Time)->toDateString();
+        $origCheckOut = Carbon::parse($type === 'room'
+            ? $reservation->Room_Reservation_Check_Out_Time
+            : $reservation->Venue_Reservation_Check_Out_Time)->toDateString();
+
+        $newCheckIn  = $request->input('check_in');
+        $newCheckOut = $request->input('check_out');
+
+        $datesChanged = ($newCheckIn  && $newCheckIn  !== $origCheckIn)
+                     || ($newCheckOut && $newCheckOut !== $origCheckOut);
+
+        $hasFood = $type === 'venue' && (
+            !empty($request->input('food_selections',    []))  ||
+            !empty($request->input('food_set_selection', []))
+        );
+
+        if ($type === 'room') {
+            $reqType = 'reschedule';
+        } elseif ($datesChanged && $hasFood) {
+            $reqType = 'reschedule_and_food';
+        } elseif ($datesChanged) {
+            $reqType = 'reschedule';
+        } else {
+            $reqType = 'food_modification';
+        }
+
+        // Build the full details payload that admin will review
+        $details = [
+            'check_in'         => $newCheckIn,
+            'check_out'        => $newCheckOut,
+            'pax'              => $request->input('pax'),
+            'purpose'          => $request->input('purpose'),
+            'accommodation_id' => $request->input('accommodation_id'),
+            'type'             => $type,
+        ];
+
+        if ($type === 'venue') {
+            $details['food_selections']    = $request->input('food_selections',    []);
+            $details['food_set_selection'] = $request->input('food_set_selection', []);
+            $details['food_enabled']       = $request->input('food_enabled',       []);
+            $details['meal_enabled']       = $request->input('meal_enabled',       []);
+            $details['meal_mode']          = $request->input('meal_mode',          []);
+        }
+
+        // Capture food inputs for use inside the closure
+        $foodSelections   = $request->input('food_selections',    []);
+        $foodSetSelection = $request->input('food_set_selection', []);
+        $foodEnabledMap   = $request->input('food_enabled',       []);
+
+        return DB::transaction(function () use (
+            $reservation, $type, $reqType, $details,
+            $newCheckIn, $newCheckOut,
+            $foodSelections, $foodSetSelection, $foodEnabledMap
+        ) {
+            // Re-check inside transaction to prevent races
+            $reservation->refresh();
+
+            if ($reservation->change_request_status === 'pending') {
+                return redirect()->route('client.my_reservations')
+                    ->with('error', 'You already have a pending Request for Changes for this reservation.');
+            }
+
+            // ── Apply date changes immediately ──────────────────────────────────
+            if ($newCheckIn && $newCheckOut) {
+                if ($type === 'room') {
+                    $reservation->Room_Reservation_Check_In_Time  = $newCheckIn;
+                    $reservation->Room_Reservation_Check_Out_Time = $newCheckOut;
+                } else {
+                    $reservation->Venue_Reservation_Check_In_Time  = $newCheckIn;
+                    $reservation->Venue_Reservation_Check_Out_Time = $newCheckOut;
+                }
+            }
+
+            // ── Apply food changes immediately (venue only) ─────────────────────
+            if ($type === 'venue') {
+                $pax = (int) ($reservation->Venue_Reservation_Pax ?? 1);
+
+                // Delete old food records
+                \App\Models\FoodReservation::where(
+                    'Venue_Reservation_ID', $reservation->Venue_Reservation_ID
+                )->delete();
+
+                // Build skip-list: gen_{setId} slots and spiritual meal keys are
+                // handled by the set loop below, not the individual loop.
+                $skipMealKeys = [];
+                foreach ($foodSetSelection as $_d => $_meals) {
+                    foreach ((array) $_meals as $_mk => $_ids) {
+                        $isArr  = is_array($_ids);
+                        $rawIds = $isArr ? $_ids : [$_ids];
+                        foreach ($rawIds as $_id) {
+                            if (!empty($_id)) {
+                                $skipMealKeys[$_d]["gen_{$_id}"] = true;
+                            }
+                        }
+                        if (!$isArr && !empty($_ids)) {
+                            $skipMealKeys[$_d][$_mk] = true;
+                        }
+                    }
+                }
+
+                // ── STEP B: individual food selections ──────────────────────────
+                if (!empty($foodSelections)) {
+                    $extractFoodIds = function ($data) use (&$extractFoodIds) {
+                        $ids = [];
+                        if (is_array($data)) {
+                            foreach ($data as $k => $v) {
+                                if ($k === 'drink_choice') continue;
+                                $ids = array_merge($ids, $extractFoodIds($v));
+                            }
+                        } elseif (is_numeric($data) && !empty($data)) {
+                            $ids[] = (int) $data;
+                        }
+                        return $ids;
+                    };
+
+                    foreach ($foodSelections as $date => $meals) {
+                        foreach ($meals as $mealType => $mealData) {
+                            if (empty($mealData)) continue;
+                            if (!empty($skipMealKeys[$date][$mealType])) continue;
+
+                            $foodIds = $extractFoodIds($mealData);
+                            foreach ($foodIds as $foodId) {
+                                $food = Food::find($foodId);
+                                if ($food) {
+                                    FoodReservation::create([
+                                        'Food_ID'                       => $foodId,
+                                        'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                        'Client_ID'                     => $reservation->Client_ID,
+                                        'Food_Reservation_Serving_Date' => $date,
+                                        'Food_Reservation_Meal_time'    => $mealType,
+                                        'Food_Reservation_Total_Price'  => ($food->Food_Price ?? 0) * $pax,
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ── STEP C: food SET selections ─────────────────────────────────
+                if (!empty($foodSetSelection)) {
+                    foreach ($foodSetSelection as $date => $meals) {
+                        if (($foodEnabledMap[$date] ?? '1') != '1') continue;
+
+                        foreach ((array) $meals as $mealKey => $setIdOrIds) {
+                            $isGeneralSet = is_array($setIdOrIds);
+                            $setIds       = $isGeneralSet ? $setIdOrIds : [$setIdOrIds];
+
+                            foreach ($setIds as $setId) {
+                                if (empty($setId)) continue;
+
+                                $set = FoodSet::find((int) $setId);
+                                if (!$set) continue;
+
+                                if ($isGeneralSet) {
+                                    $genKey    = "gen_{$setId}";
+                                    $genSel    = $foodSelections[$date][$genKey] ?? [];
+                                    $riceId    = (string) ($genSel['rice']    ?? '');
+                                    $dessertId = (string) ($genSel['dessert'] ?? '');
+                                    $fruitId   = '';
+
+                                    $drinkVal = $genSel['drink'] ?? ($genSel['drink_choice'] ?? '');
+                                    if (is_numeric($drinkVal) && !empty($drinkVal)) {
+                                        $drinksId = (string) $drinkVal;
+                                    } elseif (!empty($drinkVal)) {
+                                        $drinkTxt  = strtolower(trim((string) $drinkVal));
+                                        $drinkFood = Food::where(function ($q) use ($drinkTxt) {
+                                            $q->where('Food_Name', 'ILIKE', $drinkTxt . '%')
+                                              ->orWhere('Food_Name', 'ILIKE', '%' . $drinkTxt . '%');
+                                        })->first();
+                                        $drinksId = $drinkFood ? (string) $drinkFood->Food_ID : '';
+                                    } else {
+                                        $drinksId = '';
+                                    }
+                                } else {
+                                    $mealSel   = $foodSelections[$date][$mealKey] ?? [];
+                                    $riceId    = (string) ($mealSel['rice_type']  ?? '');
+                                    $drinksId  = (string) ($mealKey === 'breakfast'
+                                        ? ($mealSel['hot_drink']  ?? '')
+                                        : ($mealSel['softdrinks'] ?? ''));
+                                    $dessertId = (string) ($mealSel['dessert'] ?? '');
+                                    $fruitId   = (string) ($mealSel['fruits']  ?? '');
+                                }
+
+                                $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                                $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
+
+                                FoodReservation::create([
+                                    'Food_ID'                       => null,
+                                    'Food_Set_ID'                   => $foodSetIdText,
+                                    'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                    'Client_ID'                     => $reservation->Client_ID,
+                                    'Food_Reservation_Serving_Date' => $date,
+                                    'Food_Reservation_Meal_time'    => $mealKey,
+                                    'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * $pax,
+                                ]);
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ── Mark as pending change request (admin reviews) ──────────────────
+            $reservation->change_request_status       = 'pending';
+            $reservation->change_request_type         = $reqType;
+            $reservation->change_request_reason       = null;
+            $reservation->change_request_details      = $details;
+            $reservation->change_request_admin_note   = null;
+            $reservation->change_request_processed_by = null;
+            $reservation->change_request_requested_at = Carbon::now();
+            $reservation->change_request_processed_at = null;
+            $reservation->save();
+
+            session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
+
+            return redirect()->route('client.my_reservations')
+                ->with('success', 'Your Request for Changes has been submitted. Our team will review it shortly.');
+        });
+    }
+
+    /**
+     * Reconstruct the food-edit session keys from an existing venue reservation's
+     * FoodReservation rows so that food_option.blade.php can pre-fill the UI.
+     *
+     * Session keys written (matching what editCartItem() writes):
+     *   edit_food_selections  — food_selections[date][meal][slot] = food_id
+     *   edit_food_enabled     — food_enabled[date] = '1'
+     *   edit_meal_enabled     — meal_enabled[date][meal] = '1'
+     *   edit_set_selections   — food_set_selection[date][meal] = setId (spiritual)
+     *                           food_set_selection[date][meal][] = setId (general)
+     *   edit_meal_mode        — meal_mode[date][meal] = 'set'|'individual'
+     */
+    private function buildFoodEditSession(\App\Models\VenueReservation $reservation, string $purpose): void
+    {
+        $isSpiritual = in_array(strtolower($purpose), ['retreat', 'recollection']);
+
+        $foodSelections   = [];
+        $foodEnabled      = [];
+        $mealEnabled      = [];
+        $foodSetSelection = [];
+        $mealMode         = [];
+
+        // ── SET-based food reservations ─────────────────────────────────────────
+        foreach ($reservation->foodSetReservations()->get() as $row) {
+            $parsed    = $row->parseFoodSetId();
+            $setId     = $parsed['set_id'];
+            $customIds = $parsed['custom_ids']; // [riceId, drinksId, dessertId, fruitId]
+            $date      = $row->Food_Reservation_Serving_Date;
+            $mealKey   = $row->Food_Reservation_Meal_time;
+
+            if (!$setId) continue;
+
+            $foodEnabled[$date]           = '1';
+            $mealEnabled[$date][$mealKey] = '1';
+            $mealMode[$date][$mealKey]    = 'set';
+
+            if ($isSpiritual) {
+                // Spiritual: one set per meal, customisations stored under the mealKey
+                $foodSetSelection[$date][$mealKey] = (string) $setId;
+
+                $riceId    = $customIds[0] ?? '';
+                $drinksId  = $customIds[1] ?? '';
+                $dessertId = $customIds[2] ?? '';
+                $fruitId   = $customIds[3] ?? '';
+
+                $foodSelections[$date][$mealKey]['rice_type'] = $riceId;
+                $foodSelections[$date][$mealKey]['dessert']   = $dessertId;
+                $foodSelections[$date][$mealKey]['fruits']    = $fruitId;
+
+                if ($mealKey === 'breakfast') {
+                    $foodSelections[$date][$mealKey]['hot_drink']  = $drinksId;
+                } else {
+                    $foodSelections[$date][$mealKey]['softdrinks'] = $drinksId;
+                }
+            } else {
+                // General: multiple sets per meal, customisations stored under gen_{setId}
+                if (!isset($foodSetSelection[$date][$mealKey])) {
+                    $foodSetSelection[$date][$mealKey] = [];
+                }
+                $foodSetSelection[$date][$mealKey][] = (string) $setId;
+
+                $riceId    = $customIds[0] ?? '';
+                $drinksId  = $customIds[1] ?? '';
+                $dessertId = $customIds[2] ?? '';
+
+                // Store drink as Food_ID directly — matches what restoreGeneralSets() in JS expects
+                $genKey = "gen_{$setId}";
+                $foodSelections[$date][$genKey]['rice']    = $riceId;
+                $foodSelections[$date][$genKey]['dessert'] = $dessertId;
+                $foodSelections[$date][$genKey]['drink']   = $drinksId;
+            }
+        }
+
+        // ── INDIVIDUAL food reservations ────────────────────────────────────────
+        foreach ($reservation->foods()->get() as $food) {
+            $date    = $food->pivot->Food_Reservation_Serving_Date;
+            $mealKey = $food->pivot->Food_Reservation_Meal_time;
+            $foodId  = (string) $food->Food_ID;
+            $cat     = strtolower($food->Food_Category ?? '');
+
+            $foodEnabled[$date]           = '1';
+            $mealEnabled[$date][$mealKey] = '1';
+            // Only set to individual if not already marked as set for this slot
+            if (!isset($mealMode[$date][$mealKey])) {
+                $mealMode[$date][$mealKey] = 'individual';
+            }
+
+            // Snack meal keys use a fixed session key regardless of Food_Category
+            if (in_array($mealKey, ['am_snack', 'pm_snack'])) {
+                // Spiritual snack: single-select stored as food_selections[date][am_snack|pm_snack][snacks]
+                $foodSelections[$date][$mealKey]['snacks'] = $foodId;
+            } elseif ($mealKey === 'snacks') {
+                // General / individual snack: multi-select stored as food_selections[date][snacks][]
+                $foodSelections[$date]['snacks'][] = $foodId;
+            } elseif ($cat === 'rice') {
+                $foodSelections[$date][$mealKey]['rice'] = $foodId;
+            } elseif (in_array($cat, ['viand', 'side dish', 'sides', 'main'])) {
+                if (empty($foodSelections[$date][$mealKey]['viand1'])) {
+                    $foodSelections[$date][$mealKey]['viand1'] = $foodId;
+                } elseif (empty($foodSelections[$date][$mealKey]['viand2'])) {
+                    $foodSelections[$date][$mealKey]['viand2'] = $foodId;
+                } else {
+                    $foodSelections[$date][$mealKey]['extra_viands'][] = $foodId;
+                }
+            } elseif (in_array($cat, ['drinks', 'drink'])) {
+                $foodSelections[$date][$mealKey]['drink'] = $foodId;
+            } elseif (in_array($cat, ['dessert', 'desserts'])) {
+                $foodSelections[$date][$mealKey]['desserts'][] = $foodId;
+            } else {
+                // Fallback: extra viand
+                $foodSelections[$date][$mealKey]['extra_viands'][] = $foodId;
+            }
+        }
+
+        session([
+            'edit_food_selections' => $foodSelections,
+            'edit_food_enabled'    => $foodEnabled,
+            'edit_meal_enabled'    => $mealEnabled,
+            'edit_set_selections'  => $foodSetSelection,
+            'edit_meal_mode'       => $mealMode,
+        ]);
+    }
+
+    /**
+     * ADMIN/STAFF: Get the change request data for a specific reservation.
+     *
+     * GET /employee/reservations/{id}/change-request?type=room|venue
+     */
+    public function getChangeRequest(Request $request, $id)
+    {
+        $type = $request->query('type');
+
+        if (!in_array($type, ['room', 'venue'])) {
+            return response()->json(['error' => 'Invalid type.'], 422);
+        }
+
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($id)
+                : \App\Models\VenueReservation::findOrFail($id);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['request' => null]);
+        }
+
+        if (!$reservation->change_request_status) {
+            return response()->json(['request' => null]);
+        }
+
+        $pkCol = $type === 'room' ? 'Room_Reservation_ID' : 'Venue_Reservation_ID';
 
         return response()->json([
-            'success' => true,
-            'message' => 'Your cancellation request has been submitted. We will get back to you shortly.',
+            'request' => [
+                'id'           => $reservation->$pkCol,
+                'status'       => $reservation->change_request_status,
+                'request_type' => $reservation->change_request_type,
+                'reason'       => $reservation->change_request_reason,
+                'details'      => $reservation->change_request_details,
+                'admin_note'   => $reservation->change_request_admin_note,
+                'created_at'   => $reservation->change_request_requested_at
+                                      ? Carbon::parse($reservation->change_request_requested_at)->format('M d, Y h:i A')
+                                      : null,
+            ],
+        ]);
+    }
+
+    /**
+     * ADMIN/STAFF: Approve or reject a Request for Changes.
+     *
+     * POST /employee/change-requests/{reservationId}/process
+     * Body: decision=approved|rejected, res_type=room|venue, admin_note (optional)
+     *
+     * On approval, the new check-in / check-out dates from change_request_details
+     * are applied to the reservation row.  Food changes are noted in the admin_note
+     * for manual processing.
+     */
+    public function processChangeRequest(Request $request, $reservationId)
+    {
+        $request->validate([
+            'decision'   => 'required|in:approved,rejected',
+            'res_type'   => 'required|in:room,venue',
+            'admin_note' => 'nullable|string|max:500',
+        ]);
+
+        $type     = $request->input('res_type');
+        $decision = $request->input('decision');
+
+        try {
+            $reservation = ($type === 'room')
+                ? \App\Models\RoomReservation::findOrFail($reservationId)
+                : \App\Models\VenueReservation::findOrFail($reservationId);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['success' => false, 'message' => 'Reservation not found.'], 404);
+        }
+
+        if ($reservation->change_request_status !== 'pending') {
+            return response()->json(['success' => false, 'message' => 'This request has already been processed.'], 422);
+        }
+
+        DB::transaction(function () use ($reservation, $type, $decision, $request) {
+            $reservation->change_request_status       = $decision;
+            $reservation->change_request_admin_note   = $request->input('admin_note');
+            $reservation->change_request_processed_by = auth()->id();
+            $reservation->change_request_processed_at = Carbon::now();
+
+            // On approval, apply the date changes from the stored details payload
+            if ($decision === 'approved') {
+                $details   = $reservation->change_request_details ?? [];
+                $reqType   = $reservation->change_request_type ?? '';
+
+                if (in_array($reqType, ['reschedule', 'reschedule_and_food']) && !empty($details['check_in']) && !empty($details['check_out'])) {
+                    if ($type === 'room') {
+                        $reservation->Room_Reservation_Check_In_Time  = $details['check_in'];
+                        $reservation->Room_Reservation_Check_Out_Time = $details['check_out'];
+                    } else {
+                        $reservation->Venue_Reservation_Check_In_Time  = $details['check_in'];
+                        $reservation->Venue_Reservation_Check_Out_Time = $details['check_out'];
+                    }
+                }
+                // Food modifications are shown in the details for manual admin action
+                // (food reservation rows require the full food booking logic to update)
+            }
+
+            $reservation->save();
+        });
+
+        $label = $decision === 'approved' ? 'approved' : 'rejected';
+
+        return response()->json([
+            'success'  => true,
+            'message'  => "Request for Changes {$label} successfully.",
+            'decision' => $decision,
         ]);
     }
 

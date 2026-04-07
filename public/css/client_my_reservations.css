@@ -239,6 +239,16 @@
   width: 100%;
 }
 
+/* Change request pending badge — indigo/blue, mirrors the admin change-requested card */
+.status-badge.client-change-req-badge {
+  background-color: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #818cf8;
+  font-size: 11px;
+  padding: 3px 10px;
+  width: 100%;
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .header-container {

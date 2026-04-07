@@ -115,7 +115,9 @@
                   {{-- Reservation status badge --}}
                   @if($status)
                     @if($res->cancellation_status === 'pending')
-                      <span class="status-badge client-cancel-req-badge">⏳ Cancel Request</span>
+                      <span class="status-badge client-cancel-req-badge">⏳ Cancellation Request</span>
+                    @elseif($res->change_request_status === 'pending')
+                      <span class="status-badge client-change-req-badge">🔄 Pending Change Request</span>
                     @else
                       <span class="status-badge {{ strtolower($status) }}">
                         {{ ucfirst($status) }}
@@ -199,7 +201,25 @@
                     })->toArray();
 
                     $resTotalRaw   = $res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0;
-                    $resVenueTotal = max(0, $resTotalRaw - $resFoodTotal);
+
+                    // Compute accommodation cost = rate × nights/days (internal or external)
+                    $resCheckIn    = \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time);
+                    $resCheckOut   = \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time);
+                    $resNights     = max(1, $resCheckIn->diffInDays($resCheckOut));
+                    $resClientType = auth()->user()->Account_Type ?? 'External';
+                    if ($res->type === 'room' && $res->room) {
+                        $resRate = ($resClientType === 'Internal')
+                            ? ($res->room->Room_Internal_Price ?? 0)
+                            : ($res->room->Room_External_Price ?? 0);
+                    } elseif ($res->type === 'venue' && $res->venue) {
+                        $resRate = ($resClientType === 'Internal')
+                            ? ($res->venue->Venue_Internal_Price ?? 0)
+                            : ($res->venue->Venue_External_Price ?? 0);
+                    } else {
+                        $resRate = 0;
+                    }
+                    $resAccommodationTotal = $resRate * $resNights;
+                    $resVenueTotal         = $resAccommodationTotal; // rate × days (venue)
                     $resPurpose    = $res->Room_Reservation_Purpose ?? $res->Venue_Reservation_Purpose ?? null;
                 @endphp
 
@@ -217,12 +237,17 @@
                         'total'               => number_format($resTotalRaw, 2),
                         'food_total'          => number_format($resFoodTotal, 2),
                         'venue_total'         => number_format($resVenueTotal, 2),
+                        'accommodation_total' => number_format($resAccommodationTotal, 2),
+                        'rate_per_night'      => number_format($resRate, 2),
+                        'nights_or_days'      => $resNights,
                         'payment_status'      => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
                         'foods'               => $res->type === 'venue' ? ($res->foods ?? []) : [],
                         'food_set_rows'       => $foodSetRows ?? [],
                         'purpose'             => $resPurpose,
-                        'status'              => $res->status,
-                        'cancellation_status' => $res->cancellation_status,
+                        'status'               => $res->status,
+                        'cancellation_status'  => $res->cancellation_status,
+                        'change_request_status'=> $res->change_request_status,
+                        'change_request_type'  => $res->change_request_type,
                     ]) }}">
                     ⤡
                 </button>

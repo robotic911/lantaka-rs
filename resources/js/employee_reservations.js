@@ -2,6 +2,39 @@ let currentNights = 1;
 let currentDays = 1;
 let mode = "";
 
+// ── Discount state ───────────────────────────────────────────────────────────
+let _discType      = 'none';  // 'none' | 'pwd' | 'senior' | 'others'
+let _discMode      = 'pct';   // 'pct'  | 'flat'  — only used for 'others'
+let _discOthersVal = 0;
+
+/**
+ * Compute the peso discount amount from current state and update the hidden
+ * #discount input.  Returns the computed peso amount.
+ */
+function computeDiscount() {
+  // Discount applies to accommodation cost ONLY — not food or additional fees
+  const base       = parseFloat(document.getElementById('unit-price')?.textContent.replace(/[^\d.-]/g, '')) || 0;
+  const multiplier = mode === 'venue' ? currentDays : currentNights;
+  const accomCost  = base * multiplier;  // room/venue cost only
+
+  let disc = 0;
+  if (_discType === 'pwd' || _discType === 'senior') {
+    disc = accomCost * 0.20;
+    const autoComputed = document.getElementById('discAutoComputed');
+    if (autoComputed) {
+      autoComputed.textContent = `₱ ${disc.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+  } else if (_discType === 'others') {
+    disc = _discMode === 'pct'
+      ? accomCost * (_discOthersVal / 100)
+      : _discOthersVal;
+  }
+
+  const discInput = document.getElementById('discount');
+  if (discInput) discInput.value = disc.toFixed(2);
+  return disc;
+}
+
 
 document.addEventListener('DOMContentLoaded', () => {
   const expandButtons = document.querySelectorAll('.expand-btn');
@@ -18,14 +51,9 @@ document.addEventListener('DOMContentLoaded', () => {
   // --- 1. GLOBAL CALCULATION LOGIC ---
   window.calculateLiveTotal = () => {
     const unitPriceEl = document.getElementById('unit-price');
-    // Improved regex to handle the ₱ symbol and commas
     const base = unitPriceEl ? (parseFloat(unitPriceEl.textContent.replace(/[^\d.-]/g, '')) || 0) : 0;
     const foodEl = document.getElementById('summaryFood');
     const food = foodEl ? (parseFloat(foodEl.textContent.replace(/[^\d.-]/g, '')) || 0) : 0;
-    // const days = document.getElementById('');
-
-    const discInput = document.getElementById('discount');
-    const disc = discInput ? (parseFloat(discInput.value) || 0) : 0;
 
     let extra = 0;
     document.querySelectorAll('input[name="additional_fees[]"]').forEach(input => {
@@ -34,31 +62,78 @@ document.addEventListener('DOMContentLoaded', () => {
       const qty = qtyInput ? (parseFloat(qtyInput.value) || 1) : 1;
       extra += (parseFloat(input.value) || 0) * qty;
     });
-    let multiplier = mode == "venue" ? currentDays : currentNights;
-    const totalPriceWithCurrenNights = base * multiplier;
+
+    const multiplier = mode === 'venue' ? currentDays : currentNights;
+    const totalPriceWithCurrentNights = base * multiplier;
     const modalNightsEl = document.getElementById('night-price');
-    if (modalNightsEl) modalNightsEl.textContent =  `₱${Number(totalPriceWithCurrenNights).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (modalNightsEl) {
+      modalNightsEl.textContent = `₱${Number(totalPriceWithCurrentNights).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
 
+    // Read the current discount from the hidden input (set by computeDiscount() or
+    // pre-populated from the DB when the modal opens) — do NOT call computeDiscount()
+    // here to avoid wiping the saved value while populating the modal.
+    const discInputCurrent = document.getElementById('discount');
+    const disc = discInputCurrent ? (parseFloat(discInputCurrent.value) || 0) : 0;
 
-    console.log(mode + multiplier);
+    const grandTotal = totalPriceWithCurrentNights + food + extra - disc;
 
-    const grandTotal = ((base * multiplier) + food + extra) - disc;
+    console.log(`Calc: Base(${base}) × ${multiplier} + Food(${food}) + Extra(${extra}) - Disc(${disc}) = ${grandTotal}`);
 
-    // Debugging: Check your F12 console to see these numbers!
-    console.log(`Calculation: Base(${base}) + Food(${food}) + Extra(${extra}) - Disc(${disc}) = ${grandTotal}`);
-
-    const summaryExtra = document.getElementById('summaryExtra');
-    if (summaryExtra) summaryExtra.textContent = `₱ ${extra.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
-
+    const summaryExtra    = document.getElementById('summaryExtra');
     const summaryDiscount = document.getElementById('summaryDiscount');
-    if (summaryDiscount) summaryDiscount.textContent = `₱ ${disc.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    const totalAmountEl   = document.getElementById('totalAmount');
 
-    const totalAmountEl = document.getElementById('totalAmount');
-    if (totalAmountEl) totalAmountEl.textContent = `₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
+    if (summaryExtra)    summaryExtra.textContent    = `₱ ${extra.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (summaryDiscount) summaryDiscount.textContent = `₱ ${disc.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    if (totalAmountEl)   totalAmountEl.textContent   = `₱${grandTotal.toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  if (discInput) {
-    discInput.addEventListener('input', window.calculateLiveTotal);
+  // ── Discount widget event wiring ─────────────────────────────────────────
+  const discountTypeEl = document.getElementById('discountType');
+  const discAutoRow    = document.getElementById('discAutoRow');
+  const discAutoLabel  = document.getElementById('discAutoLabel');
+  const discOthersRow  = document.getElementById('discOthersRow');
+  const discOthersValEl = document.getElementById('discOthersValue');
+  const discModePctBtn  = document.getElementById('discModePct');
+  const discModeFlatBtn = document.getElementById('discModeFlat');
+
+  if (discountTypeEl) {
+    discountTypeEl.addEventListener('change', () => {
+      _discType = discountTypeEl.value;
+      if (discAutoRow)   discAutoRow.style.display   = (_discType === 'pwd' || _discType === 'senior') ? '' : 'none';
+      if (discOthersRow) discOthersRow.style.display = _discType === 'others' ? 'flex' : 'none';
+      if (discAutoLabel) discAutoLabel.textContent   = _discType === 'pwd' ? 'PWD' : 'Senior Citizen';
+      // Reset others value when switching away from 'others'
+      if (_discType !== 'others') { _discOthersVal = 0; }
+      computeDiscount();           // ← write updated peso amount into #discount
+      window.calculateLiveTotal(); // ← now reads the correct value and updates summary
+    });
+  }
+  if (discModePctBtn) {
+    discModePctBtn.addEventListener('click', () => {
+      _discMode = 'pct';
+      discModePctBtn.classList.add('active');
+      if (discModeFlatBtn) discModeFlatBtn.classList.remove('active');
+      computeDiscount();
+      window.calculateLiveTotal();
+    });
+  }
+  if (discModeFlatBtn) {
+    discModeFlatBtn.addEventListener('click', () => {
+      _discMode = 'flat';
+      discModeFlatBtn.classList.add('active');
+      if (discModePctBtn) discModePctBtn.classList.remove('active');
+      computeDiscount();
+      window.calculateLiveTotal();
+    });
+  }
+  if (discOthersValEl) {
+    discOthersValEl.addEventListener('input', () => {
+      _discOthersVal = parseFloat(discOthersValEl.value) || 0;
+      computeDiscount();
+      window.calculateLiveTotal();
+    });
   }
 
   // --- 2. MODAL POPULATION ---
@@ -195,6 +270,11 @@ document.addEventListener('DOMContentLoaded', () => {
         loadCancellationBanner(data.id, data.res_type, data.status);
       }
 
+      // Load Request for Changes banner (if any pending change request)
+      if (typeof loadChangeRequestBanner === 'function') {
+        loadChangeRequestBanner(data.id, data.res_type, data.status);
+      }
+
       const currentStatus  = data.status          ? data.status.toLowerCase().trim()          : '';
       const currentPayment = data.payment_status  ? data.payment_status.toLowerCase().trim() : '';
 
@@ -277,11 +357,31 @@ document.addEventListener('DOMContentLoaded', () => {
         showAddChSection.style.display = 'flex';
       }
 
-      if (currentStatus === 'checked-in' && checkAccomodation === 'Venue') {
+      // Discounts apply to both Room and Venue reservations when checked-in
+      if (currentStatus === 'checked-in') {
         discountSection.classList.remove('none');
       } else {
         discountSection.classList.add('none');
       }
+
+      // ── Pending request lock ──────────────────────────────────────────────
+      // If a cancellation OR change request is pending approval, hide ALL
+      // action panels and the Edit button so the admin cannot take other
+      // actions until the request is resolved via the banner above.
+      const hasPendingRequest =
+        (data.cancellation_status  || '').toLowerCase() === 'pending' ||
+        (data.change_request_status || '').toLowerCase() === 'pending';
+
+      if (hasPendingRequest) {
+        ['pendingActions', 'confirmedActions', 'checkedInActions',
+         'checkedOutUnpaidActions', 'checkedOutPaidActions'].forEach(panelId => {
+          const panel = document.getElementById(panelId);
+          if (panel) panel.style.display = 'none';
+        });
+        const editLinkEl = document.querySelector('#editLink');
+        if (editLinkEl) editLinkEl.style.display = 'none';
+      }
+      // ─────────────────────────────────────────────────────────────────────
 
       console.log(data);
 
@@ -327,12 +427,42 @@ document.addEventListener('DOMContentLoaded', () => {
       const summaryFoodEl = document.getElementById('summaryFood');
       if (summaryFoodEl) summaryFoodEl.textContent = `₱${parseFloat(foodTotal).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2})}`;
 
-      // 3. Fix the Discount (Targets both possible ID variations safely)
-      const discountValue = data.discount || 0;
-      const discInputEl = document.getElementById('discount');
-      const discInputAlt = document.getElementById('discountInput');
-      if (discInputEl) discInputEl.value = discountValue;
-      if (discInputAlt) discInputAlt.value = discountValue;
+      // 3. Populate the discount widget from the saved DB value
+      const discountValue  = parseFloat(data.discount) || 0;
+      const discInputEl    = document.getElementById('discount');
+      if (discInputEl) discInputEl.value = discountValue.toFixed(2);
+
+      // Reset widget state first
+      _discType      = 'none';
+      _discMode      = 'flat';
+      _discOthersVal = 0;
+
+      const _discTypeEl    = document.getElementById('discountType');
+      const _discAutoRow   = document.getElementById('discAutoRow');
+      const _discOthersRow = document.getElementById('discOthersRow');
+      const _discOthersValEl = document.getElementById('discOthersValue');
+      const _discModePctBtn  = document.getElementById('discModePct');
+      const _discModeFlatBtn = document.getElementById('discModeFlat');
+
+      if (_discTypeEl) _discTypeEl.value = 'none';
+      if (_discAutoRow)   _discAutoRow.style.display   = 'none';
+      if (_discOthersRow) _discOthersRow.style.display = 'none';
+
+      if (discountValue > 0) {
+        // Pre-fill as "Others / flat peso" so the employee can see and edit the saved discount
+        _discType      = 'others';
+        _discMode      = 'flat';
+        _discOthersVal = discountValue;
+        if (_discTypeEl)    _discTypeEl.value              = 'others';
+        if (_discOthersRow) _discOthersRow.style.display   = 'flex';
+        if (_discOthersValEl) _discOthersValEl.value       = discountValue.toFixed(2);
+        if (_discModeFlatBtn) _discModeFlatBtn.classList.add('active');
+        if (_discModePctBtn)  _discModePctBtn.classList.remove('active');
+      } else {
+        if (_discModePctBtn)  _discModePctBtn.classList.add('active');
+        if (_discModeFlatBtn) _discModeFlatBtn.classList.remove('active');
+        if (_discOthersValEl) _discOthersValEl.value = '';
+      }
 
       // 4. Update the Account ID
       const userIdEl = document.getElementById('userId');
@@ -828,23 +958,24 @@ function renderFoodTables(foods) {
 window.saveModificationsAndSubmit = function (e) {
   e.preventDefault();
 
+  // Ensure the #discount hidden input holds the latest computed value before submit
+  computeDiscount();
+
   console.log(
     'Descriptions:',
     [...document.querySelectorAll('input[name="additional_fees_desc[]"]')].map(i => i.value)
   );
-
   console.log(
     'Amounts:',
     [...document.querySelectorAll('input[name="additional_fees[]"]')].map(i => i.value)
   );
-
   console.log(
     'Qtys:',
     [...document.querySelectorAll('input[name="additional_fees_qty[]"]')].map(i => i.value)
   );
-
   console.log('reservation_id:', document.getElementById('modalResId')?.value);
   console.log('res_type:', document.getElementById('modalResType')?.value);
+  console.log('discount:', document.getElementById('discount')?.value);
 
   const modificationForm = document.getElementById('modificationForm');
   if (modificationForm) {
