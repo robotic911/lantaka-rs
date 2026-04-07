@@ -247,7 +247,7 @@
                     </div>
                     <div class="cal-export-fields" style="margin-top:8px;">
                         <div class="cal-export-field" style="flex:1;">
-                            <label for="calExportType">Reservation Type</label>
+                            <label for="calExportType">Reservation Type <span style="font-size:10px;color:#888;">(CSV only)</span></label>
                             <select id="calExportType">
                                 <option value="all">All</option>
                                 <option value="room">Rooms Only</option>
@@ -373,7 +373,7 @@
         document.getElementById('calExportPdfBtn')
             ?.addEventListener('click', () => {
                 calModal.style.display = 'none';
-                window.location.href = `${window.calendarExportPDFRoute}?${calExportParams(true)}`;
+                window.location.href = `${window.calendarExportPDFRoute}?${calExportParams()}`;
             });
 
         document.getElementById('calExportCsvBtn')
@@ -567,55 +567,41 @@
             }, 620, 500);
         }
 
-        /* ── Grouped Bar: Room Types vs Venue (reservations only) ── */
+        /* ── Grouped Bar: Rooms vs Venues (reservations only) ── */
         async function buildComparisonChart(data) {
-            // Build one dataset per room type + one for Venue
-            const roomTypes  = data.roomTypeBreakdown || [];
-            const venueRow   = data.venueTypeRow      || { type: 'Venue', bookings: data.venueCount || 0 };
-
-            const typeColors = [
-                ['rgba(99,153,243,0.82)',  '#6199f3'],
-                ['rgba(52,211,153,0.82)',  '#34d399'],
-                ['rgba(251,191,36,0.82)',  '#fbbf24'],
-                ['rgba(248,113,113,0.82)', '#f87171'],
-                ['rgba(167,139,250,0.82)', '#a78bfa'],
-                ['rgba(45,212,191,0.82)',  '#2dd4bf'],
-            ];
-
-            const datasets = roomTypes.map((rt, i) => ({
-                label: rt.type,
-                data: [rt.bookings],
-                backgroundColor: (typeColors[i] || typeColors[0])[0],
-                borderColor:     (typeColors[i] || typeColors[0])[1],
-                borderWidth: 1.5,
-                borderRadius: 5,
-            }));
-
-            datasets.push({
-                label: 'Venue',
-                data: [venueRow.bookings],
-                backgroundColor: 'rgba(163,148,234,0.82)',
-                borderColor: '#a394ea',
-                borderWidth: 1.5,
-                borderRadius: 5,
-            });
-
             return chartToImage({
                 type: 'bar',
                 data: {
                     labels: ['Checked-out Bookings'],
-                    datasets,
+                    datasets: [
+                        {
+                            label: 'Rooms',
+                            data: [data.roomCount],
+                            backgroundColor: 'rgba(99,153,243,0.82)',
+                            borderColor: '#6199f3',
+                            borderWidth: 1.5,
+                            borderRadius: 5,
+                        },
+                        {
+                            label: 'Venues',
+                            data: [data.venueCount],
+                            backgroundColor: 'rgba(163,148,234,0.82)',
+                            borderColor: '#a394ea',
+                            borderWidth: 1.5,
+                            borderRadius: 5,
+                        }
+                    ]
                 },
                 options: {
                     animation: { duration: 0 },
                     responsive: false,
                     layout: { padding: { top: 8, right: 16, bottom: 8, left: 8 } },
                     plugins: {
-                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 10, usePointStyle: true } },
+                        legend: { position: 'top', labels: { font: { size: 12, weight: '600' }, padding: 14, usePointStyle: true } },
                         title: {
                             display: true,
-                            text: 'Room Types vs. Venue — Checked-out Reservations',
-                            font: { size: 13, weight: 'bold' },
+                            text: 'Rooms vs. Venues — Checked-out Reservations',
+                            font: { size: 14, weight: 'bold' },
                             color: '#1a3a7a',
                             padding: { top: 4, bottom: 10 }
                         }
@@ -719,7 +705,7 @@
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(17);
             pdf.setTextColor(...C.white);
-            T(safeText(data.monthLabel).toUpperCase(), W - 14, 13, { align: 'left' });
+            T(safeText(data.monthLabel).toUpperCase(), W - 14, 13, { align: 'right' });
 
             // Generated date (right)
             pdf.setFont('helvetica', 'normal');
@@ -824,7 +810,7 @@
             pdf.addImage(donutImg, 'PNG', 14,            24, chartW, 84);
             pdf.addImage(barImg,   'PNG', 14 + chartW + 8, 24, chartW, 84);
 
-            /* ── Top 10 Clients Table (y: 113–195) ── */
+            /* ── Top Accommodations Table (y: 113–195) ── */
             const tY    = 113;
             const tW    = W - 28;
 
@@ -832,14 +818,18 @@
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(10);
             pdf.setTextColor(...C.blue);
-            T('Top 10 Clients', 14, tY);
+            T('Top Performing Accommodations', 14, tY);
 
-            const topItems = (data.topClients || []).slice(0, 10);
+            const topItems = [
+                ...data.topRooms.map(r  => ({ ...r, type: 'Room'  })),
+                ...data.topVenues.map(v => ({ ...v, type: 'Venue' })),
+            ].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
 
             // Table column definitions
             const cols = [
                 { header: '#',        w: 9,  align: 'center' },
-                { header: 'Client Name', w: 96, align: 'left' },
+                { header: 'Name',     w: 70, align: 'left'   },
+                { header: 'Type',     w: 26, align: 'center' },
                 { header: 'Bookings', w: 28, align: 'center' },
                 { header: 'Revenue',  w: 44, align: 'right'  },
             ];
@@ -879,16 +869,27 @@
                         pdf.rect(14, rowY - 4, tW, 7, 'F');
                     }
 
+                    // Type badge color
+                    const badgeColor = item.type === 'Room' ? [99, 153, 243] : [163, 148, 234];
+                    pdf.setFillColor(...badgeColor);
+                    const typeX = 14 + cols[0].w + cols[1].w;
+                    pdf.roundedRect(typeX + 2, rowY - 3.5, cols[2].w - 4, 5.5, 1.5, 1.5, 'F');
+
                     pdf.setTextColor(50, 55, 70);
                     let rx = 14;
                     const rowData = [
                         String(idx + 1),
                         safeText(item.name),
+                        safeText(item.type),
                         String(item.bookings),
                         peso(item.revenue)
                     ];
                     cols.forEach((col, ci) => {
-                        pdf.setTextColor(50, 55, 70);
+                        if (ci === 2) {
+                            pdf.setTextColor(255, 255, 255);
+                        } else {
+                            pdf.setTextColor(50, 55, 70);
+                        }
                         const tx = col.align === 'right'  ? rx + col.w - 2 :
                                    col.align === 'center' ? rx + col.w / 2 : rx + 2;
                         T(rowData[ci], tx, rowY, { align: col.align === 'center' ? 'center' : col.align === 'right' ? 'right' : 'left' });
