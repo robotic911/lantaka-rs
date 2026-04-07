@@ -16,7 +16,7 @@ class FoodController extends Controller
     {
         $request->validate([
             'Food_Name'     => 'required|string|max:50|unique:Food,Food_Name',
-            'Food_Category' => 'required|string|in:rice,viand,sidedish,drinks,desserts,fruits,snacks',
+            'Food_Category' => 'required|string|in:rice,meatviand,noodleviand,veggieviand,drinks,desserts,fruits,snacks',
             'Food_Price'    => 'required|numeric|min:0',
             'Food_Status'   => 'required|string|in:available,unavailable',
         ]);
@@ -36,7 +36,7 @@ class FoodController extends Controller
         $request->validate([
             'Food_Name'     => 'required|string|max:255|unique:Food,Food_Name,'.$id.',Food_ID',
             'Food_Status'   => 'required|in:available,unavailable',
-            'Food_Category' => 'required|string|in:rice,viand,sidedish,drinks,desserts,fruits,snacks',
+            'Food_Category' => 'required|string|in:rice,meatviand,noodleviand,veggieviand,drinks,desserts,fruits,snacks',
             'Food_Price'    => 'required|numeric|min:0',
         ]);
 

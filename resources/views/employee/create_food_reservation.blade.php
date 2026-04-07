@@ -75,8 +75,8 @@
                     </div>
 
                     <div class="fo-mode-toggle" data-date="{{ $dateKey }}">
-                        <button type="button" class="fo-mode-btn fo-mode-btn--active" data-mode="set">Set</button>
-                        <button type="button" class="fo-mode-btn" data-mode="individual">Individual Order</button>
+                        <button type="button" class="fo-mode-btn fo-mode-btn--active" data-mode="set">{{ $isSpiritual ? 'Set' : 'Packed Meal' }}</button>
+                        <button type="button" class="fo-mode-btn" data-mode="buffet">Buffet</button>
                     </div>
 
                     <div class="food-toggle-section">

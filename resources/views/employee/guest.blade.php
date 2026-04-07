@@ -187,6 +187,22 @@
                             $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
                             $foodSets = $res->foodSetReservations ? $res->foodSetReservations->map(function($r) use ($_customPosLabels) {
                                 $raw = $r->Food_Set_ID ?? '';
+
+                                // ── Buffet flat-rate record ──────────────────────
+                                if (preg_match('/^buffet:(\d+)$/', $raw, $bm)) {
+                                    return [
+                                        'date'         => $r->Food_Reservation_Serving_Date,
+                                        'meal_time'    => $r->Food_Reservation_Meal_time,
+                                        'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                        'set_name'     => 'Buffet',
+                                        'set_price'    => (float)$bm[1],
+                                        'set_foods'    => [],
+                                        'custom_items' => [],
+                                        'is_buffet'    => true,
+                                        'buffet_tier'  => (int)$bm[1],
+                                    ];
+                                }
+
                                 $setId = null; $customIds = [];
                                 if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
                                     $setId = (int)$m[1];
@@ -228,6 +244,7 @@
                                     'set_price'    => (float)($set?->Food_Set_Price ?? 0),
                                     'set_foods'    => $setFoods,
                                     'custom_items' => $customItems,
+                                    'is_buffet'    => false,
                                 ];
                             })->toArray() : [];
                         }

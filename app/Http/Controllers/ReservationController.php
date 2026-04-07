@@ -20,6 +20,11 @@ use App\Mail\ReservationConfirmedMail;
 use App\Mail\ReservationCheckedInMail;
 use App\Mail\ReservationCancelledMail;
 use App\Mail\ReservationRejectedMail;
+use App\Mail\CancellationApprovedMail;
+use App\Mail\CancellationRejectedMail;
+use App\Mail\CancellationRequestedMail;
+use App\Mail\ChangeRequestProcessedMail;
+use App\Mail\ChangeRequestSubmittedMail;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use Illuminate\Support\Facades\DB;
@@ -110,6 +115,7 @@ class ReservationController extends Controller
                     if (is_array($data)) {
                         foreach ($data as $k => $v) {
                             if ($k === 'drink_choice') continue; // legacy text value, not a Food_ID
+                            if ($k === '_tier') continue;        // buffet tier price, not a Food_ID
                             $ids = array_merge($ids, $collectFoodIds($v));
                         }
                     } elseif (!empty($data) && is_numeric($data)) {
@@ -162,6 +168,13 @@ class ReservationController extends Controller
                             }
 
                             if (!is_array($categories)) {
+                                continue;
+                            }
+
+                            // Buffet meal: flat-rate per pax (350 or 380), not individual food prices
+                            if (($mealMode[$date][$mealType] ?? '') === 'buffet') {
+                                $tier = (int)($categories['_tier'] ?? 350);
+                                $foodTotal += $tier * ($item['pax'] ?? 1);
                                 continue;
                             }
 
@@ -354,6 +367,7 @@ class ReservationController extends Controller
                             'Room_Reservation_Check_Out_Time' => $item['check_out'],
                             'Room_Reservation_Pax' => $item['pax'],
                             'Room_Reservation_Purpose' => $item['purpose'] ?? null,
+                            'Room_Reservation_Notes' => $item['notes'] ?? null,
                             'Room_Reservation_Total_Price' => $item['total_amount'],
                             'Room_Reservation_Status' => 'pending',
                         ]);
@@ -370,6 +384,7 @@ class ReservationController extends Controller
                             'Venue_Reservation_Check_Out_Time' => $item['check_out'],
                             'Venue_Reservation_Pax' => $item['pax'],
                             'Venue_Reservation_Purpose' => $item['purpose'] ?? null,
+                            'Venue_Reservation_Notes' => $item['notes'] ?? null,
                             'Venue_Reservation_Total_Price' => $item['total_amount'],
                             'Venue_Reservation_Status' => 'pending',
                         ]);
@@ -377,6 +392,7 @@ class ReservationController extends Controller
                         $foodSelections   = $item['food_selections']    ?? [];
                         $foodSetSelection = $item['food_set_selection'] ?? [];
                         $foodEnabledMap   = $item['food_enabled']       ?? [];
+                        $mealModeMap      = $item['meal_mode']          ?? [];
 
                         // ─────────────────────────────────────────────────────────────
                         // STEP A – Build a per-date skip-list of mealKeys that belong
@@ -426,6 +442,7 @@ class ReservationController extends Controller
                                 if (is_array($data)) {
                                     foreach ($data as $k => $v) {
                                         if ($k === 'drink_choice') continue; // text, not an ID
+                                        if ($k === '_tier') continue;        // buffet tier price, not a Food_ID
                                         $ids = array_merge($ids, $extractFoodIds($v));
                                     }
                                 } elseif (is_numeric($data) && !empty($data)) {
@@ -443,6 +460,40 @@ class ReservationController extends Controller
 
                                     $foodIds = $extractFoodIds($mealData);
 
+                                    // ── Buffet meal: flat-rate pricing ────────────────────────
+                                    if (($mealModeMap[$date][$mealType] ?? '') === 'buffet') {
+                                        $tier = (int)(is_array($mealData) ? ($mealData['_tier'] ?? 350) : 350);
+                                        $pax  = (int)($item['pax'] ?? 1);
+
+                                        // Individual food items stored at ₱0 (display only)
+                                        foreach ($foodIds as $foodId) {
+                                            $food = Food::find($foodId);
+                                            if ($food) {
+                                                FoodReservation::create([
+                                                    'Food_ID'                       => $foodId,
+                                                    'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                                    'Client_ID'                     => Auth::id(),
+                                                    'Food_Reservation_Serving_Date' => $date,
+                                                    'Food_Reservation_Meal_time'    => $mealType,
+                                                    'Food_Reservation_Total_Price'  => 0,
+                                                ]);
+                                            }
+                                        }
+
+                                        // One price record encodes the buffet tier and holds the actual price
+                                        FoodReservation::create([
+                                            'Food_ID'                       => null,
+                                            'Food_Set_ID'                   => "buffet:{$tier}",
+                                            'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                            'Client_ID'                     => Auth::id(),
+                                            'Food_Reservation_Serving_Date' => $date,
+                                            'Food_Reservation_Meal_time'    => $mealType,
+                                            'Food_Reservation_Total_Price'  => $tier * $pax,
+                                        ]);
+                                        continue;
+                                    }
+
+                                    // ── Normal meal: individual food pricing ─────────────────
                                     foreach ($foodIds as $foodId) {
                                         $food = Food::find($foodId);
                                         if ($food) {
@@ -1647,11 +1698,35 @@ class ReservationController extends Controller
         $startMonth = max(1,    min(12,   (int) $request->query('month',     now()->month)));
         $endMonth   = max(1,    min(12,   (int) $request->query('end_month', $startMonth)));
         $year       = max(2020, min(2100, (int) $request->query('year',      now()->year)));
+        $typeFilter = $request->query('reservation_type', 'all'); // 'all' | 'room' | 'venue'
         if ($endMonth < $startMonth) $endMonth = $startMonth;
+
+        $preparedBy  = auth()->user()->Account_Name ?? 'N/A';
+        $periodLabel = ($startMonth === $endMonth)
+            ? Carbon::create($year, $startMonth)->format('F Y')
+            : Carbon::create($year, $startMonth)->format('F') . ' to ' .
+              Carbon::create($year, $endMonth)->format('F Y');
 
         $months = [];
         for ($m = $startMonth; $m <= $endMonth; $m++) {
-            $months[] = $this->buildCalendarPDFData($m, $year);
+            $months[] = $this->buildCalendarPDFData($m, $year, $typeFilter);
+        }
+
+        // Compute the tallest page height across all months.
+        // DomPDF requires a uniform paper size, so we use the maximum.
+        // Footer is position:fixed — not in normal flow, so not counted in height.
+        // Date cell height updated to 14mm to match CSS.
+        $maxHeight = 0;
+        foreach ($months as $md) {
+            $weekCount = count($md['weeks']);
+            $h = 12 + 7 + 7; // header-table + legend-row + DOW header (mm)
+            foreach ($md['weeks'] as $week) {
+                $h += 14 + max(1, count($week['lanes'])) * 7; // date row (14mm) + lane rows (7mm each)
+            }
+            $h += ($weekCount - 1) * 1.5; // separators between weeks (not after last)
+            $h += 12; // clearance above the fixed footer
+            $h += 25.4; // top + bottom margins (0.5 in × 2)
+            $maxHeight = max($maxHeight, $h);
         }
 
         $filenameTag = count($months) === 1
@@ -1659,12 +1734,19 @@ class ReservationController extends Controller
             : Carbon::create($year, $startMonth)->format('M') . '_to_' .
               Carbon::create($year, $endMonth)->format('M_Y');
 
+        // Page size is driven entirely by the blade's @page CSS rule.
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
             'employee.pdf.reservation_calendar',
-            ['months' => $months, 'generated_at' => now()->format('M d, Y  H:i')]
-        )->setPaper('a4', 'landscape');
+            [
+                'months'      => $months,
+                'generated_at'=> now()->format('M d, Y  H:i'),
+                'pageHeight'  => round($maxHeight, 2),
+                'preparedBy'  => $preparedBy,
+                'periodLabel' => $periodLabel,
+            ]
+        );
 
-        return $pdf->download("reservation_calendar_{$filenameTag}.pdf");
+        return $pdf->download("reservation_calendar.pdf");
     }
 
     /**
@@ -1673,45 +1755,52 @@ class ReservationController extends Controller
      */
     public function exportCalendarCSV(Request $request)
     {
-        $startMonth = max(1,    min(12,   (int) $request->query('month',     now()->month)));
-        $endMonth   = max(1,    min(12,   (int) $request->query('end_month', $startMonth)));
-        $year       = max(2020, min(2100, (int) $request->query('year',      now()->year)));
+        $startMonth  = max(1,    min(12,   (int) $request->query('month',            now()->month)));
+        $endMonth    = max(1,    min(12,   (int) $request->query('end_month',         $startMonth)));
+        $year        = max(2020, min(2100, (int) $request->query('year',             now()->year)));
+        $typeFilter  = $request->query('reservation_type', 'all'); // 'all' | 'room' | 'venue'
         if ($endMonth < $startMonth) $endMonth = $startMonth;
 
         $rangeStart = Carbon::create($year, $startMonth, 1)->startOfDay();
         $rangeEnd   = Carbon::create($year, $endMonth)->endOfMonth()->endOfDay();
 
-        $roomRows = RoomReservation::with(['room', 'user'])
-            ->where('Room_Reservation_Check_In_Time',  '<=', $rangeEnd)
-            ->where('Room_Reservation_Check_Out_Time', '>=', $rangeStart)
-            ->get()
-            ->map(fn($r) => [
-                'Type'      => 'Room',
-                'Resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
-                'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
-                'Purpose'   => $r->Room_Reservation_Purpose  ?? 'N/A',
-                'Check-In'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
-                'Check-Out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
-                'Status'    => $r->Room_Reservation_Status,
-            ]);
+        $rows = collect();
 
-        $venueRows = VenueReservation::with(['venue', 'user'])
-            ->where('Venue_Reservation_Check_In_Time',  '<=', $rangeEnd)
-            ->where('Venue_Reservation_Check_Out_Time', '>=', $rangeStart)
-            ->get()
-            ->map(fn($r) => [
-                'Type'      => 'Venue',
-                'Resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
-                'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
-                'Purpose'   => $r->Venue_Reservation_Purpose  ?? 'N/A',
-                'Check-In'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
-                'Check-Out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
-                'Status'    => $r->Venue_Reservation_Status,
-            ]);
+        if ($typeFilter !== 'venue') {
+            $roomRows = RoomReservation::with(['room', 'user'])
+                ->where('Room_Reservation_Check_In_Time',  '<=', $rangeEnd)
+                ->where('Room_Reservation_Check_Out_Time', '>=', $rangeStart)
+                ->get()
+                ->map(fn($r) => [
+                    'Check-In'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
+                    'Check-Out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
+                    'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                    'Resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
+                    'Type'      => 'Room',
+                    'Status'    => $r->Room_Reservation_Status,
+                    'Purpose'   => $r->Room_Reservation_Purpose ?? 'N/A',
+                ]);
+            $rows = $rows->concat($roomRows);
+        }
 
-        $all = $roomRows->concat($venueRows)
-            ->sortBy('Check-In')
-            ->values();
+        if ($typeFilter !== 'room') {
+            $venueRows = VenueReservation::with(['venue', 'user'])
+                ->where('Venue_Reservation_Check_In_Time',  '<=', $rangeEnd)
+                ->where('Venue_Reservation_Check_Out_Time', '>=', $rangeStart)
+                ->get()
+                ->map(fn($r) => [
+                    'Check-In'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
+                    'Check-Out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
+                    'Guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                    'Resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
+                    'Type'      => 'Venue',
+                    'Status'    => $r->Venue_Reservation_Status,
+                    'Purpose'   => $r->Venue_Reservation_Purpose ?? 'N/A',
+                ]);
+            $rows = $rows->concat($venueRows);
+        }
+
+        $all = $rows->sortBy('Check-In')->values();
 
         $tag      = ($startMonth === $endMonth)
             ? Carbon::create($year, $startMonth)->format('F_Y')
@@ -1719,17 +1808,32 @@ class ReservationController extends Controller
               Carbon::create($year, $endMonth)->format('M_Y');
         $filename = "reservations_{$tag}.csv";
 
+        $periodLabel = ($startMonth === $endMonth)
+            ? Carbon::create($year, $startMonth)->format('F Y')
+            : Carbon::create($year, $startMonth)->format('F') . ' to ' .
+              Carbon::create($year, $endMonth)->format('F Y');
+
+        $preparedBy  = auth()->user()->Account_Name ?? 'N/A';
+        $generatedAt = now()->format('F j, Y g:i A');
+
         $headers = [
             'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",
             'Cache-Control'       => 'no-cache, no-store, must-revalidate',
         ];
 
-        $callback = function () use ($all) {
+        $callback = function () use ($all, $periodLabel, $preparedBy, $generatedAt) {
             $out = fopen('php://output', 'w');
             // UTF-8 BOM so Excel opens it correctly
             fputs($out, "\xEF\xBB\xBF");
-            fputcsv($out, ['Type', 'Resource', 'Guest', 'Purpose', 'Check-In', 'Check-Out', 'Status']);
+            // Document header block
+            fputcsv($out, ['AdZU Lantaka Reservation System']);
+            fputcsv($out, ['Prepared by:', $preparedBy]);
+            fputcsv($out, ['Period:', $periodLabel]);
+            fputcsv($out, ['Generated:', $generatedAt]);
+            fputcsv($out, []); // blank spacer
+            // Column headers + data rows
+            fputcsv($out, ['Check-In', 'Check-Out', 'Guest', 'Resource', 'Type', 'Status', 'Purpose']);
             foreach ($all as $row) {
                 fputcsv($out, array_values($row));
             }
@@ -1740,30 +1844,32 @@ class ReservationController extends Controller
     }
 
     /** Build the week/lane data structure for one month's PDF page. */
-    private function buildCalendarPDFData(int $month, int $year): array
+    private function buildCalendarPDFData(int $month, int $year, string $typeFilter = 'all'): array
     {
         $monthStart = Carbon::create($year, $month, 1)->startOfDay();
         $monthEnd   = $monthStart->copy()->endOfMonth()->endOfDay();
 
+        // Colors match STATUS_CFG in dashboard_calendar.js exactly.
+        // 'solid' is the saturated accent used for the left border strip on bars and legend dots.
         $statusColors = [
-            'pending'     => ['bg' => '#FEF3C7', 'fg' => '#92400E', 'border' => '#F59E0B'],
-            'confirmed'   => ['bg' => '#DBEAFE', 'fg' => '#1E40AF', 'border' => '#60A5FA'],
-            'checked-in'  => ['bg' => '#DCFCE7', 'fg' => '#166534', 'border' => '#4ADE80'],
-            'checked-out' => ['bg' => '#F3F4F6', 'fg' => '#374151', 'border' => '#9CA3AF'],
-            'completed'   => ['bg' => '#EDE9FE', 'fg' => '#5B21B6', 'border' => '#A78BFA'],
-            'cancelled'   => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171'],
-            'rejected'    => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171'],
+            'pending'     => ['bg' => '#FEF3C7', 'fg' => '#92400E', 'border' => '#FBBF24', 'solid' => '#F59E0B'],
+            'confirmed'   => ['bg' => '#DBEAFE', 'fg' => '#1E40AF', 'border' => '#60A5FA', 'solid' => '#3B82F6'],
+            'checked-in'  => ['bg' => '#DCFCE7', 'fg' => '#166534', 'border' => '#4ADE80', 'solid' => '#22C55E'],
+            'checked-out' => ['bg' => '#F3F4F6', 'fg' => '#374151', 'border' => '#9CA3AF', 'solid' => '#9CA3AF'],
+            'completed'   => ['bg' => '#EDE9FE', 'fg' => '#5B21B6', 'border' => '#A78BFA', 'solid' => '#8B5CF6'],
+            'cancelled'   => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171', 'solid' => '#EF4444'],
+            'rejected'    => ['bg' => '#FEE2E2', 'fg' => '#991B1B', 'border' => '#F87171', 'solid' => '#EF4444'],
         ];
 
         $legend = [
-            ['label' => 'Pending',     'bg' => '#FEF3C7', 'border' => '#F59E0B'],
-            ['label' => 'Confirmed',   'bg' => '#DBEAFE', 'border' => '#60A5FA'],
-            ['label' => 'Checked-In',  'bg' => '#DCFCE7', 'border' => '#4ADE80'],
-            ['label' => 'Checked-Out', 'bg' => '#F3F4F6', 'border' => '#9CA3AF'],
-            ['label' => 'Completed',   'bg' => '#EDE9FE', 'border' => '#A78BFA'],
+            ['label' => 'Pending',     'solid' => '#F59E0B'],
+            ['label' => 'Confirmed',   'solid' => '#3B82F6'],
+            ['label' => 'Checked-In',  'solid' => '#22C55E'],
+            ['label' => 'Checked-Out', 'solid' => '#9CA3AF'],
+            ['label' => 'Completed',   'solid' => '#8B5CF6'],
         ];
 
-        $allReservations = $this->loadReservationsForPDF($monthStart, $monthEnd);
+        $allReservations = $this->loadReservationsForPDF($monthStart, $monthEnd, $typeFilter);
 
         $calStart = $monthStart->copy()->startOfWeek(Carbon::SUNDAY);
         $calEnd   = $monthEnd->copy()->endOfWeek(Carbon::SATURDAY);
@@ -1810,66 +1916,71 @@ class ReservationController extends Controller
      * Rooms with identical dates + guest + purpose are grouped into one record.
      * Returns [ check_in, check_out, status, purpose, guest, resource, type ]
      */
-    private function loadReservationsForPDF(Carbon $monthStart, Carbon $monthEnd): array
+    private function loadReservationsForPDF(Carbon $monthStart, Carbon $monthEnd, string $typeFilter = 'all'): array
     {
         // ── Rooms ──────────────────────────────────────────────────────────
-        $roomRaw = RoomReservation::with(['room', 'user'])
-            ->where('Room_Reservation_Check_In_Time',  '<=', $monthEnd)
-            ->where('Room_Reservation_Check_Out_Time', '>=', $monthStart)
-            ->whereNotIn('Room_Reservation_Status', ['cancelled', 'rejected'])
-            ->get()
-            ->map(fn($r) => [
-                'id'        => $r->Room_Reservation_ID,
-                'check_in'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
-                'check_out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
-                'status'    => strtolower($r->Room_Reservation_Status),
-                'purpose'   => $r->Room_Reservation_Purpose  ?? 'N/A',
-                'guest'     => optional($r->user)->Account_Name ?? 'Guest',
-                'resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
-                'type'      => 'room',
-            ])
-            ->toArray();
+        $grouped = [];
+        if ($typeFilter !== 'venue') {
+            $roomRaw = RoomReservation::with(['room', 'user'])
+                ->where('Room_Reservation_Check_In_Time',  '<=', $monthEnd)
+                ->where('Room_Reservation_Check_Out_Time', '>=', $monthStart)
+                ->whereNotIn('Room_Reservation_Status', ['cancelled', 'rejected'])
+                ->get()
+                ->map(fn($r) => [
+                    'id'        => $r->Room_Reservation_ID,
+                    'check_in'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
+                    'check_out' => Carbon::parse($r->Room_Reservation_Check_Out_Time)->format('Y-m-d'),
+                    'status'    => strtolower($r->Room_Reservation_Status),
+                    'purpose'   => $r->Room_Reservation_Purpose  ?? 'N/A',
+                    'guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                    'resource'  => $r->room ? 'Room ' . $r->room->Room_Number : 'Room N/A',
+                    'type'      => 'room',
+                ])
+                ->toArray();
 
-        // Group rooms: same (check_in, check_out, guest, purpose) → one bar
-        $processed = [];
-        $grouped   = [];
-        foreach ($roomRaw as $r) {
-            if (in_array($r['id'], $processed)) continue;
-            $siblings = array_values(array_filter($roomRaw, fn($o) =>
-                !in_array($o['id'], $processed) &&
-                $o['check_in']  === $r['check_in']  &&
-                $o['check_out'] === $r['check_out'] &&
-                $o['guest']     === $r['guest']     &&
-                $o['purpose']   === $r['purpose']
-            ));
-            foreach ($siblings as $s) $processed[] = $s['id'];
-            $grouped[] = [
-                'check_in'  => $r['check_in'],
-                'check_out' => $r['check_out'],
-                'status'    => $r['status'],
-                'purpose'   => $r['purpose'],
-                'guest'     => $r['guest'],
-                'resource'  => implode(', ', array_map(fn($s) => $s['resource'], $siblings)),
-                'type'      => 'room',
-            ];
+            // Group rooms: same (check_in, check_out, guest, purpose) → one bar
+            $processed = [];
+            foreach ($roomRaw as $r) {
+                if (in_array($r['id'], $processed)) continue;
+                $siblings = array_values(array_filter($roomRaw, fn($o) =>
+                    !in_array($o['id'], $processed) &&
+                    $o['check_in']  === $r['check_in']  &&
+                    $o['check_out'] === $r['check_out'] &&
+                    $o['guest']     === $r['guest']     &&
+                    $o['purpose']   === $r['purpose']
+                ));
+                foreach ($siblings as $s) $processed[] = $s['id'];
+                $grouped[] = [
+                    'check_in'  => $r['check_in'],
+                    'check_out' => $r['check_out'],
+                    'status'    => $r['status'],
+                    'purpose'   => $r['purpose'],
+                    'guest'     => $r['guest'],
+                    'resource'  => implode(', ', array_map(fn($s) => $s['resource'], $siblings)),
+                    'type'      => 'room',
+                ];
+            }
         }
 
         // ── Venues ─────────────────────────────────────────────────────────
-        $venueRes = VenueReservation::with(['venue', 'user'])
-            ->where('Venue_Reservation_Check_In_Time',  '<=', $monthEnd)
-            ->where('Venue_Reservation_Check_Out_Time', '>=', $monthStart)
-            ->whereNotIn('Venue_Reservation_Status', ['cancelled', 'rejected'])
-            ->get()
-            ->map(fn($r) => [
-                'check_in'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
-                'check_out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
-                'status'    => strtolower($r->Venue_Reservation_Status),
-                'purpose'   => $r->Venue_Reservation_Purpose  ?? 'N/A',
-                'guest'     => optional($r->user)->Account_Name ?? 'Guest',
-                'resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
-                'type'      => 'venue',
-            ])
-            ->toArray();
+        $venueRes = [];
+        if ($typeFilter !== 'room') {
+            $venueRes = VenueReservation::with(['venue', 'user'])
+                ->where('Venue_Reservation_Check_In_Time',  '<=', $monthEnd)
+                ->where('Venue_Reservation_Check_Out_Time', '>=', $monthStart)
+                ->whereNotIn('Venue_Reservation_Status', ['cancelled', 'rejected'])
+                ->get()
+                ->map(fn($r) => [
+                    'check_in'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
+                    'check_out' => Carbon::parse($r->Venue_Reservation_Check_Out_Time)->format('Y-m-d'),
+                    'status'    => strtolower($r->Venue_Reservation_Status),
+                    'purpose'   => $r->Venue_Reservation_Purpose  ?? 'N/A',
+                    'guest'     => optional($r->user)->Account_Name ?? 'Guest',
+                    'resource'  => $r->venue ? $r->venue->Venue_Name : 'Venue N/A',
+                    'type'      => 'venue',
+                ])
+                ->toArray();
+        }
 
         return array_merge($grouped, $venueRes);
     }
@@ -1903,10 +2014,14 @@ class ReservationController extends Controller
         $lanes    = [];
 
         foreach ($visible as $res) {
-            // Greedy lane pick
+            // Greedy lane pick.
+            // Use strict > (not >=) because the colSpan formula adds +1 to visually
+            // include the check-out day in the bar.  If check_in == previous check_out,
+            // the bars would overlap at that column, causing DomPDF to receive a table
+            // row whose colspan sum exceeds 7 and crash on table-layout:fixed.
             $lane = -1;
             foreach ($laneEnds as $i => $end) {
-                if ($res['check_in'] >= $end) { $lane = $i; break; }
+                if ($res['check_in'] > $end) { $lane = $i; break; }
             }
             if ($lane === -1) {
                 $lane       = count($laneEnds);
@@ -1926,8 +2041,8 @@ class ReservationController extends Controller
 
             if (!isset($lanes[$lane])) $lanes[$lane] = [];
 
-            $icon  = $res['type'] === 'room' ? '🛏' : '🏛';
-            $label = "{$res['purpose']}  ·  {$res['guest']}  ·  {$icon} {$res['resource']}";
+            // Format mirrors the UI chip: purpose · guestName resource
+            $label = "{$res['purpose']}  ·  {$res['guest']}  {$res['resource']}";
 
             $lanes[$lane][] = [
                 'label'     => $label,
@@ -1980,6 +2095,7 @@ class ReservationController extends Controller
                 'Room_Reservation_Check_Out_Time' => $request->check_out,
                 'Room_Reservation_Pax' => $request->pax,
                 'Room_Reservation_Purpose' => $request->purpose,
+                'Room_Reservation_Notes' => $request->notes ?? null,
                 'Room_Reservation_Total_Price' => $totalAmount,
                 'Room_Reservation_Status' => 'pending',
             ]);
@@ -2005,6 +2121,7 @@ class ReservationController extends Controller
                     'Venue_Reservation_Check_Out_Time' => $request->check_out,
                     'Venue_Reservation_Pax' => $request->pax,
                     'Venue_Reservation_Purpose' => $request->purpose,
+                    'Venue_Reservation_Notes' => $request->notes ?? null,
                     'Venue_Reservation_Total_Price' => $totalAmount,
                     'Venue_Reservation_Status' => 'pending',
                 ]);
@@ -3080,7 +3197,57 @@ class ReservationController extends Controller
             ];
         }
 
-        // ── Top Rooms (checked-out only; revenue = paid only) ──
+        // ── Room Type Breakdown (checked-out only; groups by Room_Type) ──
+        $roomTypeRows = RoomReservation::with('room')
+            ->where('Room_Reservation_Status', 'checked-out')
+            ->whereBetween('created_at', [$start, $end])
+            ->get()
+            ->groupBy(fn($r) => $r->room?->Room_Type ?? 'Unknown')
+            ->map(fn($group, $type) => [
+                'type'     => $type,
+                'bookings' => $group->count(),
+                'revenue'  => (float) $group->filter(fn($r) => $r->Room_Reservation_Payment_Status === 'paid')
+                                             ->sum('Room_Reservation_Total_Price'),
+            ])->values();
+
+        // ── Venue count for the comparison chart ──
+        $venueTypeRow = [
+            'type'     => 'Venue',
+            'bookings' => $venueCount,
+            'revenue'  => (float) $venueRevThis,
+        ];
+
+        // ── Top 10 Clients (checked-out; revenue = paid; all reservation types) ──
+        $roomClientRevenue = RoomReservation::where('Room_Reservation_Status', 'checked-out')
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('"Client_ID", count(*) as bookings, sum(CASE WHEN "Room_Reservation_Payment_Status" = \'paid\' THEN "Room_Reservation_Total_Price" ELSE 0 END) as revenue')
+            ->groupBy('Client_ID')
+            ->get()
+            ->keyBy('Client_ID');
+
+        $venueClientRevenue = VenueReservation::where('Venue_Reservation_Status', 'checked-out')
+            ->whereBetween('created_at', [$start, $end])
+            ->selectRaw('"Client_ID", count(*) as bookings, sum(CASE WHEN "Venue_Reservation_Payment_Status" = \'paid\' THEN "Venue_Reservation_Total_Price" ELSE 0 END) as revenue')
+            ->groupBy('Client_ID')
+            ->get()
+            ->keyBy('Client_ID');
+
+        $allClientIds = collect($roomClientRevenue->keys())->merge($venueClientRevenue->keys())->unique();
+        $clients      = Account::whereIn('Account_ID', $allClientIds)->get()->keyBy('Account_ID');
+
+        $topClients = $allClientIds->map(function ($clientId) use ($roomClientRevenue, $venueClientRevenue, $clients) {
+            $roomRow  = $roomClientRevenue[$clientId]  ?? null;
+            $venueRow = $venueClientRevenue[$clientId] ?? null;
+            $client   = $clients[$clientId] ?? null;
+
+            return [
+                'name'     => $client?->Account_Name ?? 'Client #' . $clientId,
+                'bookings' => (int)(($roomRow->bookings ?? 0) + ($venueRow->bookings ?? 0)),
+                'revenue'  => (float)(($roomRow->revenue ?? 0) + ($venueRow->revenue ?? 0)),
+            ];
+        })->sortByDesc('revenue')->values()->take(10);
+
+        // ── Top Rooms / Top Venues (kept for backward compat) ──
         $topRooms = RoomReservation::with('room')
             ->where('Room_Reservation_Status', 'checked-out')
             ->whereBetween('created_at', [$start, $end])
@@ -3092,7 +3259,6 @@ class ReservationController extends Controller
                 'revenue'  => (float)$r->revenue,
             ]);
 
-        // ── Top Venues (checked-out only; revenue = paid only) ──
         $topVenues = VenueReservation::with('venue')
             ->where('Venue_Reservation_Status', 'checked-out')
             ->whereBetween('created_at', [$start, $end])
@@ -3119,6 +3285,9 @@ class ReservationController extends Controller
             'venueCount'        => $venueCount,
             'roomRevenue'       => $roomRevThis,
             'venueRevenue'      => $venueRevThis,
+            'roomTypeBreakdown' => $roomTypeRows,
+            'venueTypeRow'      => $venueTypeRow,
+            'topClients'        => $topClients,
             'topRooms'          => $topRooms,
             'topVenues'         => $topVenues,
         ]);
@@ -3293,6 +3462,41 @@ class ReservationController extends Controller
             $reservation->cancellation_requested_at = $now;
             $reservation->cancellation_processed_at = null;
             $reservation->save();
+
+            // ── Notify all admin and staff (in-system + email to staff only) ────
+            $clientName = auth()->user()->Account_Name ?? 'A client';
+            $accName    = $type === 'room'
+                ? 'Room ' . ($reservation->room->Room_Number ?? $id)
+                : ($reservation->venue->Venue_Name ?? 'Venue');
+
+            $staffAccounts = Account::whereIn('Account_Role', ['admin', 'staff'])->get();
+
+            $staffAccounts->each(function ($staff) use ($reservation, $clientName, $accName) {
+                // In-system bell notification for all admin + staff
+                EventLog::create([
+                    'user_id'                       => auth()->id(),
+                    'Event_Logs_Notifiable_User_ID' => $staff->Account_ID,
+                    'Event_Logs_Action'             => 'cancellation_requested',
+                    'Event_Logs_Title'              => 'Cancellation Request Submitted',
+                    'Event_Logs_Message'            => "{$clientName} has submitted a cancellation request for {$accName}.",
+                    'Event_Logs_Type'               => 'warning',
+                    'Event_Logs_Link'               => '/employee/reservations',
+                    'Event_Logs_isRead'             => false,
+                ]);
+            });
+
+            // Email notification to staff only
+            $staffAccounts->where('Account_Role', 'staff')->each(function ($staff) use ($reservation, $type, $clientName, $accName) {
+                try {
+                    Mail::to($staff->Account_Email)
+                        ->send(new CancellationRequestedMail($reservation, $type, $clientName, $accName));
+                } catch (\Exception $e) {
+                    Log::error('CancellationRequestedMail to staff failed', [
+                        'staff_id' => $staff->Account_ID,
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+            });
 
             return response()->json([
                 'success'      => true,
@@ -3489,11 +3693,12 @@ class ReservationController extends Controller
         $foodSelections   = $request->input('food_selections',    []);
         $foodSetSelection = $request->input('food_set_selection', []);
         $foodEnabledMap   = $request->input('food_enabled',       []);
+        $mealModeMap      = $request->input('meal_mode',          []);
 
         return DB::transaction(function () use (
             $reservation, $type, $reqType, $details,
             $newCheckIn, $newCheckOut,
-            $foodSelections, $foodSetSelection, $foodEnabledMap
+            $foodSelections, $foodSetSelection, $foodEnabledMap, $mealModeMap
         ) {
             // Re-check inside transaction to prevent races
             $reservation->refresh();
@@ -3548,6 +3753,7 @@ class ReservationController extends Controller
                         if (is_array($data)) {
                             foreach ($data as $k => $v) {
                                 if ($k === 'drink_choice') continue;
+                                if ($k === '_tier') continue; // buffet tier price, not a Food_ID
                                 $ids = array_merge($ids, $extractFoodIds($v));
                             }
                         } elseif (is_numeric($data) && !empty($data)) {
@@ -3560,6 +3766,36 @@ class ReservationController extends Controller
                         foreach ($meals as $mealType => $mealData) {
                             if (empty($mealData)) continue;
                             if (!empty($skipMealKeys[$date][$mealType])) continue;
+
+                            // ── Buffet branch ──────────────────────────────────
+                            if (($mealModeMap[$date][$mealType] ?? '') === 'buffet') {
+                                $tier    = (int)(is_array($mealData) ? ($mealData['_tier'] ?? 350) : 350);
+                                $foodIds = $extractFoodIds($mealData);
+                                foreach ($foodIds as $foodId) {
+                                    $food = Food::find($foodId);
+                                    if ($food) {
+                                        FoodReservation::create([
+                                            'Food_ID'                       => $foodId,
+                                            'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                            'Client_ID'                     => $reservation->Client_ID,
+                                            'Food_Reservation_Serving_Date' => $date,
+                                            'Food_Reservation_Meal_time'    => $mealType,
+                                            'Food_Reservation_Total_Price'  => 0,
+                                        ]);
+                                    }
+                                }
+                                // One price record carrying the flat-rate tier
+                                FoodReservation::create([
+                                    'Food_ID'                       => null,
+                                    'Food_Set_ID'                   => "buffet:{$tier}",
+                                    'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                    'Client_ID'                     => $reservation->Client_ID,
+                                    'Food_Reservation_Serving_Date' => $date,
+                                    'Food_Reservation_Meal_time'    => $mealType,
+                                    'Food_Reservation_Total_Price'  => $tier * $pax,
+                                ]);
+                                continue;
+                            }
 
                             $foodIds = $extractFoodIds($mealData);
                             foreach ($foodIds as $foodId) {
@@ -3653,6 +3889,41 @@ class ReservationController extends Controller
             $reservation->change_request_processed_at = null;
             $reservation->save();
 
+            // ── Notify all admin and staff (in-system + email to staff only) ────
+            $clientName    = auth()->user()->Account_Name ?? 'A client';
+            $accName       = $type === 'room'
+                ? 'Room ' . ($reservation->room->Room_Number ?? $reservation->getKey())
+                : ($reservation->venue->Venue_Name ?? 'Venue');
+
+            $staffAccounts = Account::whereIn('Account_Role', ['admin', 'staff'])->get();
+
+            $staffAccounts->each(function ($staff) use ($clientName, $accName) {
+                // In-system bell notification for all admin + staff
+                EventLog::create([
+                    'user_id'                       => auth()->id(),
+                    'Event_Logs_Notifiable_User_ID' => $staff->Account_ID,
+                    'Event_Logs_Action'             => 'change_request_submitted',
+                    'Event_Logs_Title'              => 'Request for Changes Submitted',
+                    'Event_Logs_Message'            => "{$clientName} has submitted a request for changes for {$accName}.",
+                    'Event_Logs_Type'               => 'warning',
+                    'Event_Logs_Link'               => '/employee/reservations',
+                    'Event_Logs_isRead'             => false,
+                ]);
+            });
+
+            // Email notification to staff only
+            $staffAccounts->where('Account_Role', 'staff')->each(function ($staff) use ($reservation, $type, $clientName, $accName, $reqType) {
+                try {
+                    Mail::to($staff->Account_Email)
+                        ->send(new ChangeRequestSubmittedMail($reservation, $type, $clientName, $accName, $reqType));
+                } catch (\Exception $e) {
+                    Log::error('ChangeRequestSubmittedMail to staff failed', [
+                        'staff_id' => $staff->Account_ID,
+                        'error'    => $e->getMessage(),
+                    ]);
+                }
+            });
+
             session()->forget(['change_request_reservation_id', 'change_request_reservation_type']);
 
             return redirect()->route('client.my_reservations')
@@ -3684,11 +3955,22 @@ class ReservationController extends Controller
 
         // ── SET-based food reservations ─────────────────────────────────────────
         foreach ($reservation->foodSetReservations()->get() as $row) {
+            $date    = $row->Food_Reservation_Serving_Date;
+            $mealKey = $row->Food_Reservation_Meal_time;
+
+            // ── Buffet flat-rate record ──────────────────────────────────────────
+            if (preg_match('/^buffet:(\d+)$/', $row->Food_Set_ID ?? '', $bm)) {
+                $tier = (int) $bm[1];
+                $foodEnabled[$date]           = '1';
+                $mealEnabled[$date][$mealKey] = '1';
+                $mealMode[$date][$mealKey]    = 'buffet';
+                $foodSelections[$date][$mealKey]['_tier'] = (string) $tier;
+                continue;
+            }
+
             $parsed    = $row->parseFoodSetId();
             $setId     = $parsed['set_id'];
             $customIds = $parsed['custom_ids']; // [riceId, drinksId, dessertId, fruitId]
-            $date      = $row->Food_Reservation_Serving_Date;
-            $mealKey   = $row->Food_Reservation_Meal_time;
 
             if (!$setId) continue;
 
@@ -3742,9 +4024,30 @@ class ReservationController extends Controller
 
             $foodEnabled[$date]           = '1';
             $mealEnabled[$date][$mealKey] = '1';
-            // Only set to individual if not already marked as set for this slot
+            // Only set to individual if not already marked as set/buffet for this slot
             if (!isset($mealMode[$date][$mealKey])) {
                 $mealMode[$date][$mealKey] = 'individual';
+            }
+
+            // ── Buffet meal: store viands under category-keyed slots ─────────
+            // Buffet viands are stored at ₱0 pivot price; their category identifies
+            // which dropdown slot they belong to (meatviand1/2/3/4, noodleviand, veggieviand).
+            if (($mealMode[$date][$mealKey] ?? '') === 'buffet') {
+                if ($cat === 'meatviand') {
+                    // Find next available meatviandN slot
+                    $idx = 1;
+                    while (!empty($foodSelections[$date][$mealKey]["meatviand{$idx}"])) {
+                        $idx++;
+                    }
+                    $foodSelections[$date][$mealKey]["meatviand{$idx}"] = $foodId;
+                } elseif ($cat === 'noodleviand') {
+                    $foodSelections[$date][$mealKey]['noodleviand'] = $foodId;
+                } elseif ($cat === 'veggieviand') {
+                    $foodSelections[$date][$mealKey]['veggieviand'] = $foodId;
+                } elseif (in_array($cat, ['dessert', 'desserts', 'fruit', 'fruits'])) {
+                    $foodSelections[$date][$mealKey]['dessert'] = $foodId;
+                }
+                continue;
             }
 
             // Snack meal keys use a fixed session key regardless of Food_Category
@@ -3884,6 +4187,55 @@ class ReservationController extends Controller
 
             $reservation->save();
         });
+
+        // Load relationships needed for email/notification
+        $reservation->load('user');
+        if ($type === 'room') $reservation->load('room');
+        else                  $reservation->load('venue');
+
+        $accName = $type === 'room'
+            ? 'Room ' . ($reservation->room->Room_Number ?? $reservationId)
+            : ($reservation->venue->Venue_Name ?? 'Venue');
+
+        // ── Send email to client ────────────────────────────────────────────
+        try {
+            Mail::to($reservation->user->Account_Email)
+                ->send(new ChangeRequestProcessedMail(
+                    $reservation,
+                    $type,
+                    $decision,
+                    $request->input('admin_note')
+                ));
+        } catch (\Exception $e) {
+            Log::error('ChangeRequestProcessedMail failed', [
+                'reservation_id' => $reservationId,
+                'type'           => $type,
+                'decision'       => $decision,
+                'error'          => $e->getMessage(),
+            ]);
+        }
+
+        // ── In-system notification to the client ───────────────────────────
+        if ($decision === 'approved') {
+            $notifTitle   = 'Request for Changes Approved';
+            $notifMessage = "Your request for changes for {$accName} has been approved.";
+            $notifType    = 'success';
+        } else {
+            $notifTitle   = 'Request for Changes Rejected';
+            $notifMessage = "Your request for changes for {$accName} has been rejected. Your reservation remains as originally confirmed.";
+            $notifType    = 'error';
+        }
+
+        EventLog::create([
+            'user_id'                       => auth()->id(),
+            'Event_Logs_Notifiable_User_ID' => $reservation->Client_ID,
+            'Event_Logs_Action'             => 'change_request_' . $decision,
+            'Event_Logs_Title'              => $notifTitle,
+            'Event_Logs_Message'            => $notifMessage,
+            'Event_Logs_Type'               => $notifType,
+            'Event_Logs_Link'               => '/client/my_reservations',
+            'Event_Logs_isRead'             => false,
+        ]);
 
         $label = $decision === 'approved' ? 'approved' : 'rejected';
 
@@ -4027,27 +4379,62 @@ class ReservationController extends Controller
             $reservation->save();
         });
 
-        // Send approval email to the client
-        if ($decision === 'approved') {
-            try {
-                $reservation->load('user');
-                if ($type === 'room') $reservation->load('room');
-                else                  $reservation->load('venue');
+        // Load relationships needed for email/notification
+        $reservation->load('user');
+        if ($type === 'room') $reservation->load('room');
+        else                  $reservation->load('venue');
 
-                \Illuminate\Support\Facades\Mail::to($reservation->user->Account_Email)
-                    ->send(new \App\Mail\CancellationApprovedMail(
+        $accName = $type === 'room'
+            ? 'Room ' . ($reservation->room->Room_Number ?? $reservationId)
+            : ($reservation->venue->Venue_Name ?? 'Venue');
+
+        // ── Send email to client ────────────────────────────────────────────
+        try {
+            if ($decision === 'approved') {
+                Mail::to($reservation->user->Account_Email)
+                    ->send(new CancellationApprovedMail(
                         $reservation,
                         $type,
                         $request->input('admin_note')
                     ));
-            } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('CancellationApprovedMail failed', [
-                    'reservation_id' => $reservationId,
-                    'type'           => $type,
-                    'error'          => $e->getMessage(),
-                ]);
+            } else {
+                Mail::to($reservation->user->Account_Email)
+                    ->send(new CancellationRejectedMail(
+                        $reservation,
+                        $type,
+                        $request->input('admin_note')
+                    ));
             }
+        } catch (\Exception $e) {
+            Log::error('CancellationMail failed', [
+                'reservation_id' => $reservationId,
+                'type'           => $type,
+                'decision'       => $decision,
+                'error'          => $e->getMessage(),
+            ]);
         }
+
+        // ── In-system notification to the client ───────────────────────────
+        if ($decision === 'approved') {
+            $notifTitle   = 'Cancellation Request Approved';
+            $notifMessage = "Your cancellation request for {$accName} has been approved. Your reservation is now cancelled.";
+            $notifType    = 'success';
+        } else {
+            $notifTitle   = 'Cancellation Request Rejected';
+            $notifMessage = "Your cancellation request for {$accName} has been rejected. Your reservation remains active.";
+            $notifType    = 'error';
+        }
+
+        EventLog::create([
+            'user_id'                       => auth()->id(),
+            'Event_Logs_Notifiable_User_ID' => $reservation->Client_ID,
+            'Event_Logs_Action'             => 'cancellation_' . $decision,
+            'Event_Logs_Title'              => $notifTitle,
+            'Event_Logs_Message'            => $notifMessage,
+            'Event_Logs_Type'               => $notifType,
+            'Event_Logs_Link'               => '/client/my_reservations',
+            'Event_Logs_isRead'             => false,
+        ]);
 
         $label = $decision === 'approved' ? 'approved and reservation cancelled' : 'rejected';
 

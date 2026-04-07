@@ -2,8 +2,9 @@
  * client_food_option.js
  *
  * BOTH spiritual (retreat/recollection) and general events support:
- *   – "Individual Order" mode: dropdown-per-category table (classic)
- *   – "Set" mode: card-based set selection
+ *   – "Buffet" mode: flat-rate buffet with tier selection (350/pax or 380/pax)
+ *   – "Set" mode (spiritual): card-based set selection
+ *   – "Packed Meal" mode (general): card-based set selection with additional food search
  *
  * Spiritual Set mode:
  *   Columns: Breakfast | Lunch | Dinner | AM Snacks | PM Snacks
@@ -12,9 +13,14 @@
  *     Breakfast extras: drinks + fruit
  *     Dinner extras:    softdrinks + dessert/fruit
  *
- * General Set mode:
+ * General Packed Meal mode:
  *   Multi-select set cards, rice-type dropdown per selected set,
- *   multi-select snacks, additional-food search bar.
+ *   additional-food search bar. (Snacks are not shown in Packed Meal mode.)
+ *
+ * Buffet mode (both event types):
+ *   Tier selector: ₱350/pax (3 viands) or ₱380/pax (4 viands)
+ *   Dropdowns for N viands (from Meat Viand, Noodle Viand, Veggie Viand) + 1 Dessert.
+ *   No "+ Add" button, no snacks section.
  */
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -89,14 +95,14 @@ document.addEventListener('DOMContentLoaded', function () {
       // Use prevDateMap to translate the new date back to the corresponding old date
       // so pre-fill works even when the user changes dates during a change request.
       const prevMealModeForDate = (window.previousMealMode || {})[prevDateMap[date] || date] || {};
-      // Snack slots (am_snack, pm_snack, snacks) are always individual-style
-      // regardless of the date's set/individual toggle — exclude them so they
-      // don't accidentally flip the whole card into individual mode.
+      // Snack slots (am_snack, pm_snack, snacks) are always set-style
+      // regardless of the date's set/buffet toggle — exclude them so they
+      // don't accidentally flip the whole card into buffet mode.
       const snackKeys = ['am_snack', 'pm_snack', 'snacks'];
-      const wasIndividual = Object.entries(prevMealModeForDate)
+      const wasBuffet = Object.entries(prevMealModeForDate)
         .filter(([k]) => !snackKeys.includes(k))
-        .some(([, v]) => v === 'individual');
-      cardModes[date]  = wasIndividual ? 'individual' : 'set';
+        .some(([, v]) => v === 'buffet');
+      cardModes[date]  = wasBuffet ? 'buffet' : 'set';
       selections[date] = {};
 
       // Wire mode toggle + pre-activate the correct button
@@ -168,8 +174,8 @@ document.addEventListener('DOMContentLoaded', function () {
       const dateSetSel  = prevSetSel[oldDate]  || {};
       const dateMealEn  = prevMealEn[oldDate]  || {};
 
-      if (mode === 'individual') {
-        restoreIndividualMode(date, card, dateFoodSel, dateMealEn);
+      if (mode === 'buffet') {
+        restoreBuffetMode(date, card, dateFoodSel);
       } else if (IS_SPIRITUAL) {
         restoreSpiritualSets(date, card, dateSetSel, dateFoodSel);
       } else {
@@ -307,6 +313,46 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  /** Restore buffet mode selections for one date. */
+  function restoreBuffetMode(date, card, dateFoodSel) {
+    // Iterate each per-meal section (breakfast / lunch / dinner)
+    card.querySelectorAll('.fo-buffet-sel-section').forEach(selSection => {
+      const mealKey = selSection.dataset.meal;
+      if (!mealKey) return;
+
+      // Per-meal data lives under dateFoodSel[mealKey]; fall back to the
+      // legacy 'buffet' key if this session was saved before the per-meal refactor.
+      const mealSel = dateFoodSel[mealKey] || dateFoodSel['buffet'] || {};
+
+      // Restore tier hidden input and click the correct tier button
+      const tierHidden = selSection.closest('.fo-indiv-meal-card')
+                           ?.querySelector('.fo-buffet-meal-tier-hidden');
+      if (tierHidden && mealSel._tier) {
+        const tier = parseInt(mealSel._tier);
+        tierHidden.value = String(tier);
+        if (!selections[date]) selections[date] = {};
+        if (!selections[date][mealKey]) selections[date][mealKey] = {};
+        selections[date][mealKey].buffetTier = tier;
+
+        const tierBtn = selSection.closest('.fo-indiv-meal-card')
+                          ?.querySelector(`.fo-buffet-tier-btn[data-tier="${tier}"]`);
+        if (tierBtn && !tierBtn.classList.contains('fo-buffet-tier-btn--active')) {
+          tierBtn.click();
+        }
+      }
+
+      // Restore viand / dessert dropdown values
+      selSection.querySelectorAll('.ss-wrap').forEach(wrap => {
+        const sel = wrap.ssSelect;
+        if (!sel || !sel.name) return;
+        const keyMatch = sel.name.match(/\[([^\]]+)\]$/);
+        if (!keyMatch) return;
+        const key = keyMatch[1];
+        if (mealSel[key]) ssSetValue(wrap, mealSel[key]);
+      });
+    });
+  }
+
   /** Restore individual-order mode selections for one date. */
   function restoreIndividualMode(date, card, dateFoodSel, dateMealEn) {
     card.querySelectorAll('.fo-indiv-meal-card').forEach(mealCard => {
@@ -373,8 +419,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const mode = cardModes[date] || 'set';
 
-    if (mode === 'individual') {
-      renderIndividualMode(date, columnsDiv);
+    if (mode === 'buffet') {
+      renderBuffetMode(date, columnsDiv);
     } else if (IS_SPIRITUAL) {
       renderSpiritualSet(date, columnsDiv);
     } else {
@@ -383,37 +429,245 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /* ═══════════════════════════════════════════════════════════
-     3. INDIVIDUAL MODE  (card-based, fully customizable)
+     3. BUFFET MODE  (flat-rate per pax — 350 or 380)
+     Replaces the old "Individual Order" mode.
+     - 350/pax: 3 viand dropdowns + 1 dessert dropdown
+     - 380/pax: 4 viand dropdowns + 1 dessert dropdown
+     - No snacks section
+     - No "+ Add" buttons
   ═══════════════════════════════════════════════════════════ */
-  function renderIndividualMode(date, container) {
-    container.classList.add('fo-individual-mode');
+  const BUFFET_MEAL_CARDS = [
+    { key: 'breakfast', label: 'Breakfast' },
+    { key: 'lunch',     label: 'Lunch' },
+    { key: 'dinner',    label: 'Dinner' },
+  ];
 
-    // ── Meal time cards: Breakfast / Lunch / Dinner ────────────
+  function renderBuffetMode(date, container) {
+    container.classList.add('fo-buffet-mode');
+
+    // Initialise per-meal selections state
+    if (!selections[date]) selections[date] = {};
+
     const mealGrid = el('div', 'fo-indiv-meal-grid');
-    [['breakfast','Breakfast'], ['lunch','Lunch'], ['dinner','Dinner']].forEach(([key, label]) =>
-      mealGrid.appendChild(makeIndivMealCard(date, key, label))
-    );
-    container.appendChild(mealGrid);
 
-    // ── Snacks: single multi-select block ──────────────────────
-    const snackWrap = el('div', 'fo-indiv-snack-wrap');
-    const snackHdr  = el('div', 'fo-indiv-snack-hdr');
-    snackHdr.innerHTML =
-      `<span class="fo-indiv-snack-title">Snacks</span>` +
-      `<span class="fo-indiv-snack-sub">Select all that apply</span>`;
-    snackWrap.appendChild(snackHdr);
-    buildSnackSection(date, 'snacks', snackWrap, true);
-    container.appendChild(snackWrap);
+    BUFFET_MEAL_CARDS.forEach(({ key: mealKey, label }) => {
+      const card = el('div', 'fo-indiv-meal-card');
+
+      // ── Hidden base inputs ──────────────────────────────────
+      const enabledHidden = makeHidden(`meal_enabled[${date}][${mealKey}]`, '1');
+      enabledHidden.classList.add('fo-indiv-enabled');
+      card.appendChild(enabledHidden);
+      card.appendChild(makeHidden(`meal_mode[${date}][${mealKey}]`, 'buffet'));
+
+      // ── Card header ──────────────────────────────────────────
+      const header   = el('div', 'fo-indiv-card-header');
+      const nameSpan = el('span', 'fo-indiv-meal-name');
+      nameSpan.textContent = label;
+
+      const toggleLabel = el('label', 'fo-indiv-toggle');
+      const checkbox    = el('input');
+      checkbox.type    = 'checkbox';
+      checkbox.checked = true;
+      checkbox.classList.add('fo-indiv-toggle-cb');
+      const toggleSpan  = el('span', 'fo-indiv-toggle-text');
+      toggleSpan.textContent = 'Include';
+      toggleLabel.appendChild(checkbox);
+      toggleLabel.appendChild(toggleSpan);
+
+      header.appendChild(nameSpan);
+      header.appendChild(toggleLabel);
+      card.appendChild(header);
+
+      // ── Per-card tier selector ────────────────────────────────
+      const tierWrap = el('div', 'fo-buffet-card-tier');
+
+      // _tier stored inside food_selections so it survives the cart restore flow
+      const tierHidden = makeHidden(`food_selections[${date}][${mealKey}][_tier]`, '350');
+      tierHidden.classList.add('fo-buffet-meal-tier-hidden');
+      tierWrap.appendChild(tierHidden);
+
+      const tier350 = el('button', 'fo-buffet-tier-btn fo-buffet-tier-btn--sm fo-buffet-tier-btn--active');
+      tier350.type = 'button';
+      tier350.dataset.tier  = '350';
+      tier350.dataset.count = '3';
+      tier350.innerHTML = '<strong>₱350/pax</strong><span>3 Viands</span>';
+
+      const tier380 = el('button', 'fo-buffet-tier-btn fo-buffet-tier-btn--sm');
+      tier380.type = 'button';
+      tier380.dataset.tier  = '380';
+      tier380.dataset.count = '4';
+      tier380.innerHTML = '<strong>₱380/pax</strong><span>4 Viands</span>';
+
+      tierWrap.appendChild(tier350);
+      tierWrap.appendChild(tier380);
+      card.appendChild(tierWrap);
+
+      // ── Card body (viand + dessert dropdowns) ─────────────────
+      const body       = el('div', 'fo-indiv-card-body');
+      const selSection = el('div', 'fo-buffet-sel-section');
+      selSection.dataset.date = date;
+      selSection.dataset.meal = mealKey;
+      body.appendChild(selSection);
+      card.appendChild(body);
+
+      // Initialise selections for this meal
+      selections[date][mealKey] = { buffetTier: 350 };
+
+      // Build initial dropdowns (3 viands for ₱350)
+      buildBuffetMealSelections(date, mealKey, selSection, 3);
+
+      // ── Wire tier buttons ──────────────────────────────────
+      [tier350, tier380].forEach(btn => {
+        btn.addEventListener('click', () => {
+          [tier350, tier380].forEach(b => b.classList.remove('fo-buffet-tier-btn--active'));
+          btn.classList.add('fo-buffet-tier-btn--active');
+          const tier  = parseInt(btn.dataset.tier);
+          const count = parseInt(btn.dataset.count);
+          tierHidden.value = String(tier);
+          if (!selections[date][mealKey]) selections[date][mealKey] = {};
+          selections[date][mealKey].buffetTier = tier;
+          buildBuffetMealSelections(date, mealKey, selSection, count);
+          updateTotal();
+        });
+      });
+
+      // ── Include / Exclude toggle ────────────────────────────
+      checkbox.addEventListener('change', function () {
+        enabledHidden.value = this.checked ? '1' : '0';
+        body.classList.toggle('fo-indiv-card-body--disabled', !this.checked);
+        card.classList.toggle('fo-indiv-meal-card--disabled', !this.checked);
+        tierWrap.style.opacity       = this.checked ? '' : '0.35';
+        tierWrap.style.pointerEvents = this.checked ? '' : 'none';
+        if (this.checked) {
+          if (!selections[date][mealKey]) selections[date][mealKey] = {};
+          selections[date][mealKey].buffetTier = parseInt(tierHidden.value) || 350;
+        } else {
+          delete selections[date][mealKey];
+        }
+        updateTotal();
+      });
+
+      mealGrid.appendChild(card);
+    });
+
+    container.appendChild(mealGrid);
+    updateTotal();
   }
 
+  /**
+   * Build (or rebuild) viand + dessert dropdowns inside one meal card's selSection.
+   *
+   * Layout (viandCount = 3 → ₱350 tier, viandCount = 4 → ₱380 tier):
+   *   N × Meat Viand  (separate dropdown each, from meatviand pool)
+   *   1 × Noodle Viand (from noodleviand pool)
+   *   1 × Veggie Viand (from veggieviand pool)
+   *   1 × Dessert      (from desserts + fruits pool)
+   */
+  function buildBuffetMealSelections(date, mealKey, section, viandCount) {
+    // Clean up any portal dropdowns attached to existing ss-wraps
+    section.querySelectorAll('.ss-wrap').forEach(w => {
+      if (w._ssDropdown) w._ssDropdown.remove();
+    });
+    section.innerHTML = '';
+
+    const meatPool   = foodsData['meatviand']   || [];
+    const noodlePool = foodsData['noodleviand']  || [];
+    const veggiePool = foodsData['veggieviand']  || [];
+    const dessertPool = [
+      ...(foodsData['desserts'] || []),
+      ...(foodsData['fruits']   || []),
+    ];
+
+    const grid = el('div', 'fo-buffet-grid');
+
+    // N × Meat Viand dropdowns
+    for (let i = 1; i <= viandCount; i++) {
+      grid.appendChild(buildBuffetRow(
+        `Meat Viand ${i}`,
+        makeSearchableSelect(
+          `food_selections[${date}][${mealKey}][meatviand${i}]`,
+          meatPool,
+          `Select meat viand ${i}…`,
+          'fo-buffet-ss'
+        )
+      ));
+    }
+
+    // 1 × Noodle Viand dropdown
+    grid.appendChild(buildBuffetRow(
+      'Noodle Viand',
+      makeSearchableSelect(
+        `food_selections[${date}][${mealKey}][noodleviand]`,
+        noodlePool,
+        'Select noodle viand…',
+        'fo-buffet-ss'
+      )
+    ));
+
+    // 1 × Veggie Viand dropdown
+    grid.appendChild(buildBuffetRow(
+      'Veggie Viand',
+      makeSearchableSelect(
+        `food_selections[${date}][${mealKey}][veggieviand]`,
+        veggiePool,
+        'Select veggie viand…',
+        'fo-buffet-ss'
+      )
+    ));
+
+    // 1 × Dessert dropdown
+    grid.appendChild(buildBuffetRow(
+      'Dessert',
+      makeSearchableSelect(
+        `food_selections[${date}][${mealKey}][dessert]`,
+        dessertPool,
+        'Select dessert or fruit…',
+        'fo-buffet-ss'
+      )
+    ));
+
+    section.appendChild(grid);
+  }
+
+  /** @deprecated Use buildBuffetMealSelections — kept so any stale references don't crash. */
+  function buildBuffetSelections(date, section, viandCount) {
+    buildBuffetMealSelections(date, 'buffet', section, viandCount);
+  }
+
+  function buildBuffetRow(labelText, selectEl) {
+    const row = el('div', 'fo-buffet-row');
+    const lbl = el('span', 'fo-buffet-row-label');
+    lbl.textContent = labelText;
+    row.appendChild(lbl);
+    row.appendChild(selectEl);
+    return row;
+  }
+
+  // ── Keep old helpers for restore logic (restoreIndividualMode → restoreBuffetMode) ──
   function makeIndivMealCard(date, mealKey, label) {
+    // Legacy stub — not called anymore in buffet mode but kept so restore helpers compile.
+    return el('div', 'fo-indiv-meal-card');
+  }
+
+  function renderIndividualMode(date, container) {
+    // Legacy alias for backward-compatibility with any remaining references.
+    renderBuffetMode(date, container);
+  }
+
+  /** Row: label on left, single select on right (kept for backward compat) */
+  function buildIndivRowLegacy(labelText, selectEl) {
+    return buildIndivRow(labelText, selectEl);
+  }
+
+  // ── (Kept for restore flow reference) ──
+  function makeIndivMealCardFull(date, mealKey, label) {
     const card = el('div', 'fo-indiv-meal-card');
 
     // Hidden inputs always present
     const enabledHidden = makeHidden(`meal_enabled[${date}][${mealKey}]`, '1');
     enabledHidden.classList.add('fo-indiv-enabled');
     card.appendChild(enabledHidden);
-    card.appendChild(makeHidden(`meal_mode[${date}][${mealKey}]`, 'individual'));
+    card.appendChild(makeHidden(`meal_mode[${date}][${mealKey}]`, 'buffet'));
 
     // ── Card header ──────────────────────────────────────────
     const header = el('div', 'fo-indiv-card-header');
@@ -437,10 +691,11 @@ document.addEventListener('DOMContentLoaded', function () {
     // ── Card body ────────────────────────────────────────────
     const body = el('div', 'fo-indiv-card-body');
 
-    // Pool viands + side dishes for choice dropdowns
+    // Pool: Meat Viand + Noodle Viand + Veggie Viand
     const viandOpts = [
-      ...(foodsData['viand']    || []),
-      ...(foodsData['sidedish'] || []),
+      ...(foodsData['meatviand']   || []),
+      ...(foodsData['noodleviand'] || []),
+      ...(foodsData['veggieviand'] || []),
     ];
 
     // 1. Rice
@@ -449,19 +704,19 @@ document.addEventListener('DOMContentLoaded', function () {
         foodsData['rice'] || [], 'Choose rice…')
     ));
 
-    // 2. Viand / Side Dish (1st)
-    body.appendChild(buildIndivRow('Viand / Side Dish',
+    // 2. Viand (1st)
+    body.appendChild(buildIndivRow('Viand',
       makeIndivSelect(`food_selections[${date}][${mealKey}][viand1]`,
-        viandOpts, 'Choose viand or side dish…')
+        viandOpts, 'Choose viand…')
     ));
 
-    // 3. Viand / Side Dish (2nd)
-    body.appendChild(buildIndivRow('Viand / Side Dish',
+    // 3. Viand (2nd)
+    body.appendChild(buildIndivRow('Viand',
       makeIndivSelect(`food_selections[${date}][${mealKey}][viand2]`,
-        viandOpts, 'Choose viand or side dish…')
+        viandOpts, 'Choose viand…')
     ));
 
-    // 4. + Extra Viand (add row + chips)
+    // 4. + Extra Viand (add row + chips) — REMOVED per buffet spec (no + Add button)
     const extraChips  = el('div', 'fo-indiv-chips');
     const extraSelWrap = makeIndivSelect(null, viandOpts, 'Add extra viand…');
     const extraBtn    = el('button', 'fo-indiv-add-btn');
@@ -982,13 +1237,13 @@ document.addEventListener('DOMContentLoaded', function () {
     setsSection.appendChild(setsRow);
     container.appendChild(setsSection);
 
-    /* ── Additional food search ── */
-    const addlSection = el('div', 'fo-section');
-    const addlTitle   = el('div', 'fo-section-title');
-    addlTitle.innerHTML = '<span>Additional Food</span><small>Search and add extra items</small>';
-    addlSection.appendChild(addlTitle);
-    buildAdditionalSearch(date, addlSection);
-    container.appendChild(addlSection);
+    // /* ── Additional food search ── */
+    // const addlSection = el('div', 'fo-section');
+    // const addlTitle   = el('div', 'fo-section-title');
+    // addlTitle.innerHTML = '<span>Additional Food</span><small>Search and add extra items</small>';
+    // addlSection.appendChild(addlTitle);
+    // buildAdditionalSearch(date, addlSection);
+    // container.appendChild(addlSection);
 
     /* ── Snacks ── */
     const snacks = foodsData['snacks'] || [];
@@ -1229,7 +1484,10 @@ document.addEventListener('DOMContentLoaded', function () {
   ═══════════════════════════════════════════════════════════ */
 
   const CAT_LABELS = {
-    rice: 'Rice', viand: 'Viand', sidedish: 'Side Dish',
+    rice: 'Rice',
+    meatviand: 'Meat Viand', noodleviand: 'Noodle Viand', veggieviand: 'Veggie Viand',
+    // Legacy keys kept for backward compatibility with old data
+    viand: 'Viand', sidedish: 'Side Dish',
     drinks: 'Drinks', desserts: 'Dessert', fruits: 'Fruit', snacks: 'Snacks',
   };
 
@@ -1307,13 +1565,19 @@ document.addEventListener('DOMContentLoaded', function () {
     section.appendChild(title);
 
     // Switch viand +₱20
+    const _upgradeViandPool = [
+      ...(foodsData['meatviand']   || []),
+      ...(foodsData['noodleviand'] || []),
+      ...(foodsData['veggieviand'] || []),
+      ...(foodsData['viand']       || []),   // legacy compat
+    ];
     const switchRow = el('div', 'fo-upgrade-row');
     switchRow.innerHTML =
       '<span class="fo-upgrade-label">Switch viand ' +
       '<span class="fo-upgrade-price">+₱20</span></span>';
     const switchSelWrap = makeSearchableSelect(
       `food_upgrades[${date}][${mealKey}][viand_switch]`,
-      foodsData['viand'] || [], 'Keep original viand', 'fo-viand-switch-ss'
+      _upgradeViandPool, 'Keep original viand', 'fo-viand-switch-ss'
     );
     switchSelWrap.ssSelect.classList.add('fo-viand-switch');
     switchSelWrap.ssSelect.addEventListener('change', () => recalcSurcharge(date, mealKey, card));
@@ -1327,7 +1591,7 @@ document.addEventListener('DOMContentLoaded', function () {
       '<span class="fo-upgrade-price">+₱40 each</span></span>';
     const addRowWrap    = el('div', 'fo-add-viand-row');
     const extraSelWrap2 = makeSearchableSelect(
-      null, foodsData['viand'] || [], 'Choose viand…', 'fo-extra-viand-ss'
+      null, _upgradeViandPool, 'Choose viand…', 'fo-extra-viand-ss'
     );
     const addBtn = el('button', 'fo-add-btn');
     addBtn.type = 'button';
@@ -1450,20 +1714,24 @@ document.addEventListener('DOMContentLoaded', function () {
       )
     ));
 
-    // Switch Food (+₱20 per changed viand or side dish)
+    // Switch Food (+₱20 per changed viand)
     const switchables = (set.foods || []).filter(f => {
       const cat = (f.Food_Category || '').toLowerCase();
-      return cat === 'viand' || cat === 'sidedish';
+      return cat === 'meatviand' || cat === 'noodleviand' || cat === 'veggieviand'
+          || cat === 'viand'     || cat === 'sidedish'; // legacy compat
     });
     if (switchables.length) {
       const switchGroup = el('div', 'fo-cust-field-group');
       const switchHead  = el('p', 'fo-cust-field-label');
       switchHead.innerHTML = 'Switch Food <span class="fo-cust-price-tag">+₱20 each</span>';
       switchGroup.appendChild(switchHead);
-      // Pool both viands and side dishes as replacement options
+      // Pool all viand categories as replacement options
       const switchOpts = [
-        ...(foodsData['viand']    || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
-        ...(foodsData['sidedish'] || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+        ...(foodsData['meatviand']   || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+        ...(foodsData['noodleviand'] || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+        ...(foodsData['veggieviand'] || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+        ...(foodsData['viand']       || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+        ...(foodsData['sidedish']    || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
       ];
       switchables.forEach(food => {
         const selWrap = makeSelectEl(
@@ -1498,8 +1766,14 @@ document.addEventListener('DOMContentLoaded', function () {
       extraChips.appendChild(buildCustChip(v.id, v.label, extraChips, recalcModal))
     );
 
+    const _allViands = [
+      ...(foodsData['meatviand']   || []),
+      ...(foodsData['noodleviand'] || []),
+      ...(foodsData['veggieviand'] || []),
+      ...(foodsData['viand']       || []),   // legacy compat
+    ];
     const extraSelWrap = makeSelectEl(null,
-      (foodsData['viand'] || []).map(v => ({ value: v.Food_ID, label: v.Food_Name })),
+      _allViands.map(v => ({ value: v.Food_ID, label: v.Food_Name })),
       'Choose viand'
     );
     const extraAddBtn = el('button', 'fo-cust-add-btn');
@@ -1783,24 +2057,17 @@ document.addEventListener('DOMContentLoaded', function () {
       const sel  = selections[date] || {};
       let dateSubtotal = 0;
 
-      if (mode === 'individual') {
-        // Sum all food-selects (rice, viand, sidedish, drink) that are inside enabled meal cards
-        card.querySelectorAll('.fo-indiv-meal-card').forEach(mealCard => {
-          if (mealCard.classList.contains('fo-indiv-meal-card--disabled')) return;
-          const body = mealCard.querySelector('.fo-indiv-card-body');
-          if (!body || body.classList.contains('fo-indiv-card-body--disabled')) return;
-          body.querySelectorAll('.food-select').forEach(s => {
-            if (!s.disabled && s.value) {
-              dateSubtotal += parseFloat(s.options[s.selectedIndex]?.dataset.price || 0);
-            }
-          });
-          // Extra viand + dessert chips
-          body.querySelectorAll('.fo-indiv-chip-price').forEach(h => {
-            dateSubtotal += parseFloat(h.dataset.price || 0);
-          });
+      if (mode === 'buffet') {
+        // Sum enabled meal-card tiers (each card is 350 or 380 per pax independently)
+        BUFFET_MEAL_CARDS.forEach(({ key: mealKey }) => {
+          // Check if this meal card's "Include" toggle is enabled
+          const mealCard = card.querySelector(`.fo-indiv-meal-card .fo-indiv-enabled[name="meal_enabled[${date}][${mealKey}]"]`);
+          if (mealCard && mealCard.value !== '1') return; // meal excluded
+          const mealSel = sel[mealKey];
+          if (mealSel && mealSel.buffetTier) {
+            dateSubtotal += mealSel.buffetTier;
+          }
         });
-        // Snacks (shared buildSnackSection — uses selections[date])
-        (sel.snacks || []).forEach(s => dateSubtotal += parseFloat(s.price || 0));
       } else if (IS_SPIRITUAL) {
         Object.values(sel).forEach(v => {
           if (v?.price) dateSubtotal += parseFloat(v.price) + parseFloat(v.surcharge || 0);
@@ -1902,32 +2169,68 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const mode = cardModes[date] || 'set';
 
-      if (mode === 'individual') {
-        // Each included meal card: rice + viand1 + drink are required; spiritual also needs dessert
-        card.querySelectorAll('.fo-indiv-meal-card').forEach(mealCard => {
-          if (mealCard.classList.contains('fo-indiv-meal-card--disabled')) return;
-          const body = mealCard.querySelector('.fo-indiv-card-body');
-          if (!body || body.classList.contains('fo-indiv-card-body--disabled')) return;
-          const mealName = mealCard.querySelector('.fo-indiv-meal-name')?.textContent || 'meal';
+      if (mode === 'buffet') {
+        // Validate all per-meal buffet sections (breakfast / lunch / dinner)
+        card.querySelectorAll('.fo-buffet-sel-section').forEach(selSection => {
+          const mealKey  = selSection.dataset.meal;
+          if (!mealKey) return;
 
-          // 1. Rice + viand1 (ss-wrap selects, exclude viand2)
-          body.querySelectorAll('.ss-wrap .food-select[name]').forEach(sel => {
-            const n = sel.name || '';
-            if (!n.includes('[viand2]') && !sel.value) {
-              const wrap = sel.closest('.ss-wrap');
+          // Check the meal-enabled toggle — skip if meal is excluded
+          const mealCard = selSection.closest('.fo-indiv-meal-card');
+          if (!mealCard) return;
+          const enabledHidden = mealCard.querySelector('.fo-indiv-enabled');
+          if (enabledHidden && enabledHidden.value !== '1') return;
+
+          // Determine tier for this meal card
+          const tierHidden = mealCard.querySelector('.fo-buffet-meal-tier-hidden');
+          const tierVal    = parseInt(tierHidden?.value || '350');
+          const meatCount  = tierVal === 380 ? 4 : 3;
+
+          // Validate N meat viand dropdowns
+          for (let i = 1; i <= meatCount; i++) {
+            const nativeSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][meatviand${i}]"]`);
+            if (nativeSel && !nativeSel.value) {
+              const wrap = nativeSel.closest('.ss-wrap');
               if (wrap && !wrap.classList.contains('ss-wrap--error')) {
                 wrap.classList.add('ss-wrap--error');
                 invalidWraps.push(wrap);
               }
-              if (!errorMsg) {
-                const field = n.includes('[rice]') ? 'rice' : 'a viand or side dish';
-                errorMsg = `Please select ${field} for ${mealName} (${date}).`;
-              }
+              if (!errorMsg) errorMsg = `Please select Meat Viand ${i} for ${mealKey} buffet on ${date}.`;
             }
-          });
+          }
 
-          // (drink is now a searchable-select covered by the ss-wrap loop above;
-          //  dessert and extra viand are optional — no required validation)
+          // Validate noodle viand
+          const noodleSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][noodleviand]"]`);
+          if (noodleSel && !noodleSel.value) {
+            const wrap = noodleSel.closest('.ss-wrap');
+            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
+              wrap.classList.add('ss-wrap--error');
+              invalidWraps.push(wrap);
+            }
+            if (!errorMsg) errorMsg = `Please select a Noodle Viand for ${mealKey} buffet on ${date}.`;
+          }
+
+          // Validate veggie viand
+          const veggieSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][veggieviand]"]`);
+          if (veggieSel && !veggieSel.value) {
+            const wrap = veggieSel.closest('.ss-wrap');
+            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
+              wrap.classList.add('ss-wrap--error');
+              invalidWraps.push(wrap);
+            }
+            if (!errorMsg) errorMsg = `Please select a Veggie Viand for ${mealKey} buffet on ${date}.`;
+          }
+
+          // Validate dessert
+          const dessertSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][dessert]"]`);
+          if (dessertSel && !dessertSel.value) {
+            const wrap = dessertSel.closest('.ss-wrap');
+            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
+              wrap.classList.add('ss-wrap--error');
+              invalidWraps.push(wrap);
+            }
+            if (!errorMsg) errorMsg = `Please select a Dessert for ${mealKey} buffet on ${date}.`;
+          }
         });
 
       } else if (IS_SPIRITUAL) {

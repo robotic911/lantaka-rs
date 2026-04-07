@@ -94,6 +94,7 @@
             <p class="signup-text">
                 Don't have an account? <a href="{{ route('signup') }}" class="signup-link">Sign up</a>
                 <br>
+                <a href="{{ route('forgot.password') }}" class="signup-link">Forgot Password?</a>
                 <br>
                 <!-- <a class="signup-link"> Employee Dashboard Page Test</a>
                 <br>

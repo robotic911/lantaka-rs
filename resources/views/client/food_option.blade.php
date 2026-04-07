@@ -175,10 +175,10 @@
                         <span class="reservation-date-text">Food Reservations for {{ $venueDates->format('F d, Y') }}</span>
                     </div>
 
-                    {{-- Individual / Set toggle (all reservations) --}}
+                    {{-- Set / Buffet toggle (all reservations) --}}
                     <div class="fo-mode-toggle" data-date="{{ $dateKey }}">
-                    <button type="button" class="fo-mode-btn fo-mode-btn--active" data-mode="set">Set</button>
-                        <button type="button" class="fo-mode-btn" data-mode="individual">Individual Order</button>
+                        <button type="button" class="fo-mode-btn fo-mode-btn--active" data-mode="set">{{ $isSpiritual ? 'Set' : 'Packed Meal' }}</button>
+                        <button type="button" class="fo-mode-btn" data-mode="buffet">Buffet</button>
                     </div>
 
                     <div class="food-toggle-section">

@@ -32,17 +32,19 @@
             <span>Rooms / Venue</span>
         </a>
 
+        
+
+        @if(Auth::user()->Account_Role === 'admin')
+
         <a href="{{route('employee.food')}}" class="nav-item {{ request()->routeIs('employee.food') ? 'active' : '' }}">
             <span class="icon food-icon"></span>
             <span>Food</span>
         </a>
 
-        @if(Auth::user()->Account_Role === 'admin')
         <a href="{{route('employee.accounts')}}" class="nav-item {{ request()->routeIs('employee.accounts') ? 'active' : '' }}">
             <span class="icon accounts-icon"></span>
             <span>Accounts</span>
         </a>
-
 
 
         <a href="{{route('employee.eventlogs')}}" class="nav-item {{ request()->routeIs('employee.eventlogs') ? 'active' : '' }}">

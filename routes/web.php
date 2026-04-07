@@ -24,6 +24,10 @@ Route::post('/login', [LoginController::class, 'login'])->name('login.post');
 Route::get('/signup', [SignupController::class, 'showSignupForm'])->name('signup');
 Route::post('/signup', [SignupController::class, 'store'])->name('register.post');
 
+/* Forgot Password */
+Route::get('/forgot-password',  [LoginController::class, 'showForgotPassword'])->name('forgot.password');
+Route::post('/forgot-password', [LoginController::class, 'sendForgotPassword'])->name('forgot.password.send');
+
 /* Room/Venue browsing — public (no login required) */
 Route::get('/client/room-venue', [RoomVenueController::class, 'index'])->name('client.room_venue');
 Route::get('/accommodations', [RoomVenueController::class, 'index'])->name('client.index');

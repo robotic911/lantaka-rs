@@ -51,6 +51,7 @@
                      data-pax="{{ $item['pax'] }}"
                      data-days="{{ $item['days'] }}"
                      data-purpose="{{ $purpose }}"
+                     data-notes="{{ $item['notes'] ?? '' }}"
                      data-food='@json($item['selected_foods'] ?? [])'
                      data-food-sets='@json($item['selected_sets'] ?? [])'
                      data-food-enabled='@json($foodEnabled)'

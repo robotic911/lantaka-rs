@@ -23,10 +23,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const d2   = new Date(rawOut);
     const diff = Math.round((d2 - d1) / 86400000);
     if (diff <= 0) return '—';
+    // Venues count both check-in and check-out day (inclusive), rooms count nights
+    const displayDiff = type === 'venue' ? diff + 1 : diff;
     const unit = type === 'venue'
-      ? (diff === 1 ? 'day'   : 'days')
-      : (diff === 1 ? 'night' : 'nights');
-    return `${diff} ${unit}`;
+      ? (displayDiff === 1 ? 'day'   : 'days')
+      : (displayDiff === 1 ? 'night' : 'nights');
+    return `${displayDiff} ${unit}`;
   }
 
   function buildFoodHtml(foods, foodSetRows) {

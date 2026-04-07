@@ -234,7 +234,7 @@
                         'check_out'           => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
                         'check_in_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
                         'check_out_raw'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
-                        'total'               => number_format($resTotalRaw, 2),
+                        'total'               => number_format($resTotalRaw + $resFoodTotal, 2),
                         'food_total'          => number_format($resFoodTotal, 2),
                         'venue_total'         => number_format($resVenueTotal, 2),
                         'accommodation_total' => number_format($resAccommodationTotal, 2),

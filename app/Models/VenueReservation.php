@@ -20,6 +20,7 @@ class VenueReservation extends Model
         'Venue_Reservation_Check_Out_Time',
         'Venue_Reservation_Pax',
         'Venue_Reservation_Purpose',
+        'Venue_Reservation_Notes',
         'Venue_Reservation_Total_Price',
         'Venue_Reservation_Status',
         'Venue_Reservation_Payment_Status',

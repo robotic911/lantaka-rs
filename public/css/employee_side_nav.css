@@ -150,24 +150,10 @@
 }
 
 .food-icon {
-  /* Uses an inline emoji-style fallback since no SVG asset exists yet.
-     Replace the mask-image below once a food SVG is added to the sidenav folder. */
-  mask-image: none !important;
-  -webkit-mask-image: none !important;
-  background: none !important;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-style: normal;
-  font-size: 18px;
-  width: 22px;
-  height: 22px;
-  line-height: 1;
+  mask-image: url("/images/logo/sidenav/food-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/food-icon.svg");
 }
-.food-icon::before {
-  content: '🍽';
-  filter: grayscale(1) brightness(0.4);
-}
+
 .nav-item.active .food-icon::before,
 .nav-item:hover  .food-icon::before {
   filter: none;

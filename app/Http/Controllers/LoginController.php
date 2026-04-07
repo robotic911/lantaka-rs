@@ -7,9 +7,12 @@ namespace App\Http\Controllers;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash; // Needed for password checking
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use App\Models\Account;
+use App\Mail\ForgotPasswordMail;
 
 class LoginController extends Controller
 {
@@ -91,6 +94,53 @@ class LoginController extends Controller
         }
 
         return redirect()->route('index');
+    }
+
+    /**
+     * Show the forgot password form.
+     */
+    public function showForgotPassword()
+    {
+        return view('pages.forgot_password');
+    }
+
+    /**
+     * Handle forgot password request.
+     * Finds the client by email, generates a new password using the same
+     * format as account creation (lrs + 9 random chars), saves it, and emails it.
+     */
+    public function sendForgotPassword(Request $request)
+    {
+        $request->validate([
+            'Account_Email' => ['required', 'email'],
+        ]);
+
+        $user = Account::where('Account_Email', $request->Account_Email)
+                       ->where('Account_Role', 'client')
+                       ->first();
+
+        // Always return the same message to prevent email enumeration
+        if (!$user) {
+            return back()->with('success', 'If that email is registered to a client account, a new password has been sent to it.');
+        }
+
+        // Generate a new password using the same pattern as account creation
+        $plainPassword = 'lrs' . Str::random(9);
+
+        $user->Account_Password = Hash::make($plainPassword);
+        $user->save();
+
+        try {
+            Mail::to($user->Account_Email)
+                ->send(new ForgotPasswordMail($user, $plainPassword));
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('ForgotPasswordMail failed', [
+                'email' => $request->Account_Email,
+                'error' => $e->getMessage(),
+            ]);
+        }
+
+        return back()->with('success', 'If that email is registered to a client account, a new password has been sent to it.');
     }
 
     /**

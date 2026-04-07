@@ -18,6 +18,7 @@ class RoomReservation extends Model
         'Room_Reservation_Total_Price',
         'Room_Reservation_Pax',
         'Room_Reservation_Purpose',
+        'Room_Reservation_Notes',
         'Room_Reservation_Discount',
         'Room_Reservation_Status',
         'Room_Reservation_Payment_Status',

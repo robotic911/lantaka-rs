@@ -10,6 +10,33 @@
   font-family: 'Alexandria', sans-serif;
   padding: 28px 32px;
 }
+.food-icon {
+  mask-image: url("/images/logo/sidenav/food-icon.svg");
+  -webkit-mask-image: url("/images/logo/sidenav/food-icon.svg");
+}
+
+/* ICON BASE */
+
+.icon {
+  width: 20px;
+  height: 20px;
+  background-color: white;
+
+  mask-size: contain;
+  mask-repeat: no-repeat;
+  mask-position: center;
+
+  -webkit-mask-size: contain;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-position: center;
+
+  transition: background-color 0.3s ease;
+}
+
+.nav-item.active .icon{
+  background-color: #ffc107;
+}
+
 
 /* ── Page header ─────────────────────────────────────────── */
 .fm-page-header {

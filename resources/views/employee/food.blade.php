@@ -8,13 +8,14 @@
   $activeTab = request('tab', 'individual');
 
   $categories = [
-    'rice'     => 'Rice',
-    'viand'    => 'Viand',
-    'sidedish' => 'Side Dish',
-    'drinks'   => 'Drinks',
-    'desserts' => 'Desserts',
-    'fruits'   => 'Fruits',
-    'snacks'   => 'Snacks',
+    'rice'        => 'Rice',
+    'meatviand'   => 'Meat Viand',
+    'noodleviand' => 'Noodle Viand',
+    'veggieviand' => 'Veggie Viand',
+    'drinks'      => 'Drinks',
+    'desserts'    => 'Desserts',
+    'fruits'      => 'Fruits',
+    'snacks'      => 'Snacks',
   ];
 
   $mealTimes = [
@@ -64,7 +65,7 @@
   {{-- ── Page header ── --}}
   <div class="fm-page-header">
     <div>
-      <h1 class="fm-page-title">🍽 Food Management</h1>
+      <h1 class="fm-page-title"><span class="icon food-icon"></span> Food Management</h1>
       <p class="fm-page-sub">Manage individual food items and food set packages</p>
     </div>
     @if($isAdmin)

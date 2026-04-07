@@ -147,10 +147,20 @@
             </div>
           </div>
 
+          <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 12px;">
+            <label class="pax-label">Special Requests / Notes <span style="font-weight:400; color:#6b7280;">(optional)</span></label>
+            <textarea
+              name="notes"
+              id="notesInput"
+              rows="3"
+              placeholder="E.g. dietary restrictions, room preferences, special setup…"
+              style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; resize:vertical; font-family:inherit; color:#374151;">{{ $prefillNotes ?? '' }}</textarea>
+          </div>
+
           <button type="submit" class="proceed-button" style="font-size: 14px;">
 
             {{ isset($reservationId) && $reservationId ? 'UPDATE RESERVATION' : 'PROCEED' }}
-            
+
           </button>
 
         </form>

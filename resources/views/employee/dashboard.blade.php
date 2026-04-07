@@ -189,7 +189,7 @@
                     {{-- Export PDF (keeps ganttExcelBtn id for existing JS handler) --}}
                     <button class="ac-export-btn" id="ganttExcelBtn" title="Export Calendar PDF">
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                        Export PDF
+                        Export CSV/PDF
                     </button>
                 </div>
             </div>
@@ -215,11 +215,11 @@
                         <button class="cal-export-close" id="calExportClose">&times;</button>
                     </div>
                     <p class="cal-export-desc">
-                        Choose a date range and year to export reservations as an Apple Calendar-style PDF or a flat CSV spreadsheet.
+                        Choose a date range and year to export reservations as a PDF or a flat CSV spreadsheet.
                     </p>
                     <div class="cal-export-fields">
                         <div class="cal-export-field">
-                            <label for="calExportStartMonth">Month</label>
+                            <label for="calExportStartMonth">Start Month</label>
                             <select id="calExportStartMonth">
                                 <option value="1">January</option><option value="2">February</option>
                                 <option value="3">March</option><option value="4">April</option>
@@ -243,6 +243,16 @@
                         <div class="cal-export-field">
                             <label for="calExportYear">Year</label>
                             <select id="calExportYear"></select>
+                        </div>
+                    </div>
+                    <div class="cal-export-fields" style="margin-top:8px;">
+                        <div class="cal-export-field" style="flex:1;">
+                            <label for="calExportType">Reservation Type</label>
+                            <select id="calExportType">
+                                <option value="all">All</option>
+                                <option value="room">Rooms Only</option>
+                                <option value="venue">Venues Only</option>
+                            </select>
                         </div>
                     </div>
                     <div class="cal-export-preview">
@@ -348,8 +358,11 @@
         calCancelBtn?.addEventListener('click', () => { calModal.style.display = 'none'; });
         calModal    ?.addEventListener('click', e => { if (e.target === calModal) calModal.style.display = 'none'; });
 
-        function calExportParams() {
-            return `month=${calMonthSelStart.value}&end_month=${calMonthSelEnd.value}&year=${calYearSel.value}`;
+        function calExportParams(includeType = false) {
+            const base = `month=${calMonthSelStart.value}&end_month=${calMonthSelEnd.value}&year=${calYearSel.value}`;
+            if (!includeType) return base;
+            const type = document.getElementById('calExportType')?.value || 'all';
+            return `${base}&reservation_type=${type}`;
         }
 
         calDownBtn?.addEventListener('click', () => {
@@ -360,13 +373,13 @@
         document.getElementById('calExportPdfBtn')
             ?.addEventListener('click', () => {
                 calModal.style.display = 'none';
-                window.location.href = `${window.calendarExportPDFRoute}?${calExportParams()}`;
+                window.location.href = `${window.calendarExportPDFRoute}?${calExportParams(true)}`;
             });
 
         document.getElementById('calExportCsvBtn')
             ?.addEventListener('click', () => {
                 calModal.style.display = 'none';
-                window.location.href = `${window.calendarExportCSVRoute}?${calExportParams()}`;
+                window.location.href = `${window.calendarExportCSVRoute}?${calExportParams(true)}`;
             });
 
         confirmBtn.addEventListener('click', async () => {
@@ -554,41 +567,55 @@
             }, 620, 500);
         }
 
-        /* ── Grouped Bar: Rooms vs Venues (reservations only) ── */
+        /* ── Grouped Bar: Room Types vs Venue (reservations only) ── */
         async function buildComparisonChart(data) {
+            // Build one dataset per room type + one for Venue
+            const roomTypes  = data.roomTypeBreakdown || [];
+            const venueRow   = data.venueTypeRow      || { type: 'Venue', bookings: data.venueCount || 0 };
+
+            const typeColors = [
+                ['rgba(99,153,243,0.82)',  '#6199f3'],
+                ['rgba(52,211,153,0.82)',  '#34d399'],
+                ['rgba(251,191,36,0.82)',  '#fbbf24'],
+                ['rgba(248,113,113,0.82)', '#f87171'],
+                ['rgba(167,139,250,0.82)', '#a78bfa'],
+                ['rgba(45,212,191,0.82)',  '#2dd4bf'],
+            ];
+
+            const datasets = roomTypes.map((rt, i) => ({
+                label: rt.type,
+                data: [rt.bookings],
+                backgroundColor: (typeColors[i] || typeColors[0])[0],
+                borderColor:     (typeColors[i] || typeColors[0])[1],
+                borderWidth: 1.5,
+                borderRadius: 5,
+            }));
+
+            datasets.push({
+                label: 'Venue',
+                data: [venueRow.bookings],
+                backgroundColor: 'rgba(163,148,234,0.82)',
+                borderColor: '#a394ea',
+                borderWidth: 1.5,
+                borderRadius: 5,
+            });
+
             return chartToImage({
                 type: 'bar',
                 data: {
                     labels: ['Checked-out Bookings'],
-                    datasets: [
-                        {
-                            label: 'Rooms',
-                            data: [data.roomCount],
-                            backgroundColor: 'rgba(99,153,243,0.82)',
-                            borderColor: '#6199f3',
-                            borderWidth: 1.5,
-                            borderRadius: 5,
-                        },
-                        {
-                            label: 'Venues',
-                            data: [data.venueCount],
-                            backgroundColor: 'rgba(163,148,234,0.82)',
-                            borderColor: '#a394ea',
-                            borderWidth: 1.5,
-                            borderRadius: 5,
-                        }
-                    ]
+                    datasets,
                 },
                 options: {
                     animation: { duration: 0 },
                     responsive: false,
                     layout: { padding: { top: 8, right: 16, bottom: 8, left: 8 } },
                     plugins: {
-                        legend: { position: 'top', labels: { font: { size: 12, weight: '600' }, padding: 14, usePointStyle: true } },
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 10, usePointStyle: true } },
                         title: {
                             display: true,
-                            text: 'Rooms vs. Venues — Checked-out Reservations',
-                            font: { size: 14, weight: 'bold' },
+                            text: 'Room Types vs. Venue — Checked-out Reservations',
+                            font: { size: 13, weight: 'bold' },
                             color: '#1a3a7a',
                             padding: { top: 4, bottom: 10 }
                         }
@@ -692,7 +719,7 @@
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(17);
             pdf.setTextColor(...C.white);
-            T(safeText(data.monthLabel).toUpperCase(), W - 14, 13, { align: 'right' });
+            T(safeText(data.monthLabel).toUpperCase(), W - 14, 13, { align: 'left' });
 
             // Generated date (right)
             pdf.setFont('helvetica', 'normal');
@@ -797,7 +824,7 @@
             pdf.addImage(donutImg, 'PNG', 14,            24, chartW, 84);
             pdf.addImage(barImg,   'PNG', 14 + chartW + 8, 24, chartW, 84);
 
-            /* ── Top Accommodations Table (y: 113–195) ── */
+            /* ── Top 10 Clients Table (y: 113–195) ── */
             const tY    = 113;
             const tW    = W - 28;
 
@@ -805,18 +832,14 @@
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(10);
             pdf.setTextColor(...C.blue);
-            T('Top Performing Accommodations', 14, tY);
+            T('Top 10 Clients', 14, tY);
 
-            const topItems = [
-                ...data.topRooms.map(r  => ({ ...r, type: 'Room'  })),
-                ...data.topVenues.map(v => ({ ...v, type: 'Venue' })),
-            ].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+            const topItems = (data.topClients || []).slice(0, 10);
 
             // Table column definitions
             const cols = [
                 { header: '#',        w: 9,  align: 'center' },
-                { header: 'Name',     w: 70, align: 'left'   },
-                { header: 'Type',     w: 26, align: 'center' },
+                { header: 'Client Name', w: 96, align: 'left' },
                 { header: 'Bookings', w: 28, align: 'center' },
                 { header: 'Revenue',  w: 44, align: 'right'  },
             ];
@@ -856,27 +879,16 @@
                         pdf.rect(14, rowY - 4, tW, 7, 'F');
                     }
 
-                    // Type badge color
-                    const badgeColor = item.type === 'Room' ? [99, 153, 243] : [163, 148, 234];
-                    pdf.setFillColor(...badgeColor);
-                    const typeX = 14 + cols[0].w + cols[1].w;
-                    pdf.roundedRect(typeX + 2, rowY - 3.5, cols[2].w - 4, 5.5, 1.5, 1.5, 'F');
-
                     pdf.setTextColor(50, 55, 70);
                     let rx = 14;
                     const rowData = [
                         String(idx + 1),
                         safeText(item.name),
-                        safeText(item.type),
                         String(item.bookings),
                         peso(item.revenue)
                     ];
                     cols.forEach((col, ci) => {
-                        if (ci === 2) {
-                            pdf.setTextColor(255, 255, 255);
-                        } else {
-                            pdf.setTextColor(50, 55, 70);
-                        }
+                        pdf.setTextColor(50, 55, 70);
                         const tx = col.align === 'right'  ? rx + col.w - 2 :
                                    col.align === 'center' ? rx + col.w / 2 : rx + 2;
                         T(rowData[ci], tx, rowY, { align: col.align === 'center' ? 'center' : col.align === 'right' ? 'right' : 'left' });

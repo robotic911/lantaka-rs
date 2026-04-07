@@ -57,6 +57,7 @@ function parseCartItem(element) {
   const basePrice   = Number(element.dataset.base || 0);
   const baseTotal   = Number(element.dataset.total || 0);
   const purpose     = (element.dataset.purpose || '').toLowerCase();
+  const notes       = element.dataset.notes || '';
   const isSpiritual = ['retreat', 'recollection'].includes(purpose);
 
   let foods          = [];
@@ -329,6 +330,7 @@ function parseCartItem(element) {
     checkOut:      element.dataset.out,
     pax,
     purpose,
+    notes,
     isSpiritual,
     food:          foods.map(f => f.Food_ID),
     foodGroups,
@@ -498,6 +500,7 @@ function updateHiddenSelectedItemsInput() {
     check_out:        item.checkOut,
     pax:              item.pax,
     purpose:          item.purpose || '',
+    notes:            item.notes || '',
     total_amount:     item.total,
     food:             item.food || [],
     food_enabled:     item.foodEnabled     || {},

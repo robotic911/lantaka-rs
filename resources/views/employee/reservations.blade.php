@@ -191,6 +191,22 @@
                           $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
                           $foodSets = $reservation->foodSetReservations ? $reservation->foodSetReservations->map(function($r) use ($_customPosLabels) {
                               $raw = $r->Food_Set_ID ?? '';
+
+                              // ── Buffet flat-rate record ──────────────────────
+                              if (preg_match('/^buffet:(\d+)$/', $raw, $bm)) {
+                                  return [
+                                      'date'         => $r->Food_Reservation_Serving_Date,
+                                      'meal_time'    => $r->Food_Reservation_Meal_time,
+                                      'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                      'set_name'     => 'Buffet',
+                                      'set_price'    => (float)$bm[1],
+                                      'set_foods'    => [],
+                                      'custom_items' => [],
+                                      'is_buffet'    => true,
+                                      'buffet_tier'  => (int)$bm[1],
+                                  ];
+                              }
+
                               $setId = null; $customIds = [];
                               if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
                                   $setId = (int)$m[1];
@@ -248,16 +264,18 @@
                               $crFoodSel      = $crDetails['food_selections']    ?? [];
                               $crSetSel       = $crDetails['food_set_selection'] ?? [];
                               $crFoodEnabled  = $crDetails['food_enabled']       ?? [];
+                              $crMealMode     = $crDetails['meal_mode']          ?? [];
                               $crPax          = $reservation->Venue_Reservation_Pax ?? 1;
 
                               if (!empty($crFoodSel) || !empty($crSetSel)) {
 
                                   // ── Build individual foods array ──────────────────────────────
+                                  // Skip _tier (buffet price tier) and drink_choice keys when extracting IDs
                                   $crFoodIds = [];
                                   $crCollect = function($data) use (&$crCollect, &$crFoodIds) {
                                       if (is_array($data)) {
                                           foreach ($data as $k => $v) {
-                                              if ($k === 'drink_choice') continue;
+                                              if ($k === 'drink_choice' || $k === '_tier') continue;
                                               $crCollect($v);
                                           }
                                       } elseif (is_numeric($data) && !empty($data)) {
@@ -278,11 +296,12 @@
                                       if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
                                       foreach ($_meals as $_mealKey => $_mealData) {
                                           if (empty($_mealData)) continue;
+                                          $_isBuffet = ($crMealMode[$_d][$_mealKey] ?? '') === 'buffet';
                                           $mealIds = [];
                                           $crExtract = function($data) use (&$crExtract, &$mealIds) {
                                               if (is_array($data)) {
                                                   foreach ($data as $k => $v) {
-                                                      if ($k === 'drink_choice') continue;
+                                                      if ($k === 'drink_choice' || $k === '_tier') continue;
                                                       $crExtract($v);
                                                   }
                                               } elseif (is_numeric($data) && !empty($data)) {
@@ -295,15 +314,16 @@
                                               if (!$f) continue;
                                               // Build plain array matching the shape renderFoodCards expects:
                                               // top-level Food fields + nested 'pivot' key
+                                              // For buffet meals, pivot price = 0 (flat rate is in crFoodSetsArr)
                                               $crFoodsArr[] = [
                                                   'Food_ID'       => $f->Food_ID,
                                                   'Food_Name'     => $f->Food_Name,
-                                                  'Food_Price'    => $f->Food_Price,
+                                                  'Food_Price'    => $_isBuffet ? 0 : $f->Food_Price,
                                                   'Food_Category' => $f->Food_Category,
                                                   'pivot'         => [
                                                       'Food_Reservation_Serving_Date' => $_d,
                                                       'Food_Reservation_Meal_time'    => $_mealKey,
-                                                      'Food_Reservation_Total_Price'  => ($f->Food_Price ?? 0) * $crPax,
+                                                      'Food_Reservation_Total_Price'  => $_isBuffet ? 0 : (($f->Food_Price ?? 0) * $crPax),
                                                       'Food_Reservation_ID'           => null,
                                                       'Food_Reservation_Status'       => null,
                                                       'Food_Set_ID'                   => null,
@@ -378,6 +398,26 @@
                                                   'custom_items' => $customItems,
                                               ];
                                           }
+                                      }
+                                  }
+
+                                  // ── Add buffet flat-rate entries to food_sets ─────────────────
+                                  foreach ($crFoodSel as $_d => $_meals) {
+                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                      foreach ($_meals as $_mealKey => $_mealData) {
+                                          if (($crMealMode[$_d][$_mealKey] ?? '') !== 'buffet') continue;
+                                          $_tier = (int)(is_array($_mealData) ? ($_mealData['_tier'] ?? 350) : 350);
+                                          $crFoodSetsArr[] = [
+                                              'date'        => $_d,
+                                              'meal_time'   => $_mealKey,
+                                              'total_price' => (float)($_tier * $crPax),
+                                              'set_name'    => 'Buffet',
+                                              'set_price'   => (float)$_tier,
+                                              'set_foods'   => [],
+                                              'custom_items'=> [],
+                                              'is_buffet'   => true,
+                                              'buffet_tier' => $_tier,
+                                          ];
                                       }
                                   }
 

@@ -724,54 +724,105 @@ function renderFoodCards(foods, foodSets, pax) {
       html += `<div class="em-food-meal-group">`;
       html += `<div class="em-food-meal-label">${mealIcon} ${mealLabel}</div>`;
 
-      // Individual items
-      indivItems.forEach(food => {
-        const price   = Number(food.Food_Price || 0);
-        const catKey  = (food.Food_Category || '').toLowerCase().trim();
-        mealSubtotal += price * pax;
-        html += `
-          <div class="em-food-item">
-            <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
-            <span class="em-food-name">${food.Food_Name}</span>
-            <span class="em-food-price">₱${price.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span>
-          </div>`;
-      });
+      // Detect if this meal is buffet (has an is_buffet set entry)
+      const buffetEntry = setItems.find(s => s.is_buffet);
 
-      // Set items
-      setItems.forEach(s => {
-        const baseP = Number(s.set_price || 0);
-        mealSubtotal += Number(s.total_price || 0);
+      if (buffetEntry) {
+        // ── Buffet meal rendering ───────────────────────────────────
+        const tier = Number(buffetEntry.buffet_tier || buffetEntry.set_price || 350);
+        mealSubtotal += Number(buffetEntry.total_price || tier * pax);
 
-        // Set header row
+        // Buffet header row
         html += `
-          <div class="em-food-item em-food-item--set-header">
-            <span class="em-food-cat" data-cat="set">Set</span>
-            <span class="em-food-name">${s.set_name}</span>
-            <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
+          <div class="em-food-item em-food-item--set-header em-food-item--buffet">
+            <span class="em-food-cat" data-cat="buffet">Buffet</span>
+            <span class="em-food-name">Buffet (₱${tier.toLocaleString('en-PH',{minimumFractionDigits:2})}/pax)</span>
+            <span class="em-food-price"><span class="em-price-formula">₱${tier.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
           </div>`;
 
-        // Base foods included in the set definition (viands, sides, etc.)
-        (s.set_foods || []).forEach(sf => {
-          const sfCat = (sf.category || '').toLowerCase().trim();
+        // Individual buffet viands/desserts (stored at ₱0, display only)
+        indivItems.forEach(food => {
+          const catKey = (food.Food_Category || '').toLowerCase().trim();
           html += `
             <div class="em-food-item em-food-item--set-food">
-              <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
-              <span class="em-food-name">${sf.name}</span>
-              <span class="em-food-price"></span>
+              <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
+              <span class="em-food-name">${food.Food_Name}</span>
+              <span class="em-food-price em-food-included">included</span>
             </div>`;
         });
 
-        // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
-        (s.custom_items || []).forEach(ci => {
-          const ciCat = (ci.category || '').toLowerCase().trim();
+        // Non-buffet set entries for the same meal (unlikely but handle gracefully)
+        setItems.filter(s => !s.is_buffet).forEach(s => {
+          const baseP = Number(s.set_price || 0);
+          mealSubtotal += Number(s.total_price || 0);
           html += `
-            <div class="em-food-item em-food-item--custom">
-              <span class="em-food-cat" data-cat="${ciCat}">${ci.category}</span>
-              <span class="em-food-name">${ci.name}</span>
-              <span class="em-food-price"></span>
+            <div class="em-food-item em-food-item--set-header">
+              <span class="em-food-cat" data-cat="set">Set</span>
+              <span class="em-food-name">${s.set_name}</span>
+              <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
+            </div>`;
+          (s.set_foods || []).forEach(sf => {
+            const sfCat = (sf.category || '').toLowerCase().trim();
+            html += `
+              <div class="em-food-item em-food-item--set-food">
+                <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
+                <span class="em-food-name">${sf.name}</span>
+                <span class="em-food-price"></span>
+              </div>`;
+          });
+        });
+
+      } else {
+        // ── Normal (non-buffet) meal rendering ──────────────────────
+        // Individual items
+        indivItems.forEach(food => {
+          const price   = Number(food.Food_Price || 0);
+          const catKey  = (food.Food_Category || '').toLowerCase().trim();
+          mealSubtotal += price * pax;
+          html += `
+            <div class="em-food-item">
+              <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
+              <span class="em-food-name">${food.Food_Name}</span>
+              <span class="em-food-price">₱${price.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span>
             </div>`;
         });
-      });
+
+        // Set items
+        setItems.forEach(s => {
+          const baseP = Number(s.set_price || 0);
+          mealSubtotal += Number(s.total_price || 0);
+
+          // Set header row
+          html += `
+            <div class="em-food-item em-food-item--set-header">
+              <span class="em-food-cat" data-cat="set">Set</span>
+              <span class="em-food-name">${s.set_name}</span>
+              <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
+            </div>`;
+
+          // Base foods included in the set definition (viands, sides, etc.)
+          (s.set_foods || []).forEach(sf => {
+            const sfCat = (sf.category || '').toLowerCase().trim();
+            html += `
+              <div class="em-food-item em-food-item--set-food">
+                <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
+                <span class="em-food-name">${sf.name}</span>
+                <span class="em-food-price"></span>
+              </div>`;
+          });
+
+          // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
+          (s.custom_items || []).forEach(ci => {
+            const ciCat = (ci.category || '').toLowerCase().trim();
+            html += `
+              <div class="em-food-item em-food-item--custom">
+                <span class="em-food-cat" data-cat="${ciCat}">${ci.category}</span>
+                <span class="em-food-name">${ci.name}</span>
+                <span class="em-food-price"></span>
+              </div>`;
+          });
+        });
+      }
 
       if (mealSubtotal > 0) {
         html += `

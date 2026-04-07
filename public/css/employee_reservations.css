@@ -1443,6 +1443,19 @@ tr.row-change-requested:hover {
 .em-food-cat[data-cat="snack"],
 .em-food-cat[data-cat="snacks"]                { background: #fef3c7; color: #d97706; }
 .em-food-cat[data-cat="set"]                   { background: #fef3c7; color: #b45309; }
+.em-food-cat[data-cat="buffet"]                { background: #ecfdf5; color: #065f46; }
+
+/* Buffet header accent */
+.em-food-item--buffet {
+  border-left-color: #10b981;
+}
+
+/* "included" label for buffet sub-items */
+.em-food-included {
+  font-size: 10px;
+  color: #10b981;
+  font-style: italic;
+}
 
 .em-food-name {
   flex: 1;
