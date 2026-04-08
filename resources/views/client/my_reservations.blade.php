@@ -89,13 +89,31 @@
                 </td>
 
                 <td>{{ $res->Room_Reservation_Pax ?? $res->Venue_Reservation_Pax }}</td>
-                <td class="amount">
-                    ₱ {{ number_format(
-                        $res->Room_Reservation_Total_Price ??
-                        $res->Venue_Reservation_Total_Price ??
-                        0, 2)
-                    }}
-                </td>
+
+                @php
+                    // Compute checkout amount consistently (rate × nights/days + food + fees − discount)
+                    $colCheckIn    = \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time);
+                    $colCheckOut   = \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time);
+                    $colClientType = auth()->user()->Account_Type ?? 'External';
+
+                    if ($res->type === 'room' && $res->room) {
+                        // Room Total_Price already includes extras and discount from all code paths
+                        $colAmount = (float) ($res->Room_Reservation_Total_Price ?? 0);
+                    } elseif ($res->type === 'venue' && $res->venue) {
+                        $colDays      = max(1, $colCheckIn->diffInDays($colCheckOut) + 1); // inclusive
+                        $colRate      = ($colClientType === 'Internal')
+                            ? (float) ($res->venue->Venue_Internal_Price ?? 0)
+                            : (float) ($res->venue->Venue_External_Price ?? 0);
+                        $colFoodTotal = ($res->foods ?? collect())->sum('pivot.Food_Reservation_Total_Price')
+                                      + ($res->foodSetReservations ?? collect())->sum('Food_Reservation_Total_Price');
+                        $colFees      = (float) ($res->Venue_Reservation_Additional_Fees ?? 0);
+                        $colDisc      = (float) ($res->Venue_Reservation_Discount ?? 0);
+                        $colAmount    = $colRate * $colDays + $colFoodTotal + $colFees - $colDisc;
+                    } else {
+                        $colAmount = 0;
+                    }
+                @endphp
+                <td class="amount">₱ {{ number_format($colAmount, 2) }}</td>
 
               <td style="display:flex; flex-direction:column; align-items: center; justify-content:center; width:100%; gap:4px;">
                   {{-- Main reservation status badge --}}
@@ -115,9 +133,9 @@
                   {{-- Reservation status badge --}}
                   @if($status)
                     @if($res->cancellation_status === 'pending')
-                      <span class="status-badge client-cancel-req-badge">⏳ Cancellation Request</span>
+                      <span class="status-badge client-cancel-req-badge">Cancellation Request</span>
                     @elseif($res->change_request_status === 'pending')
-                      <span class="status-badge client-change-req-badge">🔄 Pending Change Request</span>
+                      <span class="status-badge client-change-req-badge">Pending Change Request</span>
                     @else
                       <span class="status-badge {{ strtolower($status) }}">
                         {{ ucfirst($status) }}
@@ -156,6 +174,18 @@
                         $rawText   = $r->Food_Set_ID ?? '';
                         $setId     = null;
                         $customIds = ['', '', '', ''];
+
+                        // Buffet format: "buffet:350" or "buffet:380"
+                        if (preg_match('/^buffet:(\d+)$/i', $rawText, $bm)) {
+                            return [
+                                'serving_date' => $r->Food_Reservation_Serving_Date,
+                                'meal_time'    => $r->Food_Reservation_Meal_time,
+                                'total_price'  => (float) $r->Food_Reservation_Total_Price,
+                                'set_id'       => null,
+                                'set_name'     => 'Buffet',
+                                'food_names'   => ['₱' . number_format((int) $bm[1], 2) . ' per pax'],
+                            ];
+                        }
 
                         // New format: "5",["12","18","21","9"]
                         if (preg_match('/^"(\d+)",(\[.*\])$/', $rawText, $m)) {
@@ -205,7 +235,10 @@
                     // Compute accommodation cost = rate × nights/days (internal or external)
                     $resCheckIn    = \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time);
                     $resCheckOut   = \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time);
-                    $resNights     = max(1, $resCheckIn->diffInDays($resCheckOut));
+                    // Rooms: exclusive diff (nights). Venues: inclusive (+1 for both check-in and check-out day)
+                    $resNights     = ($res->type === 'venue')
+                        ? max(1, $resCheckIn->diffInDays($resCheckOut) + 1)
+                        : max(1, $resCheckIn->diffInDays($resCheckOut));
                     $resClientType = auth()->user()->Account_Type ?? 'External';
                     if ($res->type === 'room' && $res->room) {
                         $resRate = ($resClientType === 'Internal')
@@ -234,7 +267,9 @@
                         'check_out'           => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
                         'check_in_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
                         'check_out_raw'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
-                        'total'               => number_format($resTotalRaw + $resFoodTotal, 2),
+                        'total'               => $res->type === 'room'
+                            ? number_format($resTotalRaw, 2)
+                            : number_format($resAccommodationTotal + $resFoodTotal + ($res->Venue_Reservation_Additional_Fees ?? 0) - ($res->Venue_Reservation_Discount ?? 0), 2),
                         'food_total'          => number_format($resFoodTotal, 2),
                         'venue_total'         => number_format($resVenueTotal, 2),
                         'accommodation_total' => number_format($resAccommodationTotal, 2),

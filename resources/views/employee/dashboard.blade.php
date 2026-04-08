@@ -567,40 +567,58 @@
             }, 620, 500);
         }
 
-        /* ── Grouped Bar: Rooms vs Venues (reservations only) ── */
+        /* ── Grouped Bar: Room Types vs Venue (reservations only) ── */
         async function buildComparisonChart(data) {
+            const roomTypes  = data.roomTypeBreakdown || [];
+            const venueRow   = data.venueTypeRow || { type: 'Venue', bookings: data.venueCount || 0 };
+
+            // Colour palette — up to 6 room types, then repeats
+            const typeColors = [
+                ['rgba(99,153,243,0.82)',  '#6199f3'],
+                ['rgba(52,199,148,0.82)',  '#34c794'],
+                ['rgba(255,159,64,0.82)',  '#ff9f40'],
+                ['rgba(255,99,132,0.82)',  '#ff6384'],
+                ['rgba(75,192,192,0.82)',  '#4bc0c0'],
+                ['rgba(153,102,255,0.82)', '#9966ff'],
+            ];
+
+            const datasets = roomTypes.map((rt, i) => {
+                const [bg, border] = typeColors[i % typeColors.length];
+                return {
+                    label: rt.type,
+                    data: [rt.bookings],
+                    backgroundColor: bg,
+                    borderColor: border,
+                    borderWidth: 1.5,
+                    borderRadius: 5,
+                };
+            });
+
+            // Append Venue as the last dataset
+            datasets.push({
+                label: 'Venue',
+                data: [venueRow.bookings],
+                backgroundColor: 'rgba(163,148,234,0.82)',
+                borderColor: '#a394ea',
+                borderWidth: 1.5,
+                borderRadius: 5,
+            });
+
             return chartToImage({
                 type: 'bar',
                 data: {
                     labels: ['Checked-out Bookings'],
-                    datasets: [
-                        {
-                            label: 'Rooms',
-                            data: [data.roomCount],
-                            backgroundColor: 'rgba(99,153,243,0.82)',
-                            borderColor: '#6199f3',
-                            borderWidth: 1.5,
-                            borderRadius: 5,
-                        },
-                        {
-                            label: 'Venues',
-                            data: [data.venueCount],
-                            backgroundColor: 'rgba(163,148,234,0.82)',
-                            borderColor: '#a394ea',
-                            borderWidth: 1.5,
-                            borderRadius: 5,
-                        }
-                    ]
+                    datasets,
                 },
                 options: {
                     animation: { duration: 0 },
                     responsive: false,
                     layout: { padding: { top: 8, right: 16, bottom: 8, left: 8 } },
                     plugins: {
-                        legend: { position: 'top', labels: { font: { size: 12, weight: '600' }, padding: 14, usePointStyle: true } },
+                        legend: { position: 'top', labels: { font: { size: 11, weight: '600' }, padding: 10, usePointStyle: true } },
                         title: {
                             display: true,
-                            text: 'Rooms vs. Venues — Checked-out Reservations',
+                            text: 'Room Types vs. Venue — Checked-out Reservations',
                             font: { size: 14, weight: 'bold' },
                             color: '#1a3a7a',
                             padding: { top: 4, bottom: 10 }
@@ -622,10 +640,30 @@
          /* ─────────────────────────────────────────────────────
            PDF BUILDER
         ───────────────────────────────────────────────────── */
+        // ── Utility: load any same-origin image and return a data-URL ──────────
+        function loadImageDataURL(src) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const c = document.createElement('canvas');
+                    c.width  = img.naturalWidth;
+                    c.height = img.naturalHeight;
+                    c.getContext('2d').drawImage(img, 0, 0);
+                    resolve(c.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null); // gracefully skip if missing
+                img.src = src;
+            });
+        }
+
         async function buildAnalyticsPDF(data) {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const W = 297, H = 210;
+
+            // Pre-load the ADZU seal (small, clean PNG — renders sharply at any size)
+            const bannerDataURL = await loadImageDataURL('/images/adzu_logo.png');
 
             // Palette
             const C = {
@@ -681,40 +719,113 @@
 
             /* ══════════ PAGE 1 ══════════ */
 
-            // Header gradient band
-            pdf.setFillColor(...C.blue);
-            pdf.rect(0, 0, W, 30, 'F');
-
-            // Decorative accent stripe
-            pdf.setFillColor(255, 215, 0);
-            pdf.rect(0, 28, W, 2.5, 'F');
-
-            // Hotel name
-            pdf.setTextColor(...C.white);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(20);
-            T('LANTAKA HOTEL', 14, 13);
-
-            // Report subtitle
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(10);
-            pdf.setTextColor(180, 200, 255);
-            T('Monthly Analytics Report', 14, 22);
-
-            // Month label (right side)
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(17);
-            pdf.setTextColor(...C.white);
-            T(safeText(data.monthLabel).toUpperCase(), W - 14, 13, { align: 'right' });
-
-            // Generated date (right)
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(8.5);
-            pdf.setTextColor(180, 200, 255);
+            // ── Shared date string (used in header + footer) ───────────────────
             const _d = new Date();
             const _months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
             const genDate = _months[_d.getMonth()] + ' ' + _d.getDate() + ', ' + _d.getFullYear();
-            T('Generated: ' + genDate, W - 14, 22, { align: 'right' });
+
+            // ── Reusable header painter (called for page 1 and page 2) ──────────
+            const drawPageHeader = (tall) => {
+                // tall = true  → 30 mm (page 1 full header)
+                // tall = false → 20 mm (page 2 compact header)
+                const hH = tall ? 30 : 20;
+
+                // ── Dark navy background ─────────────────────────────────────────
+                pdf.setFillColor(15, 35, 90);          // deep navy
+                pdf.rect(0, 0, W, hH, 'F');
+
+                // Subtle lighter band across the top edge (2 mm) – depth effect
+                pdf.setFillColor(30, 60, 130);
+                pdf.rect(0, 0, W, 2, 'F');
+
+                // ── Gold accent stripe at bottom ─────────────────────────────────
+                pdf.setFillColor(212, 175, 55);
+                pdf.rect(0, hH - 2, W, 2, 'F');
+
+                // ── LEFT: Logo seal + institution text ───────────────────────────
+                const logoX = 5, logoY = 2, logoSize = hH - 4;
+
+                // Circular seal placeholder (white circle)
+                if (bannerDataURL) {
+                    pdf.addImage(bannerDataURL, 'PNG', logoX, logoY, logoSize, logoSize);
+                } else {
+                    pdf.setFillColor(255, 255, 255);
+                    pdf.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 'F');
+                }
+
+                // Text block starts after the logo
+                const txtX = logoX + logoSize + 4;
+
+                if (tall) {
+                    // ── Italic university name ──
+                    pdf.setFont('helvetica', 'italic');
+                    pdf.setFontSize(8.5);
+                    pdf.setTextColor(180, 205, 255);
+                    T('Ateneo de Zamboanga University', txtX, 10);
+
+                    // ── Large bold campus name ──
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(18);
+                    pdf.setTextColor(255, 255, 255);
+                    T('Lantaka Campus', txtX, 19);
+
+                    // ── Subtitle ──
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7);
+                    pdf.setTextColor(160, 190, 240);
+                    T('The Ateneo de Zamboanga University Spirituality, Formation, and Training Center Since 2019', txtX, 25.5);
+                } else {
+                    // Compact page-2 left block
+                    pdf.setFont('helvetica', 'italic');
+                    pdf.setFontSize(7.5);
+                    pdf.setTextColor(180, 205, 255);
+                    T('Ateneo de Zamboanga University', txtX, 8);
+
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(13);
+                    pdf.setTextColor(255, 255, 255);
+                    T('Lantaka Campus', txtX, 15);
+                }
+
+                // ── Thin vertical divider between left block and right block ─────
+                pdf.setDrawColor(212, 175, 55);
+                pdf.setLineWidth(0.4);
+                pdf.line(W - 90, 4, W - 90, hH - 4);
+
+                // ── RIGHT corner text block ──────────────────────────────────────
+                if (tall) {
+                    // "Monthly Analytics Report" label
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(8.5);
+                    pdf.setTextColor(180, 205, 255);
+                    T('Monthly Analytics Report', W - 12, 9, { align: 'right' });
+
+                    // Month + Year (most prominent)
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(17);
+                    pdf.setTextColor(255, 255, 255);
+                    T(safeText(data.monthLabel).toUpperCase(), W - 12, 20, { align: 'right' });
+
+                    // Generated date
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7.5);
+                    pdf.setTextColor(160, 190, 240);
+                    T('Generated: ' + genDate, W - 12, 26.5, { align: 'right' });
+                } else {
+                    // Compact page-2 right: just the report label + month
+                    pdf.setFont('helvetica', 'normal');
+                    pdf.setFontSize(7.5);
+                    pdf.setTextColor(180, 205, 255);
+                    T('Lantaka Campus Analytics Report', W - 12, 8, { align: 'right' });
+
+                    pdf.setFont('helvetica', 'bold');
+                    pdf.setFontSize(11);
+                    pdf.setTextColor(255, 255, 255);
+                    T(safeText(data.monthLabel).toUpperCase() + ' — Detailed Breakdown', W - 12, 15, { align: 'right' });
+                }
+            };
+
+            drawPageHeader(true);
 
             /* ── 4 Stat Cards (y: 35–70) ── */
             const cardDefs = [
@@ -775,30 +886,21 @@
             const lineImg = await buildDailyChart(data.dailyData, data.monthLabel);
             pdf.addImage(lineImg, 'PNG', 14, 71, W - 28, 126);
 
-            // Footer
-            pdf.setFillColor(...C.blue);
+            // ── Page 1 footer ────────────────────────────────────────────────────
+            pdf.setFillColor(15, 35, 90);
             pdf.rect(0, H - 7, W, 7, 'F');
-            pdf.setTextColor(180, 200, 255);
+            pdf.setFillColor(212, 175, 55);
+            pdf.rect(0, H - 7, W, 0.8, 'F');
+            pdf.setTextColor(160, 190, 240);
+            pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(7.5);
-            T('Page 1 of 2  |  Lantaka Hotel Analytics Report  |  Confidential', W / 2, H - 2.5, { align: 'center' });
+            T('Page 1 of 2  |  Lantaka Campus Analytics Report  |  Confidential', W / 2, H - 2.5, { align: 'center' });
 
             /* ══════════ PAGE 2 ══════════ */
             pdf.addPage();
 
-            // Header
-            pdf.setFillColor(...C.blue);
-            pdf.rect(0, 0, W, 20, 'F');
-            pdf.setFillColor(255, 215, 0);
-            pdf.rect(0, 18.5, W, 1.5, 'F');
-
-            pdf.setTextColor(...C.white);
-            pdf.setFont('helvetica', 'bold');
-            pdf.setFontSize(13);
-            T(safeText(data.monthLabel) + ' - Detailed Breakdown', 14, 13);
-            pdf.setFont('helvetica', 'normal');
-            pdf.setFontSize(8.5);
-            pdf.setTextColor(180, 200, 255);
-            T('Lantaka Hotel Analytics Report', W - 14, 13, { align: 'right' });
+            // Shared header (compact 20 mm variant)
+            drawPageHeader(false);
 
             /* ── Two charts side by side (y: 24–106) ── */
             const [donutImg, barImg] = await Promise.all([
@@ -818,20 +920,16 @@
             pdf.setFont('helvetica', 'bold');
             pdf.setFontSize(10);
             pdf.setTextColor(...C.blue);
-            T('Top Performing Accommodations', 14, tY);
+            T('Top 10 Clients by Revenue', 14, tY);
 
-            const topItems = [
-                ...data.topRooms.map(r  => ({ ...r, type: 'Room'  })),
-                ...data.topVenues.map(v => ({ ...v, type: 'Venue' })),
-            ].sort((a, b) => b.revenue - a.revenue).slice(0, 8);
+            const topItems = (data.topClients || []).slice(0, 10);
 
             // Table column definitions
             const cols = [
-                { header: '#',        w: 9,  align: 'center' },
-                { header: 'Name',     w: 70, align: 'left'   },
-                { header: 'Type',     w: 26, align: 'center' },
-                { header: 'Bookings', w: 28, align: 'center' },
-                { header: 'Revenue',  w: 44, align: 'right'  },
+                { header: '#',           w: 9,  align: 'center' },
+                { header: 'Client Name', w: 96, align: 'left'   },
+                { header: 'Bookings',    w: 28, align: 'center' },
+                { header: 'Revenue',     w: 44, align: 'right'  },
             ];
 
             const hY = tY + 8;
@@ -869,27 +967,16 @@
                         pdf.rect(14, rowY - 4, tW, 7, 'F');
                     }
 
-                    // Type badge color
-                    const badgeColor = item.type === 'Room' ? [99, 153, 243] : [163, 148, 234];
-                    pdf.setFillColor(...badgeColor);
-                    const typeX = 14 + cols[0].w + cols[1].w;
-                    pdf.roundedRect(typeX + 2, rowY - 3.5, cols[2].w - 4, 5.5, 1.5, 1.5, 'F');
-
                     pdf.setTextColor(50, 55, 70);
                     let rx = 14;
                     const rowData = [
                         String(idx + 1),
                         safeText(item.name),
-                        safeText(item.type),
                         String(item.bookings),
                         peso(item.revenue)
                     ];
                     cols.forEach((col, ci) => {
-                        if (ci === 2) {
-                            pdf.setTextColor(255, 255, 255);
-                        } else {
-                            pdf.setTextColor(50, 55, 70);
-                        }
+                        pdf.setTextColor(50, 55, 70);
                         const tx = col.align === 'right'  ? rx + col.w - 2 :
                                    col.align === 'center' ? rx + col.w / 2 : rx + 2;
                         T(rowData[ci], tx, rowY, { align: col.align === 'center' ? 'center' : col.align === 'right' ? 'right' : 'left' });
@@ -898,12 +985,15 @@
                 });
             }
 
-            // Footer
-            pdf.setFillColor(...C.blue);
+            // ── Page 2 footer ────────────────────────────────────────────────────
+            pdf.setFillColor(15, 35, 90);
             pdf.rect(0, H - 7, W, 7, 'F');
-            pdf.setTextColor(180, 200, 255);
+            pdf.setFillColor(212, 175, 55);
+            pdf.rect(0, H - 7, W, 0.8, 'F');
+            pdf.setTextColor(160, 190, 240);
+            pdf.setFont('helvetica', 'normal');
             pdf.setFontSize(7.5);
-            T('Page 2 of 2  |  Lantaka Hotel Analytics Report  |  Confidential', W / 2, H - 2.5, { align: 'center' });
+            T('Page 2 of 2  |  Lantaka Campus Analytics Report  |  Confidential', W / 2, H - 2.5, { align: 'center' });
 
             return pdf;
         }

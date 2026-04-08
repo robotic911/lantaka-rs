@@ -110,6 +110,12 @@
               <p class="crm-cancel-idle-body" id="crmCancelIdleBody">
                 You can submit a cancellation request 3 days prior to your check-in date.
               </p>
+              <div class="crm-cancel-notice">
+                <span class="crm-cancel-notice__icon">&#128343;</span>
+                <p class="crm-cancel-notice__text">
+                  Cancellation requests are accepted <strong>Monday &ndash; Friday, 8:00 AM &ndash; 4:00 PM</strong> only. Requests submitted outside these hours will be processed on the next business day.
+                </p>
+              </div>
               <button type="button" id="crmCancelOpenFormBtn" class="crm-cancel-open-btn">
                 Request Cancellation
               </button>
@@ -533,6 +539,26 @@
 .crm-cancel-idle-body {
   font-size: 12px;
   color: #6b7280;
+  margin: 0;
+  line-height: 1.5;
+}
+.crm-cancel-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 7px;
+  padding: 8px 10px;
+}
+.crm-cancel-notice__icon {
+  font-size: 13px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.crm-cancel-notice__text {
+  font-size: 11px;
+  color: #78350f;
   margin: 0;
   line-height: 1.5;
 }

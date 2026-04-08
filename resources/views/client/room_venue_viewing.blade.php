@@ -132,6 +132,14 @@
                   style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; resize:vertical; font-family:inherit; color:#374151;"></textarea>
               </div>
 
+              {{-- Advance booking notice --}}
+              <div class="booking-notice">
+                <span class="booking-notice__icon">&#128197;</span>
+                <p class="booking-notice__text">
+                  We recommend reserving <strong>at least one week</strong> before your intended date of stay to ensure availability.
+                </p>
+              </div>
+
               <button type="submit" class="proceed-button">PROCEED</button>
           </form>
         </div>

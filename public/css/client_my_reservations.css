@@ -186,7 +186,7 @@
 /* Status Badge */
 .status-badge {
   display: inline-block;
-  width: 70%;
+  width: 20vh;
   padding: 6px 12px;
   border-radius: 6px;
   font-size: 12px;
@@ -235,8 +235,8 @@
   color: #7c2d12;
   border: 1px solid #fb923c;
   font-size: 11px;
-  padding: 3px 10px;
-  width: 100%;
+  padding: 6px 12px;
+  width: 20vh;
 }
 
 /* Change request pending badge — indigo/blue, mirrors the admin change-requested card */
@@ -245,8 +245,8 @@
   color: #3730a3;
   border: 1px solid #818cf8;
   font-size: 11px;
-  padding: 3px 10px;
-  width: 100%;
+  padding: 6px 12px;
+  width: 20vh;
 }
 
 /* Responsive */

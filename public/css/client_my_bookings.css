@@ -335,6 +335,7 @@ body {
 
 .food-set-name {
   flex: 1;
+  flex-direction: row;
   font-weight: 500;
   color: #222;
   font-size: 12px;
@@ -399,6 +400,12 @@ body {
   color: #16a34a;
 }
 
+.food-indiv-item--buffet {
+  padding-left: 10px;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 4px;
+}
+
 .food-indiv-cat {
   min-width: 58px;
   font-size: 10px;
@@ -409,9 +416,11 @@ body {
 }
 
 .food-indiv-name {
-  color: #222;
-  font-weight: 500;
-  flex: 1;
+  display: inline;
+  font-weight: 400;
+  color: #555;
+  font-size: 11px;
+  margin-left: 3px;
 }
 
 .food-indiv-price {
@@ -828,6 +837,12 @@ body {
 
 .sf-indiv-item--extra .sf-indiv-cat {
   color: #16a34a;
+}
+
+.sf-indiv-item--buffet-food {
+  padding-left: 10px;
+  border-left: 2px solid #e2e8f0;
+  margin-left: 4px;
 }
 
 .sf-indiv-cat {

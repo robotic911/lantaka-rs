@@ -2555,7 +2555,7 @@ class ReservationController extends Controller
         foreach ($roomReservations as $r) {
             $checkIn = \Carbon\Carbon::parse($r->Room_Reservation_Check_In_Time);
             $checkOut = \Carbon\Carbon::parse($r->Room_Reservation_Check_Out_Time);
-            $days = $checkIn->diffInDays($checkOut) ?: 1;
+            $nights = max(1, $checkIn->diffInDays($checkOut));
 
             $rawItems = json_decode($r->Room_Reservation_Additional_Fees_Desc ?? '[]', true) ?? [];
             $parsedItems = [];
@@ -2563,7 +2563,9 @@ class ReservationController extends Controller
             foreach ($rawItems as $item) {
                 $parts = explode(':', $item);
 
-                $desc = $parts[0] ?? '';
+                $desc = trim($parts[0] ?? '');
+                if ($desc === '') continue; // skip blank entries
+
                 $qty = (int) ($parts[1] ?? 1);
                 $amount = (float) ($parts[2] ?? 0);
                 $date = $parts[3] ?? '';
@@ -2578,8 +2580,11 @@ class ReservationController extends Controller
             }
 
             $additionalFees = (float) ($r->Room_Reservation_Additional_Fees ?? 0);
-            $discount = (float) ($r->Room_Reservation_Discount ?? 0);
-            $baseAmount = (float) ($r->Room_Reservation_Total_Price ?? 0) - $additionalFees + $discount;
+            $discount       = (float) ($r->Room_Reservation_Discount ?? 0);
+            $roomRate       = ($client->Account_Type === 'Internal')
+                ? (float) ($r->room->Room_Internal_Price ?? 0)
+                : (float) ($r->room->Room_External_Price ?? 0);
+            $baseAmount     = $roomRate * $nights;
 
             $reservations->push([
                 'type' => 'room',
@@ -2588,7 +2593,7 @@ class ReservationController extends Controller
                 'check_in' => $checkIn->format('m/d/Y'),
                 'check_out' => $checkOut->format('m/d/Y'),
                 'pax' => $r->Room_Reservation_Pax,
-                'days' => $days,
+                'days' => $nights,
                 'base_price' => $baseAmount,
                 'total_price' => $r->Room_Reservation_Total_Price ?? 0,
                 'additional_fees' => $additionalFees,
@@ -2600,7 +2605,7 @@ class ReservationController extends Controller
         foreach ($venueReservations as $v) {
             $checkIn = \Carbon\Carbon::parse($v->Venue_Reservation_Check_In_Time);
             $checkOut = \Carbon\Carbon::parse($v->Venue_Reservation_Check_Out_Time);
-            $days = $checkIn->diffInDays($checkOut) ?: 1;
+            $days = max(1, $checkIn->diffInDays($checkOut) + 1); // venues billed inclusive of both check-in and check-out day
 
             $rawItems = json_decode($v->Venue_Reservation_Additional_Fees_Desc ?? '[]', true) ?? [];
             $parsedItems = [];
@@ -2608,7 +2613,9 @@ class ReservationController extends Controller
             foreach ($rawItems as $item) {
                 $parts = explode(':', $item);
 
-                $desc = $parts[0] ?? '';
+                $desc = trim($parts[0] ?? '');
+                if ($desc === '') continue; // skip blank entries
+
                 $qty = (int) ($parts[1] ?? 1);
                 $amount = (float) ($parts[2] ?? 0);
                 $date = $parts[3] ?? '';
@@ -2623,11 +2630,14 @@ class ReservationController extends Controller
             }
 
             $additionalFees = (float) ($v->Venue_Reservation_Additional_Fees ?? 0);
-            $discount = (float) ($v->Venue_Reservation_Discount ?? 0);
-            $foodTotal = (float) $v->foodReservations->sum('Food_Reservation_Total_Price');
-            $pax = (int) ($v->Venue_Reservation_Pax ?? 1);
-            $foodPerPax = $pax > 0 ? round($foodTotal / $pax, 2) : 0;
-            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $additionalFees + $discount - $foodTotal;
+            $discount       = (float) ($v->Venue_Reservation_Discount ?? 0);
+            $foodTotal      = (float) $v->foodReservations->sum('Food_Reservation_Total_Price');
+            $pax            = (int) ($v->Venue_Reservation_Pax ?? 1);
+            $foodPerPax     = $pax > 0 ? round($foodTotal / $pax, 2) : 0;
+            $venueRate      = ($client->Account_Type === 'Internal')
+                ? (float) ($v->venue->Venue_Internal_Price ?? 0)
+                : (float) ($v->venue->Venue_External_Price ?? 0);
+            $baseAmount     = $venueRate * $days;
 
             $reservations->push([
                 'type' => 'venue',
@@ -2696,16 +2706,18 @@ class ReservationController extends Controller
             $checkOut = Carbon::parse($r->Room_Reservation_Check_Out_Time);
             $nights   = max(1, $checkIn->diffInDays($checkOut));
 
-            $addFees    = (float) ($r->Room_Reservation_Additional_Fees ?? 0);
-            $baseAmount = (float) ($r->Room_Reservation_Total_Price ?? 0) - $addFees;
-            $ratePerNight = $nights > 0 ? $baseAmount / $nights : $baseAmount;
+            $roomRate   = ($client->Account_Type === 'Internal')
+                ? (float) ($r->room->Room_Internal_Price ?? 0)
+                : (float) ($r->room->Room_External_Price ?? 0);
+            $baseAmount = $roomRate * $nights;
+            $discount   = (float) ($r->Room_Reservation_Discount ?? 0);
 
             $reservations->push([
                 'date'        => $checkIn->format('F d, Y'),
                 'particulars' => 'Room ' . ($r->room->Room_Number ?? 'Room'),
                 'qty'         => $nights,
                 'unit'        => 'night',
-                'rate'        => $ratePerNight,
+                'rate'        => $roomRate,
                 'amount'      => $baseAmount,
                 'is_subitem'  => false,
                 'is_discount' => false,
@@ -2715,6 +2727,8 @@ class ReservationController extends Controller
             foreach ($rawItems as $item) {
                 $parts     = explode(':', $item);
                 $desc      = trim($parts[0] ?? '');
+                if ($desc === '') continue; // skip blank entries
+
                 $qty       = (int) ($parts[1] ?? 1);
                 $unitRate  = (float) ($parts[2] ?? 0);
                 $chDate    = !empty($parts[3]) ? Carbon::parse($parts[3])->format('F d, Y') : '';
@@ -2729,20 +2743,35 @@ class ReservationController extends Controller
                     'is_discount' => false,
                 ]);
             }
+
+            if ($discount > 0) {
+                $reservations->push([
+                    'date'        => '',
+                    'particulars' => 'Discount',
+                    'qty'         => 1,
+                    'unit'        => 'lot',
+                    'rate'        => $discount,
+                    'amount'      => $discount,
+                    'is_subitem'  => true,
+                    'is_discount' => true,
+                ]);
+            }
         }
 
         foreach ($venueReservations as $v) {
             $checkIn  = Carbon::parse($v->Venue_Reservation_Check_In_Time);
             $checkOut = Carbon::parse($v->Venue_Reservation_Check_Out_Time);
-            $days     = max(1, $checkIn->diffInDays($checkOut));
+            $days     = max(1, $checkIn->diffInDays($checkOut) + 1); // venues billed inclusive of both check-in and check-out day
 
-            $addFees    = (float) ($v->Venue_Reservation_Additional_Fees ?? 0);
             $discount   = (float) ($v->Venue_Reservation_Discount ?? 0);
             $foodTotal  = (float) $v->foodReservations->sum('Food_Reservation_Total_Price');
             $venuePax   = (int) ($v->Venue_Reservation_Pax ?? 1);
             $foodPerPax = $venuePax > 0 ? round($foodTotal / $venuePax, 2) : 0;
-            $baseAmount = (float) ($v->Venue_Reservation_Total_Price ?? 0) - $addFees + $discount - $foodTotal;
-            $ratePerDay = $days > 0 ? $baseAmount / $days : $baseAmount;
+            $venueRate  = ($client->Account_Type === 'Internal')
+                ? (float) ($v->venue->Venue_Internal_Price ?? 0)
+                : (float) ($v->venue->Venue_External_Price ?? 0);
+            $baseAmount = $venueRate * $days;
+            $ratePerDay = $venueRate;
 
             $reservations->push([
                 'date'        => $checkIn->format('F d, Y'),
@@ -2773,6 +2802,8 @@ class ReservationController extends Controller
             foreach ($rawItems as $item) {
                 $parts    = explode(':', $item);
                 $desc     = trim($parts[0] ?? '');
+                if ($desc === '') continue; // skip blank entries
+
                 $qty      = (int) ($parts[1] ?? 1);
                 $unitRate = (float) ($parts[2] ?? 0);
                 $chDate   = !empty($parts[3]) ? Carbon::parse($parts[3])->format('F d, Y') : '';
@@ -3673,12 +3704,14 @@ class ReservationController extends Controller
 
         // Build the full details payload that admin will review
         $details = [
-            'check_in'         => $newCheckIn,
-            'check_out'        => $newCheckOut,
-            'pax'              => $request->input('pax'),
-            'purpose'          => $request->input('purpose'),
-            'accommodation_id' => $request->input('accommodation_id'),
-            'type'             => $type,
+            'check_in'          => $newCheckIn,
+            'check_out'         => $newCheckOut,
+            'original_check_in' => $origCheckIn,   // saved so rejection can revert the pre-applied dates
+            'original_check_out'=> $origCheckOut,
+            'pax'               => $request->input('pax'),
+            'purpose'           => $request->input('purpose'),
+            'accommodation_id'  => $request->input('accommodation_id'),
+            'type'              => $type,
         ];
 
         if ($type === 'venue') {
@@ -4167,11 +4200,12 @@ class ReservationController extends Controller
             $reservation->change_request_processed_by = auth()->id();
             $reservation->change_request_processed_at = Carbon::now();
 
-            // On approval, apply the date changes from the stored details payload
-            if ($decision === 'approved') {
-                $details   = $reservation->change_request_details ?? [];
-                $reqType   = $reservation->change_request_type ?? '';
+            $details = $reservation->change_request_details ?? [];
+            $reqType = $reservation->change_request_type ?? '';
 
+            if ($decision === 'approved') {
+                // Apply the new dates (they were already pre-written by storeChangeRequest,
+                // but we re-apply here so approval is the source of truth)
                 if (in_array($reqType, ['reschedule', 'reschedule_and_food']) && !empty($details['check_in']) && !empty($details['check_out'])) {
                     if ($type === 'room') {
                         $reservation->Room_Reservation_Check_In_Time  = $details['check_in'];
@@ -4183,6 +4217,19 @@ class ReservationController extends Controller
                 }
                 // Food modifications are shown in the details for manual admin action
                 // (food reservation rows require the full food booking logic to update)
+            }
+
+            // On rejection, revert the dates that storeChangeRequest pre-applied
+            if ($decision === 'rejected') {
+                if (in_array($reqType, ['reschedule', 'reschedule_and_food']) && !empty($details['original_check_in']) && !empty($details['original_check_out'])) {
+                    if ($type === 'room') {
+                        $reservation->Room_Reservation_Check_In_Time  = $details['original_check_in'];
+                        $reservation->Room_Reservation_Check_Out_Time = $details['original_check_out'];
+                    } else {
+                        $reservation->Venue_Reservation_Check_In_Time  = $details['original_check_in'];
+                        $reservation->Venue_Reservation_Check_Out_Time = $details['original_check_out'];
+                    }
+                }
             }
 
             $reservation->save();

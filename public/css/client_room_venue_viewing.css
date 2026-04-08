@@ -332,7 +332,7 @@
 .purpose-pill {
   display: inline-flex;
   align-items: center;
-  padding: 8px 18px;
+  padding: 8px 15px;
   border: 1.5px solid #ccc;
   border-radius: 20px;
   background: #fff;
@@ -371,4 +371,27 @@
 
 .purpose-others-input:focus {
   border-color: #2563eb;
+}
+
+
+/* ── Advance booking notice ── */
+.booking-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.booking-notice__icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.booking-notice__text {
+  font-size: 13px;
+  color: #1e40af;
+  margin: 0;
+  line-height: 1.55;
 }

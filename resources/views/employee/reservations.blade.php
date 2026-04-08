@@ -22,7 +22,7 @@
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card cancel-requested {{ request('status') == 'cancel_requested' ? 'active' : '' }}">
                   <div class="status-label">
-                    ⚠ Cancel Requested
+                    Cancel Requested
                     @if(($cancelRequestedCount ?? 0) > 0)
                       <span class="cancel-req-dot"></span>
                     @endif
@@ -36,7 +36,7 @@
                 style="text-decoration:none;color:inherit;">
                 <div class="status-card change-requested {{ request('status') == 'change_requested' ? 'active' : '' }}">
                   <div class="status-label">
-                    🔄 Change Requested
+                    Change Requested
                     @if(($changeRequestedCount ?? 0) > 0)
                       <span class="cancel-req-dot" style="background:#6366f1;"></span>
                     @endif

@@ -17,11 +17,23 @@
         }
         .back-link:hover { text-decoration: underline; }
         .info-text {
-            font-size: 14px;
-            color: #666;
+            font-size: 12px;
+            color: white;
             text-align: center;
-            margin-bottom: 20px;
             line-height: 1.5;
+        }
+        .forgot-pass-container{
+            display: flex;
+            gap: 4px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 4px;
+            max-width: 40vh;
+            border: 2px rgb(18, 69, 141)solid;
+            background-color:rgba(124, 166, 225, 0.54);
+            border-radius: 5px;
+            margin-bottom: 10px;
         }
     </style>
 </head>
@@ -40,9 +52,15 @@
             <p class="university-name">Ateneo de Zamboanga University</p>
 
             <!-- Main Heading -->
-            <h1 class="main-heading">Forgot Password</h1>
+            <h3 class="main-heading">Lantaka Room and Venue Reservation System</h3>
 
-            <p class="info-text">Enter the email address associated with your client account and we'll send you a new password.</p>
+            <!-- Subtitle -->
+            <p class="subtitle" style="margin-bottom: 16px;">Lantaka Online Room & Venue Reservation System</p>
+            <div class="forgot-pass-container">
+                <h3 class="main-heading" style="font-size: 15px;">Forgot Password</h3>   
+                <p class="info-text">Enter the email address associated with your client account and we'll send you a new password.</p>
+            </div>
+            
 
             <!-- Flash Messages -->
             @if(session('success'))

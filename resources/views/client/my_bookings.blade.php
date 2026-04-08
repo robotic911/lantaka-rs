@@ -132,9 +132,10 @@
                                     @if(($foodEnabled[$date] ?? '1') != '1') @continue @endif
 
                                     @php
-                                        // Is this date in individual mode?
+                                        // Is this date in individual / buffet mode?
                                         $dateMealModes = $mealMode[$date] ?? [];
                                         $dateIsIndiv   = !empty($dateMealModes) && in_array('individual', array_values($dateMealModes));
+                                        $dateIsBuffet  = !empty($dateMealModes) && in_array('buffet',     array_values($dateMealModes));
                                         $dateSets      = $foodSetSel[$date]    ?? [];
                                         $dateFoodSel   = $foodSel[$date]       ?? [];
                                         $pax           = $item['pax']          ?? 1;
@@ -183,9 +184,17 @@
                                                 if (empty($sid) || !is_numeric($sid)) continue;
                                                 $sf = $foodMap->get((int)$sid);
                                                 if ($sf) $dateSubtotal += ($sf->Food_Price ?? 0) * $pax;
-                                       
                                             }
-                                         
+                                        }
+
+                                        // Sum buffet meal prices (tier × pax per enabled buffet meal)
+                                        if ($dateIsBuffet) {
+                                            foreach ($dateMealModes as $bMealKey => $bMode) {
+                                                if ($bMode !== 'buffet') continue;
+                                                if (($mealEnabled[$date][$bMealKey] ?? '1') != '1') continue;
+                                                $tier = (int) ($dateFoodSel[$bMealKey]['_tier'] ?? 350);
+                                                $dateSubtotal += $tier * $pax;
+                                            }
                                         }
                                     @endphp
 
@@ -383,6 +392,48 @@
                                                     @endforeach
                                                 </div>
                                             @endif
+
+                                        @elseif($dateIsBuffet)
+                                            {{-- Buffet mode: flat-rate per pax per meal + individual food items --}}
+                                            @php
+                                                $buffetFoodKeyMap = [
+                                                    'meatviand1'  => 'Meat Viand',
+                                                    'meatviand2'  => 'Meat Viand',
+                                                    'meatviand3'  => 'Meat Viand',
+                                                    'meatviand4'  => 'Meat Viand',
+                                                    'noodleviand' => 'Noodle Viand',
+                                                    'veggieviand' => 'Veggie Viand',
+                                                    'dessert'     => 'Dessert',
+                                                ];
+                                            @endphp
+                                            <div class="food-sets-group">
+                                                @foreach(['breakfast' => 'Breakfast', 'lunch' => 'Lunch', 'dinner' => 'Dinner', 'am_snack' => 'AM Snack', 'pm_snack' => 'PM Snack'] as $bMealKey => $bMealLabel)
+                                                    @if(($dateMealModes[$bMealKey] ?? '') === 'buffet' && ($mealEnabled[$date][$bMealKey] ?? '1') == '1')
+                                                        @php
+                                                            $bTier     = (int) ($dateFoodSel[$bMealKey]['_tier'] ?? 350);
+                                                            $bMealData = $dateFoodSel[$bMealKey] ?? [];
+                                                            $bFoodItems = [];
+                                                            foreach ($buffetFoodKeyMap as $bFKey => $bFCat) {
+                                                                if (!empty($bMealData[$bFKey]) && is_numeric($bMealData[$bFKey])) {
+                                                                    $bFood = $foodMap->get((int) $bMealData[$bFKey]);
+                                                                    if ($bFood) $bFoodItems[] = ['cat' => $bFCat, 'food' => $bFood];
+                                                                }
+                                                            }
+                                                        @endphp
+                                                        <div class="food-meal-row">
+                                                            <span class="food-meal-label">{{ $bMealLabel }}</span>
+                                                            <span class="food-set-name">Buffet</span>
+                                                            <span class="food-set-price">&#8369;{{ number_format($bTier, 2) }}/pax</span>
+                                                        </div>
+                                                        @foreach($bFoodItems as $bfi)
+                                                            <div class="food-indiv-item food-indiv-item--buffet">
+                                                                <span class="food-indiv-cat">{{ $bfi['cat'] }}</span>
+                                                                <span class="food-indiv-name">{{ $bfi['food']->Food_Name }}</span>
+                                                            </div>
+                                                        @endforeach
+                                                    @endif
+                                                @endforeach
+                                            </div>
 
                                         @else
                                             {{-- General set mode --}}

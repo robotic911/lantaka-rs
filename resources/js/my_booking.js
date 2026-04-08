@@ -8,6 +8,7 @@
  *       – Spiritual (retreat/recollection): set per meal + AM/PM snacks
  *       – General set mode:                selected sets + snacks
  *       – Individual order mode:           per-meal selections + snacks
+ *       – Buffet mode:                     flat-rate per pax per meal (tier × pax)
  *   • Food subtotal per date
  *   • Grand total
  */
@@ -49,6 +50,17 @@ function formatDate(dateStr) {
 function getCartKeyFromElement(el) {
   return `${el.dataset.type}_${el.dataset.id}_${el.dataset.in}_${el.dataset.out}`;
 }
+
+/** Ordered list of buffet food keys → display category label */
+const BUFFET_FOOD_KEYS = [
+  { key: 'meatviand1',  cat: 'Meat Viand'   },
+  { key: 'meatviand2',  cat: 'Meat Viand'   },
+  { key: 'meatviand3',  cat: 'Meat Viand'   },
+  { key: 'meatviand4',  cat: 'Meat Viand'   },
+  { key: 'noodleviand', cat: 'Noodle Viand' },
+  { key: 'veggieviand', cat: 'Veggie Viand' },
+  { key: 'dessert',     cat: 'Dessert'      },
+];
 
 /* ─── parse cart item from DOM element ─────────────────────────── */
 function parseCartItem(element) {
@@ -122,6 +134,7 @@ function parseCartItem(element) {
 
     const dateModeMap  = mealMode[date] || {};
     const dateIsIndiv  = Object.values(dateModeMap).some(v => v === 'individual');
+    const dateIsBuffet = Object.values(dateModeMap).some(v => v === 'buffet');
     const dateFoodSel  = foodSelections[date] || {};
     const dateSets     = foodSetSel[date] || {};
 
@@ -252,6 +265,37 @@ function parseCartItem(element) {
             dateSubtotal += Number(f.Food_Price || 0) * pax;
           }
         });
+      });
+
+    } else if (dateIsBuffet) {
+      /* ── Buffet mode ── */
+      group.type = 'buffet';
+
+      ['breakfast', 'lunch', 'dinner', 'am_snack', 'pm_snack'].forEach(mealKey => {
+        if (dateModeMap[mealKey] !== 'buffet') return;
+        if ((mealEnabled[date]?.[mealKey] ?? '1') !== '1') return;
+        const mc   = dateFoodSel[mealKey] || {};
+        const tier = Number(mc._tier || 350);
+
+        // Collect the individual food items selected for this buffet meal
+        const mealFoods = [];
+        BUFFET_FOOD_KEYS.forEach(({ key, cat }) => {
+          const fid = mc[key];
+          if (fid && String(fid) !== '' && !isNaN(Number(fid))) {
+            const f = foodMap[String(fid)];
+            if (f) mealFoods.push({ cat, name: f.Food_Name });
+          }
+        });
+
+        group.sets.push({
+          mealKey,
+          icon:     MEAL_ICONS[mealKey]  || '🍽',
+          label:    MEAL_LABELS[mealKey] || mealKey,
+          setName:  'Buffet',
+          setPrice: tier,
+          foods:    mealFoods,
+        });
+        dateSubtotal += tier * pax;
       });
 
     } else {
@@ -389,6 +433,29 @@ function renderSummaryFoods() {
                 <span class="sf-meal-name">${s.setName}</span>
                 <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
               </div>`;
+          });
+        } else if (group.type === 'buffet') {
+          html += `<div class="sf-section-label">Buffet</div>`;
+          group.sets.forEach(s => {
+            const baseP = Number(s.setPrice || 0);
+            const total = baseP * item.pax;
+            html += `
+              <div class="sf-meal-row">
+                <span class="sf-meal-icon">${s.icon}</span>
+                <span class="sf-meal-label">${s.label}</span>
+                <span class="sf-meal-name">Buffet</span>
+                <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
+              </div>`;
+            // Individual food items chosen for this buffet meal
+            if (s.foods && s.foods.length) {
+              s.foods.forEach(fi => {
+                html += `
+              <div class="sf-indiv-item sf-indiv-item--buffet-food">
+                <span class="sf-indiv-cat">${fi.cat}</span>
+                <span class="sf-indiv-name">${fi.name}</span>
+              </div>`;
+              });
+            }
           });
         } else {
           html += `<div class="sf-section-label">Sets</div>`;

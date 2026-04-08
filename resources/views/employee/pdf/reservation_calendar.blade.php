@@ -1,3 +1,8 @@
+@php
+    $logoPath   = public_path('images/adzu_logo.png');
+    $logoB64    = file_exists($logoPath) ? base64_encode(file_get_contents($logoPath)) : '';
+    $logoSrc    = $logoB64 ? 'data:image/png;base64,' . $logoB64 : '';
+@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -210,6 +215,58 @@ body {
 }
 
 /* ══════════════════════════════════════════════════════════
+   BRAND HEADER  (top-right of each page header)
+   ══════════════════════════════════════════════════════════ */
+.hdr-brand {
+    text-align: right;
+    width: 1%;
+    white-space: nowrap;
+    vertical-align: middle;
+}
+.hdr-brand-inner {
+    display: inline-block;
+    border-radius: 5pt;
+    padding: 4pt 8pt 4pt 5pt;
+}
+.hdr-brand-table {
+    border-collapse: collapse;
+}
+.hdr-brand-logo-td {
+    vertical-align: middle;
+    padding-right: 5pt;
+}
+.hdr-brand-logo {
+    width: 26pt;
+    height: 26pt;
+}
+.hdr-brand-text-td {
+    vertical-align: middle;
+    text-align: left;
+}
+.hdr-brand-univ {
+    font-size: 5.5pt;
+    font-style: italic;
+    color:rgb(0, 0, 0);
+    letter-spacing: 0.2px;
+    line-height: 1.3;
+    margin: 0;
+}
+.hdr-brand-title {
+    font-size: 7.5pt;
+    font-weight: 700;
+    color:rgb(0, 0, 0);
+    letter-spacing: 0.1px;
+    line-height: 1.3;
+    margin: 0;
+}
+.hdr-brand-tag {
+    font-size: 4.5pt;
+    color:rgb(0, 0, 0);
+    letter-spacing: 0.2px;
+    margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════
    FOOTER — fixed at page bottom (DomPDF repeats per page)
    ══════════════════════════════════════════════════════════ */
 .footer {
@@ -243,11 +300,28 @@ body {
     @php [$mn, $yr] = explode(' ', $month['month_label'], 2); @endphp
     <table class="hdr-table">
         <tr>
+        <td class="hdr-brand">
+                <div class="hdr-brand-inner">
+                    <table class="hdr-brand-table">
+                        <tr>
+                            @if($logoSrc)
+                            <td class="hdr-brand-logo-td">
+                                <img src="{{ $logoSrc }}" class="hdr-brand-logo" alt="AdZU">
+                            </td>
+                            @endif
+                            <td class="hdr-brand-text-td">
+                                <p class="hdr-brand-univ">Ateneo de Zamboanga University</p>
+                                <p class="hdr-brand-title">Lantaka Reservation Portal</p>
+                                <p class="hdr-brand-tag">&lt; Lantaka Online Room &amp; Venue Reservation System/ &gt;</p>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </td>
+            <td class="hdr-center">Reservation Calendar</td>
             <td class="hdr-month">
                 {{ $mn }}&nbsp;<span class="yr">{{ $yr }}</span>
             </td>
-            <td class="hdr-center">Reservation Calendar</td>
-            <td style="width:1%;"></td>{{-- balances the left column --}}
         </tr>
     </table>
 

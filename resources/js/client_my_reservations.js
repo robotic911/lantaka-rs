@@ -146,7 +146,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const { items } = slots[meal];
         if (!items.length) return;
         const label = MEAL_LABEL[meal] || null;
-        if (label) inner += `<p class="crm-food-line crm-food-line--meal">${label}</p>`;
+        if (label) inner += `<p class="crm-food-line crm-food-line--meal">${label} (Buffet)</p>`;
         items.forEach(f => {
           inner += `<p class="crm-food-line">${f.Food_Name || 'Unknown item'}</p>`;
         });
