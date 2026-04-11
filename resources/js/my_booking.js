@@ -35,6 +35,18 @@ const MEAL_ICONS = {
 };
 
 /* ─── helpers ───────────────────────────────────────────────────── */
+
+/** Escape user/DB data before inserting into innerHTML to prevent XSS. */
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 function formatPeso(value) {
   return `₱ ${Number(value || 0).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
@@ -395,7 +407,7 @@ function renderSummaryItems() {
     const typeLabel = item.type === 'room' ? 'night' : 'day';
     const html = `
       <div class="summary-venue-block">
-        <div class="summary-venue-name">${item.name}</div>
+        <div class="summary-venue-name">${escHtml(item.name)}</div>
         <div class="summary-venue-line">
           <span class="summary-venue-rate">₱ ${Number(item.basePrice).toLocaleString('en-PH', {minimumFractionDigits:2})} × ${item.days} ${typeLabel}${item.days !== 1 ? 's' : ''}</span>
           <span class="summary-venue-amt">${formatPeso(item.baseTotal)}</span>
@@ -428,9 +440,9 @@ function renderSummaryFoods() {
             const total = baseP * item.pax;
             html += `
               <div class="sf-meal-row">
-                <span class="sf-meal-icon">${s.icon}</span>
-                <span class="sf-meal-label">${s.label}</span>
-                <span class="sf-meal-name">${s.setName}</span>
+                <span class="sf-meal-icon">${escHtml(s.icon)}</span>
+                <span class="sf-meal-label">${escHtml(s.label)}</span>
+                <span class="sf-meal-name">${escHtml(s.setName)}</span>
                 <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
               </div>`;
           });
@@ -441,21 +453,21 @@ function renderSummaryFoods() {
             const total = baseP * item.pax;
             html += `
               <div class="sf-meal-row">
-                <span class="sf-meal-icon">${s.icon}</span>
-                <span class="sf-meal-label">${s.label}</span>
+                <span class="sf-meal-icon">${escHtml(s.icon)}</span>
+                <span class="sf-meal-label">${escHtml(s.label)}</span>
                 <span class="sf-meal-name">Buffet</span>
                 <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
               </div>`;
             // Individual food items chosen for this buffet meal
-            if (s.foods && s.foods.length) {
-              s.foods.forEach(fi => {
-                html += `
-              <div class="sf-indiv-item sf-indiv-item--buffet-food">
-                <span class="sf-indiv-cat">${fi.cat}</span>
-                <span class="sf-indiv-name">${fi.name}</span>
-              </div>`;
-              });
-            }
+            // if (s.foods && s.foods.length) {
+            //   s.foods.forEach(fi => {
+            //     html += `
+            //   <div class="sf-indiv-item sf-indiv-item--buffet-food">
+            //     <span class="sf-indiv-cat">${fi.cat}</span>
+            //     <span class="sf-indiv-name">${fi.name}</span>
+            //   </div>`;
+            //   });
+            // }
           });
         } else {
           html += `<div class="sf-section-label">Sets</div>`;
@@ -465,7 +477,7 @@ function renderSummaryFoods() {
             html += `
               <div class="sf-meal-row">
                 <span class="sf-meal-icon">🍱</span>
-                <span class="sf-meal-name sf-meal-name--full">${s.setName}</span>
+                <span class="sf-meal-name sf-meal-name--full">${escHtml(s.setName)}</span>
                 <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
               </div>`;
           });
@@ -479,7 +491,7 @@ function renderSummaryFoods() {
           html += `
             <div class="sf-indiv-meal">
               <div class="sf-indiv-meal-header">
-                <span>${meal.icon} ${meal.label}</span>
+                <span>${escHtml(meal.icon)} ${escHtml(meal.label)}</span>
               </div>`;
           meal.items.forEach(item2 => {
             const priceStr = item2.price > 0
@@ -487,8 +499,8 @@ function renderSummaryFoods() {
               : '';
             html += `
               <div class="sf-indiv-item ${item2.extra ? 'sf-indiv-item--extra' : ''}">
-                <span class="sf-indiv-cat">${item2.label}</span>
-                <span class="sf-indiv-name">${item2.name}</span>
+                <span class="sf-indiv-cat">${escHtml(item2.label)}</span>
+                <span class="sf-indiv-name">${escHtml(item2.name)}</span>
                 ${priceStr}
               </div>`;
           });
@@ -511,9 +523,9 @@ function renderSummaryFoods() {
           const total = baseP * item.pax;
           html += `
             <div class="sf-meal-row sf-meal-row--snack">
-              ${s.icon ? `<span class="sf-meal-icon">${s.icon}</span>` : `<span class="sf-meal-icon">🍪</span>`}
-              ${s.label ? `<span class="sf-meal-label">${s.label}</span>` : ''}
-              <span class="sf-meal-name">${s.name}</span>
+              ${s.icon ? `<span class="sf-meal-icon">${escHtml(s.icon)}</span>` : `<span class="sf-meal-icon">🍪</span>`}
+              ${s.label ? `<span class="sf-meal-label">${escHtml(s.label)}</span>` : ''}
+              <span class="sf-meal-name">${escHtml(s.name)}</span>
               <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
             </div>`;
         });

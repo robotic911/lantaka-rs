@@ -86,7 +86,13 @@ class AccountController extends Controller
 
             $user->save();
 
-            Mail::to($user->Account_Email)->send(new AccountApprovedMail($user, $plainPassword));
+            try {
+                Mail::to($user->Account_Email)->send(new AccountApprovedMail($user, $plainPassword));
+            } catch (\Exception $e) {
+                \Log::error('AccountApprovedMail failed: ' . $e->getMessage(), [
+                    'account_id' => $user->Account_ID,
+                ]);
+            }
 
             EventLogController::log(
                 'account_approved',
@@ -103,7 +109,13 @@ class AccountController extends Controller
         $user->Account_Status = 'declined';
         $user->save();
 
-        Mail::to($user->Account_Email)->send(new AccountDeclinedMail($user));
+        try {
+            Mail::to($user->Account_Email)->send(new AccountDeclinedMail($user));
+        } catch (\Exception $e) {
+            \Log::error('AccountDeclinedMail failed: ' . $e->getMessage(), [
+                'account_id' => $user->Account_ID,
+            ]);
+        }
 
         EventLogController::log(
             'account_declined',

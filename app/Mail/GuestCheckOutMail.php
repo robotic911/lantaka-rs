@@ -5,8 +5,6 @@ namespace App\Mail;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Mail\Mailable;
-use Illuminate\Mail\Mailables\Content;
-use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
 class GuestCheckOutMail extends Mailable
 {
@@ -28,17 +26,10 @@ class GuestCheckOutMail extends Mailable
     }
 
     /**
-     * Get the message envelope.
+     * Build the message.
      *
-     * @return \Illuminate\Mail\Mailables\Envelope
+     * @return $this
      */
-    public function envelope()
-    {
-        return new Envelope(
-            subject: 'Thank you for staying at Lantaka!',
-        );
-    }
-
     public function build()
     {
         return $this->subject('You\'ve Checked Out — Lantaka Reservation System')
@@ -48,19 +39,6 @@ class GuestCheckOutMail extends Mailable
                         'type'        => $this->type,
                         'foodTotal'   => $this->foodTotal,
                     ]);
-    }
-
-    /**
-     * Get the message content definition.
-     *
-     * @return \Illuminate\Mail\Mailables\Content
-     */
-    public function content(): Content
-    {
-        return new Content(
-            view: 'emails.guest_checkout',
-    
-        );
     }
 
     /**

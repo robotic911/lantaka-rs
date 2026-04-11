@@ -72,28 +72,28 @@ class ReservationController extends Controller
                     continue;
                 }
                 if($account->Account_Type == 'Internal'){
-                    $price = $model->Room_Internal_Price;
+                    $price = $model->Room_Internal_Price ?? 0;
                 }else{
-                    $price = $model->Room_External_Price;
+                    $price = $model->Room_External_Price ?? 0;
                 }
                 $name = "Room " . ($model->Room_Number ?? '');
                 $img = $model->Room_Image ?? null;
             } else {
                 $model = Venue::find($item['accommodation_id']);
-            
+
                 if (!$model) {
                     continue;
                 }
-              
+
                 if($account->Account_Type == 'Internal'){
-                    $price = $model->Venue_Internal_Price;
+                    $price = $model->Venue_Internal_Price ?? 0;
                 }else{
-                    $price = $model->Venue_External_Price;
+                    $price = $model->Venue_External_Price ?? 0;
                 }
                 $name = $model->Venue_Name ?? 'Venue';
                 $img = $model->Venue_Image ?? null;
             }
-            $accommodationTotal = $price * $days;
+            $accommodationTotal = (float) $price * $days;
             
             $foodTotal = 0;
 
@@ -597,12 +597,19 @@ class ReservationController extends Controller
                 }
             });
 
-            try {
-                Mail::to(auth()->user()->Account_Email)->send(
-                    new \App\Mail\ReservationConfirmationMail($savedReservations)
-                );
-            } catch (\Exception $e) {
-                \Log::error("Mail failed: " . $e->getMessage());
+            // Send one confirmation email per reservation so the mail
+            // class always receives a single model, never an array.
+            $clientEmail = auth()->user()?->Account_Email;
+            if ($clientEmail) {
+                foreach ($savedReservations as $savedRes) {
+                    try {
+                        Mail::to($clientEmail)->send(
+                            new \App\Mail\ReservationConfirmationMail($savedRes)
+                        );
+                    } catch (\Exception $e) {
+                        \Log::error('ReservationConfirmationMail failed: ' . $e->getMessage());
+                    }
+                }
             }
 
             $allBookings = session('pending_bookings', []);
@@ -618,7 +625,7 @@ class ReservationController extends Controller
                 ->with('success', 'Reservations confirmed successfully!');
         } catch (\Exception $e) {
             \Log::error("Reservation Store Error: " . $e->getMessage());
-            return back()->with('error', 'Something went wrong: ' . $e->getMessage());
+            return back()->with('error', 'Something went wrong while processing your reservation. Please try again or contact support.');
         }
     }
     // 3. Client List Page
@@ -650,7 +657,7 @@ class ReservationController extends Controller
 
             // Client Type Filter
             if ($clientType) {
-                $query->whereHas('Account', fn($q) => $q->where('Account_Type', $clientType));
+                $query->whereHas('user', fn($q) => $q->where('Account_Type', $clientType));
             }
 
             // Date Filter (This was missing!)
@@ -965,23 +972,44 @@ class ReservationController extends Controller
                 ->where('Room_Reservation_ID', $id)
                 ->firstOrFail();
 
-    
-            $room->display_type = 'room';
-            $room->type = 'room';
-            $room->status = $room->Room_Reservation_Status;
-            $room->pax = $room->Room_Reservation_Pax;
+            // Map to the same standard keys the guest blade and JS expect
+            $room->display_type      = 'room';
+            $room->type              = 'room';
+            $room->id                = $room->Room_Reservation_ID;
+            $room->status            = $room->Room_Reservation_Status;
+            $room->check_in          = $room->Room_Reservation_Check_In_Time;
+            $room->check_out         = $room->Room_Reservation_Check_Out_Time;
+            $room->total_amount      = $room->Room_Reservation_Total_Price;
+            $room->pax               = $room->Room_Reservation_Pax ?? 0;
+            $room->discount          = $room->Room_Reservation_Discount ?? 0;
+            $room->additional_fees   = $room->Room_Reservation_Additional_Fees ?? 0;
+            $room->additional_fees_desc = $room->Room_Reservation_Additional_Fees_Desc ?? '';
+            $room->base_room_price   = ($room->user && $room->user->Account_Type === 'Internal')
+                ? ($room->room?->Room_Internal_Price ?? 0)
+                : ($room->room?->Room_External_Price ?? 0);
+            $room->food_total        = 0;
 
             $rooms = collect([$room]);
-    
+
         } elseif ($type === 'venue') {
-            $venue = VenueReservation::with(['user', 'venue'])
+            $venue = VenueReservation::with(['user', 'venue', 'foods', 'foodSetReservations'])
                 ->where('Venue_Reservation_ID', $id)
                 ->firstOrFail();
-    
-            $venue->display_type = 'venue';
-            $venue->type = 'venue';
-            $venue->status = $venue->Venue_Reservation_Status;
-            $venue->pax = $venue->Venue_Reservation_Pax;
+
+            // Map to the same standard keys the guest blade and JS expect
+            $venue->display_type      = 'venue';
+            $venue->type              = 'venue';
+            $venue->id                = $venue->Venue_Reservation_ID;
+            $venue->status            = $venue->Venue_Reservation_Status;
+            $venue->check_in          = $venue->Venue_Reservation_Check_In_Time;
+            $venue->check_out         = $venue->Venue_Reservation_Check_Out_Time;
+            $venue->total_amount      = $venue->Venue_Reservation_Total_Price;
+            $venue->pax               = $venue->Venue_Reservation_Pax ?? 0;
+            $venue->discount          = $venue->Venue_Reservation_Discount ?? 0;
+            $venue->additional_fees   = $venue->Venue_Reservation_Additional_Fees ?? 0;
+            $venue->additional_fees_desc = $venue->Venue_Reservation_Additional_Fees_Desc ?? '';
+            $venue->food_total        = ($venue->foods->sum('pivot.Food_Reservation_Total_Price') ?? 0)
+                + ($venue->foodSetReservations->sum('Food_Reservation_Total_Price') ?? 0);
 
             $venues = collect([$venue]);
     
@@ -1084,8 +1112,8 @@ class ReservationController extends Controller
             $item->total_amount = $item->Room_Reservation_Total_Price;
             $item->id = $item->Room_Reservation_ID;
             $item->base_room_price = ($item->user && $item->user->Account_Type === 'Internal')
-                ? ($item->room->Room_Internal_Price ?? 0)
-                : ($item->room->Room_External_Price ?? 0);
+                ? ($item->room?->Room_Internal_Price ?? 0)
+                : ($item->room?->Room_External_Price ?? 0);
             $item->pax = $item->Room_Reservation_Pax ?? 0;
             $item->discount = $item->Room_Reservation_Discount ?? 0;
             $item->additional_fees = $item->Room_Reservation_Additional_Fees ?? 0;
@@ -1337,8 +1365,8 @@ class ReservationController extends Controller
             if ($conflict) {
                 $conflictClient = optional($conflict->user)->Account_Name ?? 'another client';
                 $accName = $type === 'room'
-                    ? 'Room ' . ($reservation->room->Room_Number ?? $id)
-                    : ($reservation->venue->Venue_Name ?? 'Venue');
+                    ? 'Room ' . ($reservation->room?->Room_Number ?? $id)
+                    : ($reservation->venue?->Venue_Name ?? 'Venue');
 
                 return redirect()->back()->with(
                     'error',
@@ -1388,8 +1416,8 @@ class ReservationController extends Controller
 
         // Build a human-readable accommodation label
         $accName = $type === 'room'
-            ? 'Room ' . ($reservation->room->Room_Number ?? $reservation->getKey())
-            : ($reservation->venue->Venue_Name ?? 'Venue');
+            ? 'Room ' . ($reservation->room?->Room_Number ?? $reservation->getKey())
+            : ($reservation->venue?->Venue_Name ?? 'Venue');
 
         $notificationMap = [
             'confirmed'   => [
@@ -1695,46 +1723,59 @@ class ReservationController extends Controller
      */
     public function exportCalendarPDF(Request $request)
     {
-        $startMonth = max(1,    min(12,   (int) $request->query('month',     now()->month)));
-        $endMonth   = max(1,    min(12,   (int) $request->query('end_month', $startMonth)));
-        $year       = max(2020, min(2100, (int) $request->query('year',      now()->year)));
-        $typeFilter = $request->query('reservation_type', 'all'); // 'all' | 'room' | 'venue'
-        if ($endMonth < $startMonth) $endMonth = $startMonth;
+        $month       = max(1,    min(12,   (int) $request->query('month', now()->month)));
+        $year        = max(2020, min(2100, (int) $request->query('year',  now()->year)));
+        $typeFilter  = $request->query('reservation_type', 'all');
+        $granularity = $request->query('granularity', 'month'); // 'month' | 'week'
+        $weekNum     = max(1, min(5, (int) $request->query('week', 1)));
 
-        $preparedBy  = auth()->user()->Account_Name ?? 'N/A';
-        $periodLabel = ($startMonth === $endMonth)
-            ? Carbon::create($year, $startMonth)->format('F Y')
-            : Carbon::create($year, $startMonth)->format('F') . ' to ' .
-              Carbon::create($year, $endMonth)->format('F Y');
+        $preparedBy = auth()->user()->Account_Name ?? 'N/A';
 
-        $months = [];
-        for ($m = $startMonth; $m <= $endMonth; $m++) {
-            $months[] = $this->buildCalendarPDFData($m, $year, $typeFilter);
+        $monthData = $this->buildCalendarPDFData($month, $year, $typeFilter);
+
+        if ($granularity === 'week') {
+            // Week N of month: day ranges 1–7, 8–14, 15–21, 22–28, 29–end
+            $dayStart = ($weekNum - 1) * 7 + 1;
+            $dayEnd   = ($weekNum === 5)
+                ? Carbon::create($year, $month)->daysInMonth
+                : $weekNum * 7;
+
+            // Keep only calendar-grid week rows that overlap with [$dayStart, $dayEnd]
+            $monthData['weeks'] = array_values(array_filter(
+                $monthData['weeks'],
+                function ($week) use ($month, $dayStart, $dayEnd) {
+                    foreach ($week['days'] as $day) {
+                        if ($day['in_month'] && $day['num'] >= $dayStart && $day['num'] <= $dayEnd) {
+                            return true;
+                        }
+                    }
+                    return false;
+                }
+            ));
+
+            $weekLabel   = "Week {$weekNum}";
+            $periodLabel = Carbon::create($year, $month)->format('F Y') . " — {$weekLabel}";
+            $filenameTag = Carbon::create($year, $month)->format('F_Y') . "_Week{$weekNum}";
+        } else {
+            $periodLabel = Carbon::create($year, $month)->format('F Y');
+            $filenameTag = $monthData['month_label_filename'];
         }
 
-        // Compute the tallest page height across all months.
-        // DomPDF requires a uniform paper size, so we use the maximum.
-        // Footer is position:fixed — not in normal flow, so not counted in height.
-        // Date cell height updated to 14mm to match CSS.
+        $months = [$monthData];
+
         $maxHeight = 0;
         foreach ($months as $md) {
             $weekCount = count($md['weeks']);
             $h = 12 + 7 + 7; // header-table + legend-row + DOW header (mm)
             foreach ($md['weeks'] as $week) {
-                $h += 14 + max(1, count($week['lanes'])) * 7; // date row (14mm) + lane rows (7mm each)
+                $h += 14 + max(1, count($week['lanes'])) * 7;
             }
-            $h += ($weekCount - 1) * 1.5; // separators between weeks (not after last)
-            $h += 12; // clearance above the fixed footer
-            $h += 25.4; // top + bottom margins (0.5 in × 2)
+            $h += ($weekCount - 1) * 1.5;
+            $h += 12;
+            $h += 25.4;
             $maxHeight = max($maxHeight, $h);
         }
 
-        $filenameTag = count($months) === 1
-            ? $months[0]['month_label_filename']
-            : Carbon::create($year, $startMonth)->format('M') . '_to_' .
-              Carbon::create($year, $endMonth)->format('M_Y');
-
-        // Page size is driven entirely by the blade's @page CSS rule.
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView(
             'employee.pdf.reservation_calendar',
             [
@@ -1746,7 +1787,7 @@ class ReservationController extends Controller
             ]
         );
 
-        return $pdf->download("reservation_calendar.pdf");
+        return $pdf->download("reservation_calendar_{$filenameTag}.pdf");
     }
 
     /**
@@ -2041,8 +2082,11 @@ class ReservationController extends Controller
 
             if (!isset($lanes[$lane])) $lanes[$lane] = [];
 
-            // Format mirrors the UI chip: purpose · guestName resource
-            $label = "{$res['purpose']}  ·  {$res['guest']}  {$res['resource']}";
+            $purpose = trim($res['purpose'] ?? '');
+
+            $label = ($purpose && strtolower($purpose) !== 'n/a')
+                ? "{$purpose} · {$res['guest']} | {$res['resource']}"
+                : "{$res['guest']} | {$res['resource']}";
 
             $lanes[$lane][] = [
                 'label'     => $label,
@@ -2278,18 +2322,18 @@ class ReservationController extends Controller
     }
 
     private function sendConfirmationEmail($reservation)
-{
-    try {
-        $user = Account::find($reservation->Client_ID);
-        if ($user && $user->Account_Email) {
-            Mail::to($user->Account_Email)->send(
-                new \App\Mail\ReservationConfirmationMail([$reservation])
-            );
+    {
+        try {
+            $user = Account::find($reservation->Client_ID);
+            if ($user && $user->Account_Email) {
+                Mail::to($user->Account_Email)->send(
+                    new \App\Mail\ReservationConfirmationMail($reservation)
+                );
+            }
+        } catch (\Exception $e) {
+            Log::error('sendConfirmationEmail failed: ' . $e->getMessage());
         }
-    } catch (\Exception $e) {
-        Log::error('sendConfirmationEmail failed: ' . $e->getMessage());
     }
-}
 
     public function prepareEmployeeBooking(Request $request)
     {
@@ -2353,7 +2397,9 @@ class ReservationController extends Controller
             $price = ($client && $client->Account_Type === 'Internal')
                 ? ($room->Room_Internal_Price ?? 0)
                 : ($room->Room_External_Price ?? 0);
-            $totalAmount = $price * $days;
+            // max(1, ...) mirrors storeReservation(): same-day check-in/check-out
+            // must still bill at least 1 night instead of producing a ₱0 total.
+            $totalAmount = $price * max(1, $days);
 
             $reservation->update([
                 'Room_Reservation_Check_In_Time'  => $request->check_in,
@@ -2582,14 +2628,14 @@ class ReservationController extends Controller
             $additionalFees = (float) ($r->Room_Reservation_Additional_Fees ?? 0);
             $discount       = (float) ($r->Room_Reservation_Discount ?? 0);
             $roomRate       = ($client->Account_Type === 'Internal')
-                ? (float) ($r->room->Room_Internal_Price ?? 0)
-                : (float) ($r->room->Room_External_Price ?? 0);
+                ? (float) ($r->room?->Room_Internal_Price ?? 0)
+                : (float) ($r->room?->Room_External_Price ?? 0);
             $baseAmount     = $roomRate * $nights;
 
             $reservations->push([
                 'type' => 'room',
                 'id' => $r->Room_Reservation_ID,
-                'name' => 'Room ' . ($r->room->Room_Number ?? 'Error'),
+                'name' => 'Room ' . ($r->room?->Room_Number ?? 'Unknown'),
                 'check_in' => $checkIn->format('m/d/Y'),
                 'check_out' => $checkOut->format('m/d/Y'),
                 'pax' => $r->Room_Reservation_Pax,
@@ -2635,14 +2681,14 @@ class ReservationController extends Controller
             $pax            = (int) ($v->Venue_Reservation_Pax ?? 1);
             $foodPerPax     = $pax > 0 ? round($foodTotal / $pax, 2) : 0;
             $venueRate      = ($client->Account_Type === 'Internal')
-                ? (float) ($v->venue->Venue_Internal_Price ?? 0)
-                : (float) ($v->venue->Venue_External_Price ?? 0);
+                ? (float) ($v->venue?->Venue_Internal_Price ?? 0)
+                : (float) ($v->venue?->Venue_External_Price ?? 0);
             $baseAmount     = $venueRate * $days;
 
             $reservations->push([
                 'type' => 'venue',
                 'id' => $v->Venue_Reservation_ID,
-                'name' => 'Venue ' . ($v->venue->Venue_Name ?? 'Error'),
+                'name' => 'Venue ' . ($v->venue?->Venue_Name ?? 'Unknown'),
                 'check_in' => $checkIn->format('m/d/Y'),
                 'check_out' => $checkOut->format('m/d/Y'),
                 'pax' => $pax,
@@ -2707,8 +2753,8 @@ class ReservationController extends Controller
             $nights   = max(1, $checkIn->diffInDays($checkOut));
 
             $roomRate   = ($client->Account_Type === 'Internal')
-                ? (float) ($r->room->Room_Internal_Price ?? 0)
-                : (float) ($r->room->Room_External_Price ?? 0);
+                ? (float) ($r->room?->Room_Internal_Price ?? 0)
+                : (float) ($r->room?->Room_External_Price ?? 0);
             $baseAmount = $roomRate * $nights;
             $discount   = (float) ($r->Room_Reservation_Discount ?? 0);
 
@@ -2959,6 +3005,35 @@ class ReservationController extends Controller
         $sheet->getStyle("G{$r4}")->applyFromArray($totalFont);
         $sheet->getStyle("J{$r4}")->getNumberFormat()->setFormatCode($pesoFmt);
         $sheet->getStyle("J{$r4}")->applyFromArray($totalFont);
+
+        // ── Summary box border — all 4 rows inside one black border ─────────
+        // First clear any stale borders that the template may have only partially
+        // placed (e.g. only on the last 2 rows), then draw a clean box.
+        // $sheet->getStyle("G{$summaryBase}:J{$r4}")->applyFromArray([
+        //     'borders' => [
+        //         // Thick outer box
+        //         'outline' => [
+        //             'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_MEDIUM,
+        //             'color'       => ['argb' => 'FF000000'],
+        //         ],
+        //         // Thin inner dividers between rows / label+value columns
+        //         'inside' => [
+        //             'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+        //             'color'       => ['argb' => 'FF000000'],
+        //         ],
+        //     ],
+        // ]);
+
+        // Align labels (G–I merged area) right and values (J) right inside the box
+        $sheet->getStyle("G{$summaryBase}:I{$r4}")->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+        $sheet->getStyle("J{$summaryBase}:J{$r4}")->getAlignment()
+            ->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+
+        // Auto-fit row heights for the summary block so nothing is clipped
+        for ($sr = $summaryBase; $sr <= $r4; $sr++) {
+            $sheet->getRowDimension($sr)->setRowHeight(-1); // -1 = auto
+        }
 
         // ── Export ───────────────────────────────────────────────────────────
         $fileName = 'SOA_' . str_replace(' ', '_', $client->Account_Name) . '_' . now()->format('Ymd') . '.xlsx';
@@ -3476,7 +3551,13 @@ class ReservationController extends Controller
             $checkInCol  = $type === 'room' ? 'Room_Reservation_Check_In_Time' : 'Venue_Reservation_Check_In_Time';
             $checkInDate = Carbon::parse($reservation->$checkInCol)->startOfDay();
             $today       = $now->copy()->startOfDay();
-            $daysUntil   = $today->diffInDays($checkInDate, false); // negative if past
+            // Compute signed day difference explicitly to avoid relying on Carbon
+            // version-specific behaviour of diffInDays($date, false).
+            // Positive  → check-in is in the future (cancellation may be allowed).
+            // Zero/neg  → check-in is today or already past (always blocked).
+            $daysUntil = $today->lt($checkInDate)
+                ? $today->diffInDays($checkInDate)   // future:  returns positive absolute
+                : -$today->diffInDays($checkInDate); // past/today: force negative/zero
 
             if ($daysUntil < 3) {
                 return response()->json([
@@ -3497,8 +3578,8 @@ class ReservationController extends Controller
             // ── Notify all admin and staff (in-system + email to staff only) ────
             $clientName = auth()->user()->Account_Name ?? 'A client';
             $accName    = $type === 'room'
-                ? 'Room ' . ($reservation->room->Room_Number ?? $id)
-                : ($reservation->venue->Venue_Name ?? 'Venue');
+                ? 'Room ' . ($reservation->room?->Room_Number ?? $id)
+                : ($reservation->venue?->Venue_Name ?? 'Venue');
 
             $staffAccounts = Account::whereIn('Account_Role', ['admin', 'staff'])->get();
 
@@ -3518,6 +3599,10 @@ class ReservationController extends Controller
 
             // Email notification to staff only
             $staffAccounts->where('Account_Role', 'staff')->each(function ($staff) use ($reservation, $type, $clientName, $accName) {
+                if (!$staff->Account_Email) {
+                    Log::warning('CancellationRequestedMail skipped: staff has no email', ['staff_id' => $staff->Account_ID]);
+                    return;
+                }
                 try {
                     Mail::to($staff->Account_Email)
                         ->send(new CancellationRequestedMail($reservation, $type, $clientName, $accName));
@@ -3925,8 +4010,8 @@ class ReservationController extends Controller
             // ── Notify all admin and staff (in-system + email to staff only) ────
             $clientName    = auth()->user()->Account_Name ?? 'A client';
             $accName       = $type === 'room'
-                ? 'Room ' . ($reservation->room->Room_Number ?? $reservation->getKey())
-                : ($reservation->venue->Venue_Name ?? 'Venue');
+                ? 'Room ' . ($reservation->room?->Room_Number ?? $reservation->getKey())
+                : ($reservation->venue?->Venue_Name ?? 'Venue');
 
             $staffAccounts = Account::whereIn('Account_Role', ['admin', 'staff'])->get();
 
@@ -3946,6 +4031,10 @@ class ReservationController extends Controller
 
             // Email notification to staff only
             $staffAccounts->where('Account_Role', 'staff')->each(function ($staff) use ($reservation, $type, $clientName, $accName, $reqType) {
+                if (!$staff->Account_Email) {
+                    Log::warning('ChangeRequestSubmittedMail skipped: staff has no email', ['staff_id' => $staff->Account_ID]);
+                    return;
+                }
                 try {
                     Mail::to($staff->Account_Email)
                         ->send(new ChangeRequestSubmittedMail($reservation, $type, $clientName, $accName, $reqType));
@@ -4241,24 +4330,31 @@ class ReservationController extends Controller
         else                  $reservation->load('venue');
 
         $accName = $type === 'room'
-            ? 'Room ' . ($reservation->room->Room_Number ?? $reservationId)
-            : ($reservation->venue->Venue_Name ?? 'Venue');
+            ? 'Room ' . ($reservation->room?->Room_Number ?? $reservationId)
+            : ($reservation->venue?->Venue_Name ?? 'Venue');
 
         // ── Send email to client ────────────────────────────────────────────
-        try {
-            Mail::to($reservation->user->Account_Email)
-                ->send(new ChangeRequestProcessedMail(
-                    $reservation,
-                    $type,
-                    $decision,
-                    $request->input('admin_note')
-                ));
-        } catch (\Exception $e) {
-            Log::error('ChangeRequestProcessedMail failed', [
+        $clientEmail = $reservation->user?->Account_Email;
+        if ($clientEmail) {
+            try {
+                Mail::to($clientEmail)
+                    ->send(new ChangeRequestProcessedMail(
+                        $reservation,
+                        $type,
+                        $decision,
+                        $request->input('admin_note')
+                    ));
+            } catch (\Exception $e) {
+                Log::error('ChangeRequestProcessedMail failed', [
+                    'reservation_id' => $reservationId,
+                    'type'           => $type,
+                    'decision'       => $decision,
+                    'error'          => $e->getMessage(),
+                ]);
+            }
+        } else {
+            Log::warning('ChangeRequestProcessedMail skipped: reservation has no associated user or email', [
                 'reservation_id' => $reservationId,
-                'type'           => $type,
-                'decision'       => $decision,
-                'error'          => $e->getMessage(),
             ]);
         }
 
@@ -4273,16 +4369,20 @@ class ReservationController extends Controller
             $notifType    = 'error';
         }
 
-        EventLog::create([
-            'user_id'                       => auth()->id(),
-            'Event_Logs_Notifiable_User_ID' => $reservation->Client_ID,
-            'Event_Logs_Action'             => 'change_request_' . $decision,
-            'Event_Logs_Title'              => $notifTitle,
-            'Event_Logs_Message'            => $notifMessage,
-            'Event_Logs_Type'               => $notifType,
-            'Event_Logs_Link'               => '/client/my_reservations',
-            'Event_Logs_isRead'             => false,
-        ]);
+        try {
+            EventLog::create([
+                'user_id'                       => auth()->id(),
+                'Event_Logs_Notifiable_User_ID' => $reservation->Client_ID,
+                'Event_Logs_Action'             => 'change_request_' . $decision,
+                'Event_Logs_Title'              => $notifTitle,
+                'Event_Logs_Message'            => $notifMessage,
+                'Event_Logs_Type'               => $notifType,
+                'Event_Logs_Link'               => '/client/my_reservations',
+                'Event_Logs_isRead'             => false,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('EventLog::create failed in processChangeRequest: ' . $e->getMessage());
+        }
 
         $label = $decision === 'approved' ? 'approved' : 'rejected';
 
@@ -4432,32 +4532,39 @@ class ReservationController extends Controller
         else                  $reservation->load('venue');
 
         $accName = $type === 'room'
-            ? 'Room ' . ($reservation->room->Room_Number ?? $reservationId)
-            : ($reservation->venue->Venue_Name ?? 'Venue');
+            ? 'Room ' . ($reservation->room?->Room_Number ?? $reservationId)
+            : ($reservation->venue?->Venue_Name ?? 'Venue');
 
         // ── Send email to client ────────────────────────────────────────────
-        try {
-            if ($decision === 'approved') {
-                Mail::to($reservation->user->Account_Email)
-                    ->send(new CancellationApprovedMail(
-                        $reservation,
-                        $type,
-                        $request->input('admin_note')
-                    ));
-            } else {
-                Mail::to($reservation->user->Account_Email)
-                    ->send(new CancellationRejectedMail(
-                        $reservation,
-                        $type,
-                        $request->input('admin_note')
-                    ));
+        $clientEmail = $reservation->user?->Account_Email;
+        if ($clientEmail) {
+            try {
+                if ($decision === 'approved') {
+                    Mail::to($clientEmail)
+                        ->send(new CancellationApprovedMail(
+                            $reservation,
+                            $type,
+                            $request->input('admin_note')
+                        ));
+                } else {
+                    Mail::to($clientEmail)
+                        ->send(new CancellationRejectedMail(
+                            $reservation,
+                            $type,
+                            $request->input('admin_note')
+                        ));
+                }
+            } catch (\Exception $e) {
+                Log::error('CancellationMail failed', [
+                    'reservation_id' => $reservationId,
+                    'type'           => $type,
+                    'decision'       => $decision,
+                    'error'          => $e->getMessage(),
+                ]);
             }
-        } catch (\Exception $e) {
-            Log::error('CancellationMail failed', [
+        } else {
+            Log::warning('CancellationMail skipped: reservation has no associated user or email', [
                 'reservation_id' => $reservationId,
-                'type'           => $type,
-                'decision'       => $decision,
-                'error'          => $e->getMessage(),
             ]);
         }
 

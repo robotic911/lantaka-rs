@@ -29,16 +29,20 @@ class EventLogController extends Controller
             return; // Table not yet created — skip silently
         }
 
-        EventLog::create([
-            'user_id'                        => $actorId ?? Auth::id(),
-            'Event_Logs_Notifiable_User_ID'  => $notifiableUserId,
-            'Event_Logs_Action'              => strtolower($action),
-            'Event_Logs_Title'               => $extra['title'] ?? null,
-            'Event_Logs_Message'             => $message,
-            'Event_Logs_Type'                => $extra['type']  ?? null,
-            'Event_Logs_Link'                => $extra['link']  ?? null,
-            'Event_Logs_isRead'              => false,
-        ]);
+        try {
+            EventLog::create([
+                'user_id'                        => $actorId ?? Auth::id(),
+                'Event_Logs_Notifiable_User_ID'  => $notifiableUserId,
+                'Event_Logs_Action'              => strtolower($action),
+                'Event_Logs_Title'               => $extra['title'] ?? null,
+                'Event_Logs_Message'             => $message,
+                'Event_Logs_Type'                => $extra['type']  ?? null,
+                'Event_Logs_Link'                => $extra['link']  ?? null,
+                'Event_Logs_isRead'              => false,
+            ]);
+        } catch (\Exception $e) {
+            \Log::error('EventLogController::log failed: ' . $e->getMessage());
+        }
     }
 
     /**

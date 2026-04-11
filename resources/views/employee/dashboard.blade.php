@@ -207,7 +207,7 @@
             {{-- ── Calendar Grid (rendered by JS) ── --}}
             <div id="calGrid" class="ac-grid-wrap"></div>
 
-            {{-- ── Export Modal (kept for existing JS handler) ── --}}
+            {{-- ── Export Modal ── --}}
             <div id="calExportModal" class="cal-export-overlay" style="display:none;">
                 <div class="cal-export-dialog">
                     <div class="cal-export-header">
@@ -215,23 +215,12 @@
                         <button class="cal-export-close" id="calExportClose">&times;</button>
                     </div>
                     <p class="cal-export-desc">
-                        Choose a date range and year to export reservations as a PDF or a flat CSV spreadsheet.
+                        Choose a month and year to export reservations as a PDF or a flat CSV spreadsheet.
                     </p>
                     <div class="cal-export-fields">
                         <div class="cal-export-field">
-                            <label for="calExportStartMonth">Start Month</label>
+                            <label for="calExportStartMonth">Month</label>
                             <select id="calExportStartMonth">
-                                <option value="1">January</option><option value="2">February</option>
-                                <option value="3">March</option><option value="4">April</option>
-                                <option value="5">May</option><option value="6">June</option>
-                                <option value="7">July</option><option value="8">August</option>
-                                <option value="9">September</option><option value="10">October</option>
-                                <option value="11">November</option><option value="12">December</option>
-                            </select>
-                        </div>
-                        <div class="cal-export-field">
-                            <label for="calExportEndMonth">End Month</label>
-                            <select id="calExportEndMonth">
                                 <option value="1">January</option><option value="2">February</option>
                                 <option value="3">March</option><option value="4">April</option>
                                 <option value="5">May</option><option value="6">June</option>
@@ -245,6 +234,38 @@
                             <select id="calExportYear"></select>
                         </div>
                     </div>
+
+                    {{-- PDF Granularity (PDF only) --}}
+                    <div class="cal-export-fields" style="margin-top:8px;">
+                        <div class="cal-export-field" style="flex:1;">
+                            <label>PDF View <span style="font-size:10px;color:#888;">(PDF only)</span></label>
+                            <div style="display:flex;gap:8px;margin-top:4px;">
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:500;font-size:13px;cursor:pointer;">
+                                    <input type="radio" name="calPdfGranularity" id="calPdfGranMonth" value="month" checked style="accent-color:#1a3a7a;">
+                                    Monthly
+                                </label>
+                                <label style="display:flex;align-items:center;gap:6px;font-weight:500;font-size:13px;cursor:pointer;">
+                                    <input type="radio" name="calPdfGranularity" id="calPdfGranWeek" value="week" style="accent-color:#1a3a7a;">
+                                    Weekly
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    {{-- Week picker (hidden until Weekly is selected) --}}
+                    <div class="cal-export-fields" id="calWeekPickerRow" style="margin-top:8px;display:none;">
+                        <div class="cal-export-field" style="flex:1;">
+                            <label for="calExportWeek">Week of Month</label>
+                            <select id="calExportWeek">
+                                <option value="1">Week 1 (days 1–7)</option>
+                                <option value="2">Week 2 (days 8–14)</option>
+                                <option value="3">Week 3 (days 15–21)</option>
+                                <option value="4">Week 4 (days 22–28)</option>
+                                <option value="5">Week 5 (days 29–end)</option>
+                            </select>
+                        </div>
+                    </div>
+
                     <div class="cal-export-fields" style="margin-top:8px;">
                         <div class="cal-export-field" style="flex:1;">
                             <label for="calExportType">Reservation Type <span style="font-size:10px;color:#888;">(CSV only)</span></label>
@@ -316,20 +337,20 @@
         cancelBtn.addEventListener('click', () => { modal.style.display = 'none'; });
         modal.addEventListener('click', e => { if (e.target === modal) modal.style.display = 'none'; });
 
-        /* ── Excel Export Modal ─────────────────────────────────── */
+        /* ── Export Modal ─────────────────────────────────── */
         const MONTH_NAMES_FULL = ['January','February','March','April','May','June',
                                   'July','August','September','October','November','December'];
-        const calModal      = document.getElementById('calExportModal');
-        const calCloseBtn   = document.getElementById('calExportClose');
-        const calCancelBtn  = document.getElementById('calExportCancelBtn');
-        const calDownBtn    = document.getElementById('calExportDownloadBtn');
-        const calMonthSelStart   = document.getElementById('calExportStartMonth');
-        const calMonthSelEnd   = document.getElementById('calExportEndMonth');
+        const calModal         = document.getElementById('calExportModal');
+        const calCloseBtn      = document.getElementById('calExportClose');
+        const calCancelBtn     = document.getElementById('calExportCancelBtn');
+        const calDownBtn       = document.getElementById('calExportDownloadBtn');
+        const calMonthSelStart = document.getElementById('calExportStartMonth');
+        const calYearSel       = document.getElementById('calExportYear');
+        const calFilename      = document.getElementById('calExportFilename');
+        const calWeekPickerRow = document.getElementById('calWeekPickerRow');
+        const calWeekSel       = document.getElementById('calExportWeek');
 
-        const calYearSel    = document.getElementById('calExportYear');
-        const calFilename   = document.getElementById('calExportFilename');
-
-        // Populate Excel export year (current ± 2)
+        // Populate year dropdown (current + 1 down to current - 2)
         for (let y = nowDate.getFullYear() + 1; y >= nowDate.getFullYear() - 2; y--) {
             const o = document.createElement('option');
             o.value = y; o.textContent = y;
@@ -338,18 +359,32 @@
         }
         calMonthSelStart.value = nowDate.getMonth() + 1;
 
-        function updateCalFilename() {
-            const mStart = parseInt(calMonthSelStart.value);
-            const mEnd   = parseInt(calMonthSelEnd.value);
-            const y      = calYearSel.value;
-            const range  = (mEnd > mStart)
-                ? `${MONTH_NAMES_FULL[mStart-1]}_to_${MONTH_NAMES_FULL[mEnd-1]}_${y}`
-                : `${MONTH_NAMES_FULL[mStart-1]}_${y}`;
-            if (calFilename) calFilename.textContent = `reservation_calendar_${range}`;
+        function calPdfGranularity() {
+            return document.querySelector('input[name="calPdfGranularity"]:checked')?.value || 'month';
         }
+
+        function updateCalFilename() {
+            const m    = parseInt(calMonthSelStart.value);
+            const y    = calYearSel.value;
+            const gran = calPdfGranularity();
+            const week = parseInt(calWeekSel?.value || 1);
+            const base = `${MONTH_NAMES_FULL[m-1]}_${y}`;
+            const suffix = (gran === 'week') ? `_Week${week}` : '';
+            if (calFilename) calFilename.textContent = `reservation_calendar_${base}${suffix}`;
+        }
+
+        // Toggle week picker visibility
+        document.querySelectorAll('input[name="calPdfGranularity"]').forEach(r => {
+            r.addEventListener('change', () => {
+                const isWeek = calPdfGranularity() === 'week';
+                calWeekPickerRow.style.display = isWeek ? '' : 'none';
+                updateCalFilename();
+            });
+        });
+
         calMonthSelStart.addEventListener('change', updateCalFilename);
-        calMonthSelEnd.addEventListener('change',   updateCalFilename);
         calYearSel.addEventListener('change',       updateCalFilename);
+        calWeekSel?.addEventListener('change',      updateCalFilename);
         updateCalFilename();
 
         document.getElementById('ganttExcelBtn')
@@ -359,10 +394,21 @@
         calModal    ?.addEventListener('click', e => { if (e.target === calModal) calModal.style.display = 'none'; });
 
         function calExportParams(includeType = false) {
-            const base = `month=${calMonthSelStart.value}&end_month=${calMonthSelEnd.value}&year=${calYearSel.value}`;
+            const base = `month=${calMonthSelStart.value}&year=${calYearSel.value}`;
             if (!includeType) return base;
             const type = document.getElementById('calExportType')?.value || 'all';
             return `${base}&reservation_type=${type}`;
+        }
+
+        function calExportPdfParams() {
+            let params = `month=${calMonthSelStart.value}&year=${calYearSel.value}`;
+            const gran = calPdfGranularity();
+            if (gran === 'week') {
+                params += `&granularity=week&week=${calWeekSel?.value || 1}`;
+            } else {
+                params += `&granularity=month`;
+            }
+            return params;
         }
 
         calDownBtn?.addEventListener('click', () => {
@@ -373,7 +419,7 @@
         document.getElementById('calExportPdfBtn')
             ?.addEventListener('click', () => {
                 calModal.style.display = 'none';
-                window.location.href = `${window.calendarExportPDFRoute}?${calExportParams()}`;
+                window.location.href = `${window.calendarExportPDFRoute}?${calExportPdfParams()}`;
             });
 
         document.getElementById('calExportCsvBtn')
@@ -640,30 +686,10 @@
          /* ─────────────────────────────────────────────────────
            PDF BUILDER
         ───────────────────────────────────────────────────── */
-        // ── Utility: load any same-origin image and return a data-URL ──────────
-        function loadImageDataURL(src) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = 'anonymous';
-                img.onload = () => {
-                    const c = document.createElement('canvas');
-                    c.width  = img.naturalWidth;
-                    c.height = img.naturalHeight;
-                    c.getContext('2d').drawImage(img, 0, 0);
-                    resolve(c.toDataURL('image/png'));
-                };
-                img.onerror = () => resolve(null); // gracefully skip if missing
-                img.src = src;
-            });
-        }
-
         async function buildAnalyticsPDF(data) {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
             const W = 297, H = 210;
-
-            // Pre-load the ADZU seal (small, clean PNG — renders sharply at any size)
-            const bannerDataURL = await loadImageDataURL('/images/adzu_logo.png');
 
             // Palette
             const C = {
@@ -742,34 +768,23 @@
                 pdf.setFillColor(212, 175, 55);
                 pdf.rect(0, hH - 2, W, 2, 'F');
 
-                // ── LEFT: Logo seal + institution text ───────────────────────────
-                const logoX = 5, logoY = 2, logoSize = hH - 4;
-
-                // Circular seal placeholder (white circle)
-                if (bannerDataURL) {
-                    pdf.addImage(bannerDataURL, 'PNG', logoX, logoY, logoSize, logoSize);
-                } else {
-                    pdf.setFillColor(255, 255, 255);
-                    pdf.circle(logoX + logoSize / 2, logoY + logoSize / 2, logoSize / 2, 'F');
-                }
-
-                // Text block starts after the logo
-                const txtX = logoX + logoSize + 4;
+                // ── LEFT: Institution text (text-only) ───────────────────────────
+                const txtX = 14;
 
                 if (tall) {
-                    // ── Italic university name ──
+                    // Italic university name
                     pdf.setFont('helvetica', 'italic');
                     pdf.setFontSize(8.5);
                     pdf.setTextColor(180, 205, 255);
                     T('Ateneo de Zamboanga University', txtX, 10);
 
-                    // ── Large bold campus name ──
+                    // Large bold campus name
                     pdf.setFont('helvetica', 'bold');
                     pdf.setFontSize(18);
                     pdf.setTextColor(255, 255, 255);
                     T('Lantaka Campus', txtX, 19);
 
-                    // ── Subtitle ──
+                    // Subtitle tagline
                     pdf.setFont('helvetica', 'normal');
                     pdf.setFontSize(7);
                     pdf.setTextColor(160, 190, 240);

@@ -51,7 +51,7 @@
                      data-pax="{{ $item['pax'] }}"
                      data-days="{{ $item['days'] }}"
                      data-purpose="{{ $purpose }}"
-                     data-notes="{{ $item['notes'] ?? '' }}"
+                     data-notes="{{ e(str_replace(["\r\n", "\r", "\n"], ' ', $item['notes'] ?? '')) }}"
                      data-food='@json($item['selected_foods'] ?? [])'
                      data-food-sets='@json($item['selected_sets'] ?? [])'
                      data-food-enabled='@json($foodEnabled)'
@@ -312,8 +312,8 @@
                                                         @php $sf = $foodMap->get((int)$snackId); @endphp
                                                         @if($sf)
                                                             <div class="food-meal-row food-meal-row--snack">
-                                                                <span class="food-meal-label">{{ $snackLabel }}</span>
-                                                                <span class="food-set-name">{{ $sf->Food_Name }}</span>
+                                                                    <span class="food-meal-label">{{ $snackLabel }}</span>
+                                                                    <span class="food-set-name">{{ $sf->Food_Name }}</span>
                                                                 <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}
                                                             </div>
                                                         @endif
@@ -358,7 +358,7 @@
                                                         @if($set)
                                                             <div class="food-meal-row">
                                                                 <span class="food-meal-label">{{ $mealLabel }}</span>
-                                                                <span class="food-set-name">
+                                                                <span class="food-set-name" style = "flex: 1;">
                                                                     {{ $set->Food_Set_Name }}
                                                                     @if(count($spirDetailParts) > 0)
                                                                         <span class="food-set-extras">({{ implode(', ', $spirDetailParts) }})</span>
@@ -383,7 +383,7 @@
                                                                 @if($sf)
                                                                     <div class="food-meal-row food-meal-row--snack">
                                                                         <span class="food-meal-label">{{ $snackLabel }}</span>
-                                                                        <span class="food-set-name">{{ $sf->Food_Name }}</span>
+                                                                        <span class="food-set-name" style="flex:1;">{{ $sf->Food_Name }}</span>
                                                                         <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}</span>
                                                                     </div>
                                                                 @endif
@@ -423,14 +423,14 @@
                                                         <div class="food-meal-row">
                                                             <span class="food-meal-label">{{ $bMealLabel }}</span>
                                                             <span class="food-set-name">Buffet</span>
+                                                            <div class="food-i-n-container">
+                                                                @foreach($bFoodItems as $bfi)
+                                                                    <span class="food-indiv-name">{{ $bfi['food']->Food_Name }}</span>
+                                                                @endforeach
+                                                            </div>
                                                             <span class="food-set-price">&#8369;{{ number_format($bTier, 2) }}/pax</span>
                                                         </div>
-                                                        @foreach($bFoodItems as $bfi)
-                                                            <div class="food-indiv-item food-indiv-item--buffet">
-                                                                <span class="food-indiv-cat">{{ $bfi['cat'] }}</span>
-                                                                <span class="food-indiv-name">{{ $bfi['food']->Food_Name }}</span>
-                                                            </div>
-                                                        @endforeach
+                                                        
                                                     @endif
                                                 @endforeach
                                             </div>
@@ -501,7 +501,7 @@
                                                                 @if($sf)
                                                                     <div class="food-meal-row food-meal-row--snack">
                                                                         <span class="food-meal-label">{{ $snackLabel }}</span>
-                                                                        <span class="food-set-name">{{ $sf->Food_Name }}</span>
+                                                                        <span class="food-set-name" style="flex:1;">{{ $sf->Food_Name }}</span>
                                                                         <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}/pax</span>
                                                                     </div>     
                                                                 @endif

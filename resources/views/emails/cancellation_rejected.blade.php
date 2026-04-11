@@ -36,16 +36,16 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
   </div>
 
   <div class="body">
-    <p>Hello, <strong>{{ $reservation->user->Account_Name ?? 'Guest' }}</strong>.</p>
+    <p>Hello, <strong>{{ $reservation->user?->Account_Name ?? 'Guest' }}</strong>.</p>
     <p>We have reviewed your cancellation request and unfortunately it has been <strong>rejected</strong>. Your reservation remains active as originally confirmed.</p>
 
     @php
       if ($type === 'room') {
-        $accLabel = 'Room ' . ($reservation->room->Room_Number ?? 'N/A');
+        $accLabel = 'Room ' . ($reservation->room?->Room_Number ?? 'N/A');
         $checkIn  = $reservation->Room_Reservation_Check_In_Time;
         $checkOut = $reservation->Room_Reservation_Check_Out_Time;
       } else {
-        $accLabel = $reservation->venue->Venue_Name ?? 'Venue';
+        $accLabel = $reservation->venue?->Venue_Name ?? 'Venue';
         $checkIn  = $reservation->Venue_Reservation_Check_In_Time;
         $checkOut = $reservation->Venue_Reservation_Check_Out_Time;
       }

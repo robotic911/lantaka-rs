@@ -312,6 +312,7 @@ body {
 
 .food-meal-row {
   display: flex;
+  justify-content: space-between;
   align-items: center;
   gap: 6px;
   font-size: 12px;
@@ -320,6 +321,8 @@ body {
 }
 
 .food-meal-row--snack {
+  display: flex;
+  justify-content: space-between;
   color: #666;
 }
 
@@ -334,7 +337,6 @@ body {
 }
 
 .food-set-name {
-  flex: 1;
   flex-direction: row;
   font-weight: 500;
   color: #222;
@@ -414,12 +416,17 @@ body {
   text-transform: uppercase;
   flex-shrink: 0;
 }
-
+.food-i-n-container{
+  display: flex;
+  justify-content: start;
+  flex:1;
+}
 .food-indiv-name {
-  display: inline;
+  display: flex;
+  flex-direction: row;
   font-weight: 400;
   color: #555;
-  font-size: 11px;
+  font-size: 10px;
   margin-left: 3px;
 }
 

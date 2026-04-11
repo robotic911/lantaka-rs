@@ -31,7 +31,7 @@ class SOATemplateExport implements WithEvents
 
             $sheet->setCellValue('A15', 'Date: ' . now()->format('d/m/Y'));
             $sheet->setCellValue('A17', 'To:');
-            $sheet->setCellValue('A18', $this->client->name ?? '');
+            $sheet->setCellValue('A18', $this->client?->Account_Name ?? '');
 
             /*
             ============================
@@ -116,25 +116,25 @@ class SOATemplateExport implements WithEvents
             ============================
             */
 
-            $tableRange = "A24:F" . max($currentRow - 1, 24);
+            // $tableRange = "A24:F" . max($currentRow - 1, 24);
 
-            $sheet->getStyle($tableRange)->applyFromArray([
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    ],
-                ],
-            ]);
+            // $sheet->getStyle($tableRange)->applyFromArray([
+            //     'borders' => [
+            //         'allBorders' => [
+            //             'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+            //         ],
+            //     ],
+            // ]);
 
-            $summaryRange = 'E15:F18';
+            // $summaryRange = 'E15:F18';
 
-            $sheet->getStyle($summaryRange)->applyFromArray([
-                'borders' => [
-                    'allBorders' => [
-                        'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
-                    ],
-                ],
-            ]);
+            // $sheet->getStyle($summaryRange)->applyFromArray([
+            //     'borders' => [
+            //         'allBorders' => [
+            //             'borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN,
+            //         ],
+            //     ],
+            // ]);
 
             /*
             ============================

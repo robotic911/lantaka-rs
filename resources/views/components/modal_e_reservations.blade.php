@@ -67,16 +67,9 @@
                     </div>
                   </div>
                 </div>
-
-                <hr style="
-                height: 40px;
-                width: 7.5px;
-                background-color: #222;
-                margin-left: -10px;
-                margin-right: 7px;"/>
+                
                 <div class="form-group-mini none" id="discountSection">
-                  <label>Discount:</label>
-
+                <label style="padding: 9px 0px;">Discount:</label>
                   {{-- ── Discount type selector ── --}}
                   <select id="discountType" class="charge-input disc-type-select">
                     <option value="none">— No Discount —</option>

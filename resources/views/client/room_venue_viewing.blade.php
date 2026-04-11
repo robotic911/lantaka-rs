@@ -76,8 +76,16 @@
               <input type="hidden" name="check_in" id="check_in" required>
               <input type="hidden" name="check_out" id="check_out" required>
 
+              @php
+                  // Show pax input for all venues, and for rooms whose capacity > 1.
+                  // Rooms with capacity = 1 silently send pax=1 via hidden field.
+                  $isVenue   = strtolower($category) === 'venue';
+                  $isRoom    = strtolower($category) === 'room';
+                  $showPax   = $isVenue || ($isRoom && $data->capacity > 1);
+              @endphp
+
               <div style="display: flex; flex-direction: column; gap: 15px; width: 100%;">
-                @if (strtolower($category) === 'venue')
+                @if ($showPax)
                   <div style="display: flex; flex-direction: column; gap: 2px;">
                     <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
                       <label for="pax-input" class="pax-label">Number of Pax</label>
@@ -90,6 +98,9 @@
                     </div>
                     <span id="pax-error" class="pax-error-msg"></span>
                   </div>
+                @else
+                  {{-- Room with capacity = 1: pax is always 1, send silently --}}
+                  <input type="hidden" name="pax" value="1">
                 @endif
 
                 <div style="display: flex; flex-direction: row; gap: 6px;">
@@ -134,7 +145,6 @@
 
               {{-- Advance booking notice --}}
               <div class="booking-notice">
-                <span class="booking-notice__icon">&#128197;</span>
                 <p class="booking-notice__text">
                   We recommend reserving <strong>at least one week</strong> before your intended date of stay to ensure availability.
                 </p>
@@ -188,12 +198,12 @@
         if (!paxError) return;
         paxError.textContent = msg;
         paxError.classList.add('pax-error-msg--visible');
-        paxInput.classList.add('pax-input--error');
+        if (paxInput) paxInput.classList.add('pax-input--error');
       }
       function clearPaxError() {
         if (!paxError) return;
         paxError.classList.remove('pax-error-msg--visible');
-        paxInput.classList.remove('pax-input--error');
+        if (paxInput) paxInput.classList.remove('pax-input--error');
       }
       function showPurposeError(msg) {
         if (!purposeError) return;

@@ -460,7 +460,7 @@ class RoomVenueController extends Controller
             'internal_price' => 'required|numeric',
             'external_price' => 'required|numeric',
             'capacity'       => 'required|integer',
-            'status'         => 'required|in:Available,Occupied,UnderMaintenance,Reserved',
+            'status'         => 'nullable|in:Available,Occupied,UnderMaintenance,Reserved',
             'type'           => 'nullable|string',
             'description'    => 'nullable|string',
             'image'          => 'nullable|image|mimes:jpeg,jpg,png,webp|max:5120',
@@ -475,7 +475,7 @@ class RoomVenueController extends Controller
                 'Room_Capacity'       => $request->capacity,
                 'Room_Internal_Price' => $request->internal_price,
                 'Room_External_Price' => $request->external_price,
-                'Room_Status'         => $request->status,
+                'Room_Status'         => $request->status ?? $room->Room_Status,
                 'Room_Description'    => $request->description,
             ];
 
@@ -497,7 +497,7 @@ class RoomVenueController extends Controller
                 'Venue_Capacity'       => $request->capacity,
                 'Venue_Internal_Price' => $request->internal_price,
                 'Venue_External_Price' => $request->external_price,
-                'Venue_Status'         => $request->status,
+                'Venue_Status'         => $request->status ?? $venue->Venue_Status,
                 'Venue_Description'    => $request->description,
             ];
 
@@ -550,8 +550,14 @@ class RoomVenueController extends Controller
 
         $client = Account::findOrFail($userId);
 
-        // Prefill data for edit mode (passed via query string from the employee modal)
-        $reservationId  = $request->reservation_id;
+        // Prefill data for edit mode (passed via query string from the employee modal).
+        // Guard against the literal string "null" being sent by JS when no reservation
+        // is being edited — treat it as PHP null so find() is never called with it.
+        $rawResId      = $request->reservation_id;
+        $reservationId = ($rawResId !== null && $rawResId !== '' && strtolower($rawResId) !== 'null')
+            ? (int) $rawResId
+            : null;
+
         $prefillPax     = $request->pax;
         $prefillPurpose = $request->purpose;
 

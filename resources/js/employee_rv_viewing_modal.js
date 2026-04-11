@@ -176,6 +176,12 @@ document.addEventListener("DOMContentLoaded", () => {
       roomForm.querySelector('input[name="internal_price"]').value = data.price || "";
       roomForm.querySelector('input[name="external_price"]').value = data.external_price || "";
       if (roomStatusSelect) roomStatusSelect.value = data.status || "Available";
+      // For non-admin staff: populate hidden status input and display text
+      const roomStatusHidden  = document.getElementById('rvRoomStatusHidden');
+      const roomStatusDisplay = document.getElementById('rvRoomStatusDisplay');
+      const roomStatusLabel   = data.status === 'UnderMaintenance' ? 'Under Maintenance' : (data.status || 'Available');
+      if (roomStatusHidden)  roomStatusHidden.value       = data.status || 'Available';
+      if (roomStatusDisplay) roomStatusDisplay.textContent = roomStatusLabel;
       roomForm.querySelector('textarea[name="description"]').value = data.description || "";
       setModalImage('room', data.image || '');
       setStatusBadge(data.effective_status || 'available');
@@ -203,6 +209,9 @@ document.addEventListener("DOMContentLoaded", () => {
       venueForm.querySelector('input[name="internal_price"]').value = data.price || "";
       venueForm.querySelector('input[name="external_price"]').value = data.external_price || "";
       if (venueStatusSelect) venueStatusSelect.value = data.status || "Available";
+      // For non-admin staff: populate hidden status input
+      const venueStatusHidden = document.getElementById('rvVenueStatusHidden');
+      if (venueStatusHidden) venueStatusHidden.value = data.status || 'Available';
       venueForm.querySelector('textarea[name="description"]').value = data.description || "";
       setModalImage('venue', data.image || '');
       setStatusBadge(data.effective_status || 'available');

@@ -158,10 +158,10 @@ body {
 }
 
 /* ── Lane rows ───────────────────────────────────────────── */
-.lane-row { height: 12mm !important; }
+.lane-row { height: 5mm !important; }
 
 .lane-empty {
-    height: 12mm !important;
+    height: 6mm !important;
     vertical-align: middle;
     border-right: 1px solid #f3f4f6;
     border-bottom: 1px solid #f3f4f6;
@@ -170,19 +170,19 @@ body {
 
 /* Bar cell — tiny vertical gap, NO horizontal padding → bar fills full column width */
 .lane-bar-td {
-    height: 12mm !important;
-    padding: 0.8pt 1px;
-    vertical-align: middle; 
-    border-bottom: 1px solid #f3f4f6;
+    height: 6mm !important;   /* close to bar height */
+    padding: 0;               /* remove vertical gap */
+    vertical-align: middle;
 }
 
 /* ── Reservation bar — mirrors the live calendar chip style ─ */
 .bar-div {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    text-transform: uppercase;
+    font-family: 'Inter', 'Segoe UI', sans-serif;
     display: block;
     height: 5.5mm;
     line-height: 5.5mm;
-    padding: 0 4pt 0 5pt;
+    padding: 0 4pt;
     font-size: 8pt;
     font-weight: 500;
     overflow: hidden;

@@ -2,6 +2,33 @@ let currentNights = 1;
 let currentDays = 1;
 let mode = "";
 
+/**
+ * Escape a value for safe use inside an HTML attribute (value="...").
+ * Prevents XSS when interpolating DB-sourced data into innerHTML templates.
+ */
+function escAttr(val) {
+  if (val == null) return '';
+  return String(val)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/**
+ * Escape a value for safe use as HTML element text content inside innerHTML.
+ * Prevents XSS when interpolating DB-sourced data into innerHTML template literals.
+ */
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 // ── Discount state ───────────────────────────────────────────────────────────
 let _discType      = 'none';  // 'none' | 'pwd' | 'senior' | 'others'
 let _discMode      = 'pct';   // 'pct'  | 'flat'  — only used for 'others'
@@ -156,11 +183,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const pax         = d.pax || 1;
       const purpose     = d.purpose || '';
 
+      // Guard required fields: if idx or userId is missing the URL would
+      // contain the literal string "undefined", causing a server 404 or
+      // Postgres bigint cast error on the edit page.
+      if (idx == null || idx === '' || userId == null || userId === '') {
+        console.error('Edit link: missing idx or userId in modal data', d);
+        alert('Unable to open edit page — reservation data is incomplete. Please refresh and try again.');
+        return;
+      }
+
+      // Only append reservation_id when it is a real value — null/undefined
+      // would be encoded as the string "null" which breaks Postgres bigint casting.
+      const resIdParam = (reservationId != null && reservationId !== '' && reservationId !== 'null')
+        ? `&reservation_id=${encodeURIComponent(reservationId)}`
+        : '';
+
       const url = `/employee/create_reservation?` +
         `category=${encodeURIComponent(category)}` +
         `&id=${encodeURIComponent(idx)}` +
         `&user_id=${encodeURIComponent(userId)}` +
-        `&reservation_id=${encodeURIComponent(reservationId)}` +
+        resIdParam +
         `&check_in=${encodeURIComponent(checkIn)}` +
         `&check_out=${encodeURIComponent(checkOut)}` +
         `&pax=${encodeURIComponent(pax)}` +
@@ -597,8 +639,8 @@ window.addAdditionalCharges = function (description = '', amount = 0, qty = 1, d
   newRow.style.marginTop = '8px';
 
   newRow.innerHTML = `
-  <input type="date" name="additional_fees_date[]" value="${date}" class="charge-input date-input" style="width: 140px;" title="Date of charge">
-  <input type="text" name="additional_fees_desc[]" value="${description}" placeholder="Description" class="charge-input" style="width: 180px;" required>
+  <input type="date" name="additional_fees_date[]" value="${escAttr(date)}" class="charge-input date-input" style="width: 140px;" title="Date of charge">
+  <input type="text" name="additional_fees_desc[]" value="${escAttr(description)}" placeholder="Description" class="charge-input" style="width: 180px;" required>
   <span style="display: flex;
     flex-direction: row;
     width: 100%;
@@ -606,8 +648,8 @@ window.addAdditionalCharges = function (description = '', amount = 0, qty = 1, d
     grid-column: 1 / -1;
     gap: 8px;
     padding-right: 6px;">
-  <input type="number" name="additional_fees_qty[]" value="${qty}" placeholder="Qty" class="charge-input qty-input" style="width: 60px;" min="1">
-  <input type="number" name="additional_fees[]" value="${amount}" placeholder="₱" class="charge-input amount-input" style="width: 90px;" required>
+  <input type="number" name="additional_fees_qty[]" value="${escAttr(qty)}" placeholder="Qty" class="charge-input qty-input" style="width: 60px;" min="1">
+  <input type="number" name="additional_fees[]" value="${escAttr(amount)}" placeholder="₱" class="charge-input amount-input" style="width: 90px;" required>
   <button type="button" class="remove-btn" onclick="this.parentElement.remove(); window.calculateLiveTotal();" style="background:none; border:none; color:red; cursor:pointer; font-size: 20px; padding-left: 5px;">&times;</button>
   </span>
 `;
@@ -737,7 +779,9 @@ function renderFoodCards(foods, foodSets, pax) {
           <div class="em-food-item em-food-item--set-header em-food-item--buffet">
             <span class="em-food-cat" data-cat="buffet">Buffet</span>
             <span class="em-food-name">Buffet (₱${tier.toLocaleString('en-PH',{minimumFractionDigits:2})}/pax)</span>
-            <span class="em-food-price"><span class="em-price-formula">₱${tier.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
+            <span class="em-food-price">
+                <span class="em-price-formula">₱${tier.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax </span>
+            </span>
           </div>`;
 
         // Individual buffet viands/desserts (stored at ₱0, display only)
@@ -745,8 +789,8 @@ function renderFoodCards(foods, foodSets, pax) {
           const catKey = (food.Food_Category || '').toLowerCase().trim();
           html += `
             <div class="em-food-item em-food-item--set-food">
-              <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
-              <span class="em-food-name">${food.Food_Name}</span>
+              <span class="em-food-cat" data-cat="${escAttr(catKey)}">${escHtml(capLabel(food.Food_Category || ''))}</span>
+              <span class="em-food-name">${escHtml(food.Food_Name)}</span>
               <span class="em-food-price em-food-included">included</span>
             </div>`;
         });
@@ -758,32 +802,30 @@ function renderFoodCards(foods, foodSets, pax) {
           html += `
             <div class="em-food-item em-food-item--set-header">
               <span class="em-food-cat" data-cat="set">Set</span>
-              <span class="em-food-name">${s.set_name}</span>
+              <span class="em-food-name">${escHtml(s.set_name)}</span>
               <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
             </div>`;
           (s.set_foods || []).forEach(sf => {
             const sfCat = (sf.category || '').toLowerCase().trim();
             html += `
               <div class="em-food-item em-food-item--set-food">
-                <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
-                <span class="em-food-name">${sf.name}</span>
+                <span class="em-food-cat" data-cat="${escAttr(sfCat)}">${escHtml(sf.category)}</span>
+                <span class="em-food-name">${escHtml(sf.name)}</span>
                 <span class="em-food-price"></span>
               </div>`;
           });
         });
 
       } else {
-        // ── Normal (non-buffet) meal rendering ──────────────────────
-        // Individual items
+        // BUFFET DISPLAY!!!!
         indivItems.forEach(food => {
           const price   = Number(food.Food_Price || 0);
           const catKey  = (food.Food_Category || '').toLowerCase().trim();
           mealSubtotal += price * pax;
           html += `
-            <div class="em-food-item">
-              <span class="em-food-cat" data-cat="${catKey}">${capLabel(food.Food_Category || '')}</span>
-              <span class="em-food-name">${food.Food_Name}</span>
-              <span class="em-food-price">₱${price.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span>
+            <div class="em-food-item" style="display:flex justify-content:space-between;">
+              <span class="em-food-cat" data-cat="${escAttr(catKey)}">${escHtml(capLabel(food.Food_Category || ''))}</span>
+              <span class="em-food-name" style="display:flex; justify-content:end;">${escHtml(food.Food_Name)}</span>
             </div>`;
         });
 
@@ -796,28 +838,29 @@ function renderFoodCards(foods, foodSets, pax) {
           html += `
             <div class="em-food-item em-food-item--set-header">
               <span class="em-food-cat" data-cat="set">Set</span>
-              <span class="em-food-name">${s.set_name}</span>
+              <span class="em-food-name">${escHtml(s.set_name)}</span>
               <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
             </div>`;
 
+
+          // PACKED MEALS!!
           // Base foods included in the set definition (viands, sides, etc.)
           (s.set_foods || []).forEach(sf => {
             const sfCat = (sf.category || '').toLowerCase().trim();
             html += `
               <div class="em-food-item em-food-item--set-food">
-                <span class="em-food-cat" data-cat="${sfCat}">${sf.category}</span>
-                <span class="em-food-name">${sf.name}</span>
+                <span class="em-food-cat" data-cat="${escAttr(sfCat)}">${escHtml(sf.category)}</span>
+                <span class="em-food-name">${escHtml(sf.name)}</span>
                 <span class="em-food-price"></span>
               </div>`;
           });
-
           // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
           (s.custom_items || []).forEach(ci => {
             const ciCat = (ci.category || '').toLowerCase().trim();
             html += `
               <div class="em-food-item em-food-item--custom">
-                <span class="em-food-cat" data-cat="${ciCat}">${ci.category}</span>
-                <span class="em-food-name">${ci.name}</span>
+                <span class="em-food-cat" data-cat="${escAttr(ciCat)}">${escHtml(ci.category)}</span>
+                <span class="em-food-name">${escHtml(ci.name)}</span>
                 <span class="em-food-price"></span>
               </div>`;
           });

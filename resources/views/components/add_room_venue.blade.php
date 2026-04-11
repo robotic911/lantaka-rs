@@ -44,7 +44,7 @@
                 <label>Status</label>
                 <select name="status" class="form-input">
                   <option value="Available">Available</option>
-                  <option value="Unavailable">Unavailable</option>
+                  <option value="UnderMaintenance">Under Maintenance</option>
                 </select>
               </div>
               <div class="form-group">
@@ -102,7 +102,7 @@
                 <label>Status</label>
                 <select name="status" class="form-input">
                   <option value="Available">Available</option>
-                  <option value="Unavailable">Unavailable</option>
+                  <option value="UnderMaintenance">Under Maintenance</option>
                 </select>
               </div>
               <div class="form-group">

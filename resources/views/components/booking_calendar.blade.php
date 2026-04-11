@@ -49,9 +49,11 @@
 
   </div>
   <script>
-    // Inject the Laravel data into global JS variables
-    window.serverOccupiedDates          = {!! $occupiedDates !!};
-    window.serverCurrentReservationDates = {!! $currentReservationDates !!};
+    // Inject the Laravel data into global JS variables.
+    // json_encode with JSON_HEX_TAG prevents script injection from breaking
+    // out of the script block even if unexpected data reaches these variables.
+    window.serverOccupiedDates = {!! json_encode(json_decode($occupiedDates ?? '[]', true) ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
+    window.serverCurrentReservationDates = {!! json_encode(json_decode($currentReservationDates ?? '[]', true) ?? [], JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) !!};
   </script>
 
   <style>

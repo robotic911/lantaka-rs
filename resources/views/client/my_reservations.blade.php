@@ -256,34 +256,37 @@
                     $resPurpose    = $res->Room_Reservation_Purpose ?? $res->Venue_Reservation_Purpose ?? null;
                 @endphp
 
-                <button class="expand-button"
-                    data-info="{{ json_encode([
-                        'real_id'             => $res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID,
-                        'display_id'          => str_pad($res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID, 5, '0', STR_PAD_LEFT),
-                        'type'                => $res->type,
-                        'accommodation'       => $accName,
-                        'pax'                 => $res->pax,
-                        'check_in'            => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
-                        'check_out'           => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
-                        'check_in_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
-                        'check_out_raw'       => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
-                        'total'               => $res->type === 'room'
+                @php
+                    $resInfoArray = [
+                        'real_id'              => $res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID,
+                        'display_id'           => str_pad($res->type === 'room' ? $res->Room_Reservation_ID : $res->Venue_Reservation_ID, 5, '0', STR_PAD_LEFT),
+                        'type'                 => $res->type,
+                        'accommodation'        => $accName,
+                        'pax'                  => $res->pax,
+                        'check_in'             => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->format('F d, Y'),
+                        'check_out'            => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->format('F d, Y'),
+                        'check_in_raw'         => \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time)->toDateString(),
+                        'check_out_raw'        => \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time)->toDateString(),
+                        'total'                => $res->type === 'room'
                             ? number_format($resTotalRaw, 2)
                             : number_format($resAccommodationTotal + $resFoodTotal + ($res->Venue_Reservation_Additional_Fees ?? 0) - ($res->Venue_Reservation_Discount ?? 0), 2),
-                        'food_total'          => number_format($resFoodTotal, 2),
-                        'venue_total'         => number_format($resVenueTotal, 2),
-                        'accommodation_total' => number_format($resAccommodationTotal, 2),
-                        'rate_per_night'      => number_format($resRate, 2),
-                        'nights_or_days'      => $resNights,
-                        'payment_status'      => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
-                        'foods'               => $res->type === 'venue' ? ($res->foods ?? []) : [],
-                        'food_set_rows'       => $foodSetRows ?? [],
-                        'purpose'             => $resPurpose,
+                        'food_total'           => number_format($resFoodTotal, 2),
+                        'venue_total'          => number_format($resVenueTotal, 2),
+                        'accommodation_total'  => number_format($resAccommodationTotal, 2),
+                        'rate_per_night'       => number_format($resRate, 2),
+                        'nights_or_days'       => $resNights,
+                        'payment_status'       => $res->Room_Reservation_Payment_Status ?? $res->Venue_Reservation_Payment_Status ?? null,
+                        'foods'                => $res->type === 'venue' ? ($res->foods ?? []) : [],
+                        'food_set_rows'        => $foodSetRows ?? [],
+                        'purpose'              => $resPurpose,
                         'status'               => $res->status,
                         'cancellation_status'  => $res->cancellation_status,
                         'change_request_status'=> $res->change_request_status,
                         'change_request_type'  => $res->change_request_type,
-                    ]) }}">
+                    ];
+                @endphp
+                <button class="expand-button"
+                    data-info='@json($resInfoArray)'>
                     ⤡
                 </button>
               </td>

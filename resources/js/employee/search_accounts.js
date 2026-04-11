@@ -1,3 +1,13 @@
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
 document.addEventListener("DOMContentLoaded", () => {
 
   const form = document.getElementById("reservationForm");
@@ -53,8 +63,8 @@ document.addEventListener("DOMContentLoaded", () => {
               item.classList.add("account-result-item");
 
               item.innerHTML = `
-                  <strong>${user.name}</strong><br>
-                  <small>${user.email}</small>
+                  <strong>${escHtml(user.name)}</strong><br>
+                  <small>${escHtml(user.email)}</small>
               `;
 
               item.addEventListener("click", () => {

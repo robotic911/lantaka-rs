@@ -46,7 +46,7 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
   @endif
 
   <div class="body">
-    <p>Hello, <strong>{{ $reservation->user->Account_Name ?? 'Guest' }}</strong>.</p>
+    <p>Hello, <strong>{{ $reservation->user?->Account_Name ?? 'Guest' }}</strong>.</p>
 
     @if($decision === 'approved')
     <p>Your request for changes has been <strong>reviewed and approved</strong> by our staff. The updated reservation details are shown below.</p>
@@ -56,11 +56,11 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
 
     @php
       if ($type === 'room') {
-        $accLabel = 'Room ' . ($reservation->room->Room_Number ?? 'N/A');
+        $accLabel = 'Room ' . ($reservation->room?->Room_Number ?? 'N/A');
         $checkIn  = $reservation->Room_Reservation_Check_In_Time;
         $checkOut = $reservation->Room_Reservation_Check_Out_Time;
       } else {
-        $accLabel = $reservation->venue->Venue_Name ?? 'Venue';
+        $accLabel = $reservation->venue?->Venue_Name ?? 'Venue';
         $checkIn  = $reservation->Venue_Reservation_Check_In_Time;
         $checkOut = $reservation->Venue_Reservation_Check_Out_Time;
       }

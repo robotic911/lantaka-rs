@@ -12,12 +12,12 @@
 <body>
     <div class="container">
         <div class="header">🏨 Lantaka Online Reservation – Your Reservation Status Update</div>
-        <p>Dear {{ $reservation->user->name }},</p>
+        <p>Dear {{ $reservation->user?->Account_Name ?? 'Guest' }},</p>
         <p>Below are the details of your reservation:</p>
 
         <div class="details">
             <strong>Reservation Information</strong><br>
-            Room/Venue: {{ $reservation->type === 'room' ? $reservation->room->Room_Number : ($reservation->venue->Venue_Name ?? 'Venue') }}<br>
+            Room/Venue: {{ $reservation->room ? ($reservation->room?->Room_Number ?? 'N/A') : ($reservation->venue?->Venue_Name ?? 'N/A') }}<br>
             Date of Reservation: {{ now()->format('F j, Y') }}<br>
             Check-in Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_In_Time ?? $reservation->Venue_Reservation_Check_In_Time)->format('F j, Y') }}<br>
             Check-out Date: {{ \Carbon\Carbon::parse($reservation->Room_Reservation_Check_Out_Time ?? $reservation->Venue_Reservation_Check_Out_Time)->format('F j, Y') }}<br>

@@ -32,16 +32,16 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
   </div>
   <div class="banner">✓ &nbsp;Check-out Complete</div>
   <div class="body">
-    <p>Hello, <strong>{{ $reservation->user->Account_Name}}</strong>.</p>
+    <p>Hello, <strong>{{ $reservation->user?->Account_Name ?? 'Guest' }}</strong>.</p>
     <p>Thank you for staying with us at Lantaka! Your check-out has been processed. Below is a summary of your stay.</p>
     @php
       if ($type === 'room') {
-        $accLabel  = $reservation->room->Room_Number ?? 'N/A';
+        $accLabel  = $reservation->room?->Room_Number ?? 'N/A';
         $checkIn   = $reservation->Room_Reservation_Check_In_Time;
         $checkOut  = $reservation->Room_Reservation_Check_Out_Time;
         $accTotal  = $reservation->Room_Reservation_Total_Price ?? 0;
       } else {
-        $accLabel  = $reservation->venue->Venue_Name ?? 'Venue';
+        $accLabel  = $reservation->venue?->Venue_Name ?? 'Venue';
         $checkIn   = $reservation->Venue_Reservation_Check_In_Time;
         $checkOut  = $reservation->Venue_Reservation_Check_Out_Time;
         $accTotal  = $reservation->Venue_Reservation_Total_Price ?? 0;

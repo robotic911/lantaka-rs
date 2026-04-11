@@ -6,6 +6,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
   const fmt = v => Number(v || 0).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+  /** Escape user/DB data before inserting into innerHTML to prevent XSS. */
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function updatePreview() {
     if (!previewList) return;
 
@@ -57,7 +68,7 @@ document.addEventListener('DOMContentLoaded', function () {
         feeItems.forEach(item => {
           feeHtml += `
             <div class="soa-preview-subrow">
-              <span class="soa-preview-sublabel">+ ${item.desc || ''} &times;${item.qty || 1}</span>
+              <span class="soa-preview-sublabel">+ ${escHtml(item.desc)} &times;${Number(item.qty) || 1}</span>
               <span class="soa-preview-subprice">₱ ${fmt(item.line_total)}</span>
             </div>
           `;
@@ -76,8 +87,8 @@ document.addEventListener('DOMContentLoaded', function () {
       previewItem.innerHTML = `
         <div class="soa-preview-row">
           <div class="soa-preview-room-info">
-            <span class="soa-preview-room">${name}</span>
-            <span class="soa-preview-duration">${days} day/night</span>
+            <span class="soa-preview-room">${escHtml(name)}</span>
+            <span class="soa-preview-duration">${escHtml(days)} day/night</span>
           </div>
           <span class="soa-preview-price">₱ ${fmt(price)}</span>
         </div>

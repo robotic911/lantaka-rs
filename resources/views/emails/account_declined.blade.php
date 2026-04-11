@@ -24,7 +24,7 @@
           <tr>
             <td style="background:#ffffff;padding:36px 40px;">
 
-              <p style="margin:0 0 6px;font-size:15px;color:#374151;font-weight:600;">Hello, {{ $user->name }}</p>
+              <p style="margin:0 0 6px;font-size:15px;color:#374151;font-weight:600;">Hello, {{ $user->Account_Name }}</p>
               <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.6;">
                 Thank you for registering with the Lantaka Room and Venue Reservation System. After reviewing your registration request, we regret to inform you that your account could not be approved at this time.
               </p>

@@ -111,7 +111,6 @@
                 You can submit a cancellation request 3 days prior to your check-in date.
               </p>
               <div class="crm-cancel-notice">
-                <span class="crm-cancel-notice__icon">&#128343;</span>
                 <p class="crm-cancel-notice__text">
                   Cancellation requests are accepted <strong>Monday &ndash; Friday, 8:00 AM &ndash; 4:00 PM</strong> only. Requests submitted outside these hours will be processed on the next business day.
                 </p>
@@ -177,7 +176,6 @@
           {{-- STATE: pending --}}
           <div id="crmChangePending" style="display:none;">
             <div class="crm-cancel-status-card crm-cancel-status--pending">
-              <span class="crm-cancel-status-icon">⏳</span>
               <div>
                 <p class="crm-cancel-status-title" style="color:#1e40af;">Request for Changes — Pending Review</p>
                 <p class="crm-cancel-status-body">

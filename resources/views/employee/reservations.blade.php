@@ -438,10 +438,10 @@
                           <span class="user-icon">
                             <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
                           </span>
-                          <span>{{ $reservation->user->Account_Name ?? 'Unknown Account' }}</span>
+                          <span>{{ $reservation->user?->Account_Name ?? 'Unknown Account' }}</span>
                       </td>
 
-                      <td>{{ $reservation->user->Account_Type ?? 'External' }}</td>
+                      <td>{{ $reservation->user?->Account_Type ?? 'External' }}</td>
 
                       <td>
                           <strong>{{ $accName }}</strong>
@@ -473,45 +473,46 @@
                       @endif
                       </td>
 
+                      @php
+                          $expandInfo = [
+                              'nights'               => $nights,
+                              'id'                   => $dbId,
+                              'idx'                  => $reservation->display_type == 'venue' ? $reservation->Venue_ID : $reservation->Room_ID,
+                              'db_id_display'        => str_pad($dbId, 5, '0', STR_PAD_LEFT),
+                              'status'               => strtolower($reservation->status),
+                              'res_type'             => $reservation->display_type,
+                              'client_type'          => $reservation->user?->Account_Type ?? 'External',
+                              'type'                 => $reservation->user?->Account_Type ?? 'External',
+                              'phone'                => $reservation->user?->Account_Phone ?? 'Error phone',
+                              'email'                => $reservation->user?->Account_Email ?? 'Error email',
+                              'name'                 => $reservation->user?->Account_Name ?? 'Unknown Account',
+                              'accommodation'        => $accName,
+                              'accommodationType'    => $reservationType,
+                              'price'                => $basePrice,
+                              'food_total'           => $foodTotal,
+                              'discount'             => $discount,
+                              'additional_fees'      => $extraFees,
+                              'additional_fees_desc' => $extraFeesDesc,
+                              'pax'                  => $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax,
+                              'check_in'             => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
+                              'check_out'            => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
+                              'check_in_raw'         => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
+                              'check_out_raw'        => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
+                              'accommodation_id'     => $isRoom ? $reservation->Room_ID : $reservation->Venue_ID,
+                              'userId'               => $reservation->Client_ID,
+                              'purpose'              => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
+                                                                : ($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
+                              'foods'                => $overrideFoods    ?? ($reservation->foods ?? []),
+                              'food_sets'            => $overrideFoodSets ?? ($foodSets ?? []),
+                              'payment_status'       => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
+                              'cancellation_status'  => $reservation->cancellation_status,
+                              'change_request_status'=> $reservation->change_request_status,
+                              'change_request_type'  => $reservation->change_request_type,
+                          ];
+                      @endphp
                       <td class="action-cell">
                           <button class="expand-btn"
-                                  data-info="{{ json_encode([
-                                      'nights' => $nights,
-                                      'id' => $dbId,
-                                      'idx' => $reservation->display_type == 'venue' ? $reservation->Venue_ID : $reservation->Room_ID,
-                                      'db_id_display' => str_pad($dbId, 5, '0', STR_PAD_LEFT),
-                                      'status' => strtolower($reservation->status),
-                                      'res_type' => $reservation->display_type,
-                                      'client_type' => $reservation->user->Account_Type ?? 'External',
-                                      'type' => $reservation->user->Account_Type ?? 'External',
-                                      'phone' => $reservation->user->Account_Phone ?? 'Error phone',
-                                      'email' => $reservation->user->Account_Email ?? 'Error email',
-                                      'name' => $reservation->user->Account_Name ?? 'Unknown Account',
-                                      'accommodation' => $accName,
-                                      'accommodationType' => $reservationType,
-
-                                      'price' => $basePrice,
-                                      'food_total' => $foodTotal,
-                                      'discount' => $discount,
-                                      'additional_fees' => $extraFees,
-                                      'additional_fees_desc' => $extraFeesDesc,
-
-                                      'pax' => $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax,
-                                      'check_in' => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
-                                      'check_out' => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
-                                      'check_in_raw' => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
-                                      'check_out_raw' => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
-                                      'accommodation_id' => $isRoom ? $reservation->Room_ID : $reservation->Venue_ID,
-                                      'userId' => $reservation->Client_ID,
-                                      'purpose' => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
-                                                            :($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
-                                      'foods'     => $overrideFoods    ?? ($reservation->foods ?? []),
-                                      'food_sets' => $overrideFoodSets ?? ($foodSets ?? []),
-                                      'payment_status' => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
-                                      'cancellation_status'  => $reservation->cancellation_status,
-                                      'change_request_status' => $reservation->change_request_status,
-                                      'change_request_type'   => $reservation->change_request_type,
-                                  ]) }}">
+                                  data-info='@json($expandInfo)'>
                               ⤢
                           </button>
                       </td>

@@ -85,6 +85,7 @@
           </ul>
         </div>
         @endif
+
         <form action="{{ route('employee.reservations.prepare') }}" method="POST" class="booking-form" id="bookingForm">
           @csrf
 
@@ -98,25 +99,26 @@
           <input type="hidden" name="reservation_id" value="{{ $reservationId }}">
           @endif
           <div style="display: flex; flex-direction: column; gap: 4px; width:100%;">
-            @if (strtolower($category) === 'venue')
-              <div style="display: flex; flex-direction: column; gap: 2px;">
-                <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
-                  <label for="pax-input" class="pax-label">Number of Pax</label>
-                  <input
-                    type="number"
-                    name="pax"
-                    id="pax-input"
-                    class="pax-input"
-                    placeholder="Enter No. of Pax"
-                    min="1"
-                    max="{{ $data->capacity }}"
-                    data-capacity="{{ $data->capacity }}"
-                    value="{{ $prefillPax ?? '' }}"
-                    required>
-                </div>
-                <span id="pax-error" class="pax-error-msg"></span>
+            {{-- Pax input is required for both rooms and venues --}}
+            <div style="display: flex; flex-direction: column; gap: 2px;">
+              <div style="display: flex; flex-direction: row; align-items: center; gap: 13px;">
+                <label for="pax-input" class="pax-label">
+                  {{ strtolower($category) === 'venue' ? 'Number of Pax' : 'Number of Guests' }}
+                </label>
+                <input
+                  type="number"
+                  name="pax"
+                  id="pax-input"
+                  class="pax-input"
+                  placeholder="Enter No. of {{ strtolower($category) === 'venue' ? 'Pax' : 'Guests' }}"
+                  min="1"
+                  max="{{ $data->capacity }}"
+                  data-capacity="{{ $data->capacity }}"
+                  value="{{ $prefillPax ?? '' }}"
+                  required>
               </div>
-            @endif
+              <span id="pax-error" class="pax-error-msg"></span>
+            </div>
             
 
             <div style="display: flex; flex-direction: column; gap: 6px;">
@@ -327,12 +329,13 @@
       }
 
       // ── Minimum pax check for food reservation (venues only) ──
-      if (paxInput && !skipFood) {
+      const paxWarnModal = document.getElementById('paxWarnModal');
+      if (paxInput && !skipFood && paxWarnModal) {
         const minPaxFood = {{ config('reservation.food_min_pax', 30) }};
         const paxVal     = parseInt(paxInput.value || 0);
         if (paxVal < minPaxFood) {
           e.preventDefault();
-          document.getElementById('paxWarnModal').style.display = 'flex';
+          paxWarnModal.style.display = 'flex';
           return;
         }
       }

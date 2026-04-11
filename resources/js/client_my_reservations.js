@@ -8,6 +8,17 @@ document.addEventListener('DOMContentLoaded', () => {
   /* ── Helpers ── */
   function el(id) { return document.getElementById(id); }
 
+  /** Escape a string for safe insertion into HTML (prevents XSS via innerHTML). */
+  function escHtml(str) {
+    if (str == null) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   function statusClass(status) {
     const map = {
       pending: 'pending', confirmed: 'confirmed', cancelled: 'cancelled',
@@ -127,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Rice/drink choices for this slot + orphaned gen_ items (old records)
         // applied to EVERY set so each set line shows the user's full selection
+        // Raw names are stored here; escHtml() is applied when joining into foodList below.
         const extras = [
           ...items.map(f => f.Food_Name).filter(Boolean),
           ...(mealIdx === 0 ? orphanGenItems.map(f => f.Food_Name).filter(Boolean) : []),
@@ -136,8 +148,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const foodList = [
             ...(set.food_names || []),
             ...extras,                        // attach rice/drink to every set
-          ].filter(Boolean).join(', ');
-          inner += `<p class="crm-food-line crm-food-line--set">${set.set_name}${foodList ? ` (${foodList})` : ''}</p>`;
+          ].filter(Boolean).map(escHtml).join(', ');
+          inner += `<p class="crm-food-line crm-food-line--set">${escHtml(set.set_name)}${foodList ? ` (${foodList})` : ''}</p>`;
         });
       });
 
@@ -148,7 +160,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const label = MEAL_LABEL[meal] || null;
         if (label) inner += `<p class="crm-food-line crm-food-line--meal">${label} (Buffet)</p>`;
         items.forEach(f => {
-          inner += `<p class="crm-food-line">${f.Food_Name || 'Unknown item'}</p>`;
+          inner += `<p class="crm-food-line">${escHtml(f.Food_Name) || 'Unknown item'}</p>`;
         });
       });
 
@@ -180,7 +192,14 @@ document.addEventListener('DOMContentLoaded', () => {
   expandBtns.forEach(btn => {
     btn.addEventListener('click', function () {
       _activeBtn = this;
-      const data = JSON.parse(this.getAttribute('data-info'));
+      let data;
+      try {
+        data = JSON.parse(this.getAttribute('data-info'));
+      } catch (e) {
+        console.error('Failed to parse reservation data:', e);
+        if (typeof window.showToast === 'function') window.showToast('Unable to load reservation details. Please refresh the page.');
+        return;
+      }
 
       /* Header */
       el('crmResId').textContent = `Reservation #${data.display_id}`;
@@ -231,7 +250,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (roomRow) {
             roomRow.style.display = '';
             const lbl = roomRow.querySelector('.crm-breakdown-label');
-            if (lbl) lbl.textContent = `🛏 Room${rateLabel}`;
+            if (lbl) lbl.textContent = "🛏 " + " Room";
           }
           const roomTotalEl = el('crmRoomTotal');
           if (roomTotalEl) roomTotalEl.textContent = `₱ ${data.accommodation_total || data.total || '0.00'}`;
@@ -325,6 +344,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let _cancelResType    = null;
   let _cancelCheckInRaw = null;  // ISO date string, e.g. "2025-12-20"
   let _activeBtn        = null;  // the expand button that opened the current modal
+  // AbortController for the in-flight cancellation-status fetch.
+  // Aborted when a new modal opens so a stale response can never overwrite
+  // _cancelResId / _cancelResType set by the newer modal.
+  let _cancelFetchCtrl  = null;
 
   /**
    * Returns true if the check-in date is at least 3 calendar days from today.
@@ -393,14 +416,22 @@ document.addEventListener('DOMContentLoaded', () => {
         idleBtn.textContent = 'Request Cancellation';
         idleBtn.classList.remove('crm-cancel-waiting');
       }
-      if (adminNote) {
-        const noteEl = el('crmCancelRejectedNote');
-        if (noteEl) noteEl.textContent = 'Your cancellation request was not approved. ' + adminNote;
+      // Always update (and clear) the note element so stale text from a
+      // previously opened modal is never shown, and "undefined" is never appended.
+      const noteEl = el('crmCancelRejectedNote');
+      if (noteEl) {
+        const safeNote = (adminNote != null && adminNote !== '') ? ' ' + adminNote : '';
+        noteEl.textContent = 'Your cancellation request was not approved.' + safeNote;
       }
     }
   }
 
   function fetchCancellationState(resId, resType) {
+    // Abort any previous in-flight request so a stale response from an earlier
+    // modal cannot overwrite the state set by this newer modal open.
+    if (_cancelFetchCtrl) _cancelFetchCtrl.abort();
+    _cancelFetchCtrl = new AbortController();
+
     _cancelResId   = resId;
     _cancelResType = resType;
 
@@ -409,6 +440,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     fetch(`/client/reservations/${resId}/cancellation-status?type=${resType}`, {
       headers: { 'Accept': 'application/json' },
+      signal: _cancelFetchCtrl.signal,
     })
       .then(r => r.json())
       .then(data => {
@@ -425,7 +457,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (sec) sec.style.display = 'none';
         }
       })
-      .catch(() => setCancelState('crmCancelIdle')); // graceful fallback
+      .catch(err => {
+        // AbortError is expected when a newer modal opens — don't reset state.
+        if (err.name !== 'AbortError') setCancelState('crmCancelIdle');
+      });
   }
 
   // Open form button — guarded by 3-day eligibility check
@@ -579,9 +614,11 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (state === 'pending')  { if (pending)  pending.style.display  = ''; }
     else if (state === 'rejected') {
       if (rejected) rejected.style.display = '';
-      if (adminNote) {
-        const n = el('crmChangeRejectedNote');
-        if (n) n.textContent = 'Your request for changes was not approved. ' + adminNote;
+      // Always update the note element to avoid stale text or "undefined" string.
+      const n = el('crmChangeRejectedNote');
+      if (n) {
+        const safeNote = (adminNote != null && adminNote !== '') ? ' ' + adminNote : '';
+        n.textContent = 'Your request for changes was not approved.' + safeNote;
       }
     }
   }

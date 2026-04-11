@@ -156,7 +156,7 @@
                                 <h3 class="card-title">{{ $item->display_name }}</h3>
 
                                 <div class="card-details">
-                                    <span class="detail-item">👤  {{ $item->capacity }} Guests</span>
+                                    <span class="detail-item">👤  {{ $item->capacity }} Max Guests</span>
                                     @if (isset(Auth()->user()->Account_Type))
                                         @if (Auth()->user()->Account_Type == 'Internal')
                                           <span class="detail-item">₱ {{ number_format($item->internal_price, 2) }}</span>

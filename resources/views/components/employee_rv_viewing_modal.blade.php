@@ -48,10 +48,16 @@
           <div class="form-row">
             <div class="form-group">
               <label>Status</label>
-              <select name="status" class="form-input" {{ $isAdmin ? '' : 'disabled' }}>
-                <option value="Available">Available</option>
-                <option value="UnderMaintenance">Under Maintenance</option>
-              </select>
+              @if($isAdmin)
+                <select name="status" id="rvRoomStatusSelect" class="form-input">
+                  <option value="Available">Available</option>
+                  <option value="UnderMaintenance">Under Maintenance</option>
+                </select>
+              @else
+                {{-- Staff cannot change status; submit current value as hidden --}}
+                <input type="hidden" name="status" id="rvRoomStatusHidden" value="Available">
+                <div class="rv-status-readonly" id="rvRoomStatusDisplay">Available</div>
+              @endif
             </div>
 
             <div class="form-group">
@@ -107,11 +113,14 @@
               @if($isAdmin)
                 <div class="form-group">
                   <label>Status</label>
-                  <select name="status" class="form-input" {{ $isAdmin ? '' : 'disabled' }}>
+                  <select name="status" id="rvVenueStatusSelect" class="form-input">
                     <option value="Available">Available</option>
                     <option value="UnderMaintenance">Under Maintenance</option>
                   </select>
                 </div>
+              @else
+                {{-- Staff cannot change status; submit current value as hidden --}}
+                <input type="hidden" name="status" id="rvVenueStatusHidden" value="Available">
               @endif
 
             <div class="form-group">
@@ -221,6 +230,17 @@
 }
 .rv-img-upload-zone:hover { border-color: #1e3a5f; background: #f0f4ff; }
 .rv-img-upload-label { font-size: 12px; color: #888; pointer-events: none; }
+
+/* Read-only status display for non-admin staff */
+.rv-status-readonly {
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: #f9fafb;
+  color: #6b7280;
+  font-size: 14px;
+  cursor: default;
+}
 </style>
 
 <script>

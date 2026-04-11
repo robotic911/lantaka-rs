@@ -889,10 +889,11 @@ document.addEventListener('DOMContentLoaded', function () {
         if (String(id) === String(sel.value)) item.classList.add('ss-option--selected');
         const nameEl = el('span', 'ss-opt-name');
         nameEl.textContent = fName;
+        // REMOVED FOOD PRICE DROPDOWN
         item.appendChild(nameEl);
         if (price !== null && price !== undefined) {
           const prEl = el('span', 'ss-opt-price');
-          prEl.textContent = '₱' + parseFloat(price).toFixed(2);
+          // prEl.textContent = '₱' + parseFloat(price).toFixed(2);
           item.appendChild(prEl);
         }
         item.addEventListener('mousedown', e => {

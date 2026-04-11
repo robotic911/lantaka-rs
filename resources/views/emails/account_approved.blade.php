@@ -37,7 +37,7 @@
                     <table cellpadding="0" cellspacing="0">
                       <tr>
                         <td style="font-size:13px;color:#6b7280;padding:4px 0;min-width:90px;">Username: </td>
-                        <td style="font-size:13px;color:#1f2937;font-weight:600;padding:4px 0;">{{ $user->username }}</td>
+                        <td style="font-size:13px;color:#1f2937;font-weight:600;padding:4px 0;">{{ $user->Account_Username }}</td>
                       </tr>
                       <tr>
                         <td style="font-size:13px;color:#6b7280;padding:4px 0;">Password: </td>

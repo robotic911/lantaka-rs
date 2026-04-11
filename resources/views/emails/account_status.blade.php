@@ -13,10 +13,10 @@
 
     <div style="background: #f9f9f9; padding: 15px; border-radius: 8px;">
         <strong>Account Information</strong><br>
-        Username: {{ $user->username }}<br>
-        Phone: {{ $user->phone }}<br>
+        Username: {{ $user->Account_Username }}<br>
+        Phone: {{ $user->Account_Phone }}<br>
         Date Created: {{ $user->created_at->format('d/m/Y') }}<br>
-        Full Name: {{ $user->name }}
+        Full Name: {{ $user->Account_Name }}
     </div>
 
     <p><strong>Registration Status:</strong></p>

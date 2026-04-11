@@ -269,17 +269,27 @@ function handleDayClick(clickedDate) {
 function buildChipContent_detailed(evt) {
   const icon    = evt.type === 'room' ? '🛏' : '🏛';
   const roomStr = evt.isGrouped ? `${evt.rooms.length} Rooms` : evt.label;
-  return `<span class="ac-chip-icon">${icon}</span>`
+
+  const purpose = (evt.purpose || '').trim();
+  const hasPurpose = purpose && purpose.toLowerCase() !== 'n/a';
+
+  return `<span class="ac-chip-icon">${icon}</span> | `
     + `<span class="ac-chip-body">`
-    +   `<span class="ac-chip-purpose">${esc(evt.purpose)}</span>`
+    +   (hasPurpose ? `<span class="ac-chip-purpose">${esc(purpose)}</span>` : ``)
     +   `<span class="ac-chip-name">${esc(evt.guestName)}</span>`
     +   `<span class="ac-chip-room">${esc(roomStr)}</span>`
     + `</span>`;
 }
 
 function buildChipContent_stacked(evt, dotColor) {
+  const purpose = (evt.purpose || '').trim();
+  const hasPurpose = purpose && purpose.toLowerCase() !== 'n/a';
+  const purposePart = hasPurpose ? `<span class="ac-chip-purpose-stacked"> · ${esc(purpose)}</span>` : '';
   return `<span class="ac-chip-dot" style="background:${dotColor};"></span>`
-    + `<span class="ac-chip-name-only">${esc(evt.guestName)}</span>`;
+    + `<span class="ac-chip-stacked-text">`
+    +   `<span class="ac-chip-name-only">${esc(evt.guestName)}</span>`
+    +   purposePart
+    + `</span>`;
 }
 
 function chipTTData(evt) {

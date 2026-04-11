@@ -28,7 +28,7 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
   </div>
   <div class="banner">Reservation Not Approved</div>
   <div class="body">
-    <p>Hello, <strong>{{ $reservation->user->name }}</strong>.</p>
+    <p>Hello, <strong>{{ $reservation->user?->Account_Name ?? 'Guest' }}</strong>.</p>
     <p>We regret to inform you that your reservation request was <strong>not approved</strong>. Please see the details below.</p>
     @php
       if ($type === 'room') {
