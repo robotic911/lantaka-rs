@@ -237,6 +237,7 @@ class ReservationController extends Controller
                 'img' => $img,
                 'pax' => $item['pax'] ?? 1,
                 'purpose' => $item['purpose'] ?? '',
+                'notes' => $item['notes'] ?? '',
                 'check_in' => $checkIn->format('F d, Y'),
                 'check_out' => $checkOut->format('F d, Y'),
                 'check_in_raw' => $checkIn->toDateString(),
@@ -1221,6 +1222,7 @@ class ReservationController extends Controller
                 $reservation->Room_Reservation_Additional_Fees = $totalExtra;
                 $reservation->Room_Reservation_Additional_Fees_Desc = json_encode($combined);
                 $reservation->Room_Reservation_Discount = $discount;
+                $reservation->Room_Reservation_Notes = $request->input('notes') ?? $reservation->Room_Reservation_Notes;
 
                 // 5. Calculate new total strictly using the True Booking Cost
                 $reservation->Room_Reservation_Total_Price = ($trueBookingCost + $totalExtra) - $discount;
@@ -1264,6 +1266,7 @@ class ReservationController extends Controller
                 $reservation->Venue_Reservation_Additional_Fees = $totalExtra;
                 $reservation->Venue_Reservation_Additional_Fees_Desc = json_encode($combined);
                 $reservation->Venue_Reservation_Discount = $discount;
+                $reservation->Venue_Reservation_Notes = $request->input('notes') ?? $reservation->Venue_Reservation_Notes;
 
                 // 5. Calculate new total strictly using the True Booking Cost
                 $reservation->Venue_Reservation_Total_Price = ($trueBookingCost + $foodTotal + $totalExtra) - $discount;
@@ -1729,7 +1732,7 @@ class ReservationController extends Controller
         $granularity = $request->query('granularity', 'month'); // 'month' | 'week'
         $weekNum     = max(1, min(5, (int) $request->query('week', 1)));
 
-        $preparedBy = auth()->user()->Account_Name ?? 'N/A';
+        $preparedBy = auth()->user()?->Account_Name ?? 'N/A';
 
         $monthData = $this->buildCalendarPDFData($month, $year, $typeFilter);
 
@@ -1811,6 +1814,7 @@ class ReservationController extends Controller
             $roomRows = RoomReservation::with(['room', 'user'])
                 ->where('Room_Reservation_Check_In_Time',  '<=', $rangeEnd)
                 ->where('Room_Reservation_Check_Out_Time', '>=', $rangeStart)
+                ->whereNotIn('Room_Reservation_Status', ['cancelled', 'rejected'])
                 ->get()
                 ->map(fn($r) => [
                     'Check-In'  => Carbon::parse($r->Room_Reservation_Check_In_Time)->format('Y-m-d'),
@@ -1828,6 +1832,7 @@ class ReservationController extends Controller
             $venueRows = VenueReservation::with(['venue', 'user'])
                 ->where('Venue_Reservation_Check_In_Time',  '<=', $rangeEnd)
                 ->where('Venue_Reservation_Check_Out_Time', '>=', $rangeStart)
+                ->whereNotIn('Venue_Reservation_Status', ['cancelled', 'rejected'])
                 ->get()
                 ->map(fn($r) => [
                     'Check-In'  => Carbon::parse($r->Venue_Reservation_Check_In_Time)->format('Y-m-d'),
@@ -1854,7 +1859,7 @@ class ReservationController extends Controller
             : Carbon::create($year, $startMonth)->format('F') . ' to ' .
               Carbon::create($year, $endMonth)->format('F Y');
 
-        $preparedBy  = auth()->user()->Account_Name ?? 'N/A';
+        $preparedBy  = auth()->user()?->Account_Name ?? 'N/A';
         $generatedAt = now()->format('F j, Y g:i A');
 
         $headers = [
@@ -2148,7 +2153,7 @@ class ReservationController extends Controller
         } else {
             // Edit mode: reuse existing VenueReservation instead of creating a new one
             if ($request->filled('venue_reservation_id')) {
-                $reservation = VenueReservation::findOrFail($request->venue_reservation_id);
+                $reservation = VenueReservation::with(['venue', 'foods'])->findOrFail($request->venue_reservation_id);
             } else {
                 $venue = Venue::findOrFail($request->accommodation_id);
                 $venueClient = Account::find($request->user_id);
@@ -2586,6 +2591,11 @@ class ReservationController extends Controller
     {
         $client = Account::findOrFail($clientId);
 
+        // Guard: only client accounts have SOAs. Prevent accessing staff/admin billing pages.
+        if ($client->Account_Role !== 'client') {
+            abort(403, 'SOA is only available for client accounts.');
+        }
+
         $roomReservations = RoomReservation::with('room')
             ->where('Client_ID', $clientId)
             ->where('Room_Reservation_Status', 'checked-in')
@@ -2723,6 +2733,11 @@ class ReservationController extends Controller
             ->toArray();
 
         $client = Account::findOrFail($clientId);
+
+        // Guard: only client accounts have SOAs. Prevent accessing staff/admin billing data.
+        if ($client->Account_Role !== 'client') {
+            abort(403, 'SOA export is only available for client accounts.');
+        }
 
         $roomReservations = RoomReservation::with('room')
             ->where('Client_ID', $clientId)
@@ -3179,7 +3194,7 @@ class ReservationController extends Controller
             ->whereDate('Room_Reservation_Check_In_Time', '<=', $today)
             ->whereDate('Room_Reservation_Check_Out_Time', '>=', $today)
             ->sum('Room_Reservation_Pax');
-
+      
         $activeVenueGuests = VenueReservation::where('Venue_Reservation_Status', 'checked-in')
             ->whereDate('Venue_Reservation_Check_In_Time', '<=', $today)
             ->whereDate('Venue_Reservation_Check_Out_Time', '>=', $today)
@@ -3228,6 +3243,7 @@ class ReservationController extends Controller
                 'activeGuests'       => $activeGuests,
                 'occupancyRate'      => round($occupancyRate, 1),
                 'checkOutsTodayCount'=> $checkOutsTodayCount,
+                'today'              => $today,
             ],
             'changes' => $changes,
         ]);
@@ -3576,7 +3592,7 @@ class ReservationController extends Controller
             $reservation->save();
 
             // ── Notify all admin and staff (in-system + email to staff only) ────
-            $clientName = auth()->user()->Account_Name ?? 'A client';
+            $clientName = auth()->user()?->Account_Name ?? 'A client';
             $accName    = $type === 'room'
                 ? 'Room ' . ($reservation->room?->Room_Number ?? $id)
                 : ($reservation->venue?->Venue_Name ?? 'Venue');
@@ -3689,6 +3705,9 @@ class ReservationController extends Controller
         $purpose  = $type === 'room'
             ? ($reservation->Room_Reservation_Purpose ?? '')
             : ($reservation->Venue_Reservation_Purpose ?? '');
+        $notes    = $type === 'room'
+            ? ($reservation->Room_Reservation_Notes ?? '')
+            : ($reservation->Venue_Reservation_Notes ?? '');
         $accId    = $type === 'room'
             ? $reservation->Room_ID
             : $reservation->Venue_ID;
@@ -3705,6 +3724,7 @@ class ReservationController extends Controller
                 'check_out'      => Carbon::parse($checkOut)->toDateString(),
                 'pax'            => $pax,
                 'purpose'        => $purpose,
+                'notes'          => $notes,
                 'edit'           => '1',
                 'change_request' => '1',
             ])
@@ -3795,6 +3815,7 @@ class ReservationController extends Controller
             'original_check_out'=> $origCheckOut,
             'pax'               => $request->input('pax'),
             'purpose'           => $request->input('purpose'),
+            'notes'             => $request->input('notes'),
             'accommodation_id'  => $request->input('accommodation_id'),
             'type'              => $type,
         ];
@@ -4008,7 +4029,7 @@ class ReservationController extends Controller
             $reservation->save();
 
             // ── Notify all admin and staff (in-system + email to staff only) ────
-            $clientName    = auth()->user()->Account_Name ?? 'A client';
+            $clientName    = auth()->user()?->Account_Name ?? 'A client';
             $accName       = $type === 'room'
                 ? 'Room ' . ($reservation->room?->Room_Number ?? $reservation->getKey())
                 : ($reservation->venue?->Venue_Name ?? 'Venue');
@@ -4296,12 +4317,41 @@ class ReservationController extends Controller
                 // Apply the new dates (they were already pre-written by storeChangeRequest,
                 // but we re-apply here so approval is the source of truth)
                 if (in_array($reqType, ['reschedule', 'reschedule_and_food']) && !empty($details['check_in']) && !empty($details['check_out'])) {
+                    $newCheckIn  = Carbon::parse($details['check_in']);
+                    $newCheckOut = Carbon::parse($details['check_out']);
+
                     if ($type === 'room') {
                         $reservation->Room_Reservation_Check_In_Time  = $details['check_in'];
                         $reservation->Room_Reservation_Check_Out_Time = $details['check_out'];
+
+                        // Recalculate accommodation total for the new date range
+                        $newNights   = $newCheckIn->diffInDays($newCheckOut) ?: 1;
+                        $reservation->load('room', 'user');
+                        $clientType  = $reservation->user?->Account_Type ?? 'External';
+                        $baseRate    = ($clientType === 'Internal')
+                            ? ($reservation->room?->Room_Internal_Price  ?? 0)
+                            : ($reservation->room?->Room_External_Price  ?? 0);
+                        $reservation->Room_Reservation_Total_Price = $baseRate * $newNights;
                     } else {
                         $reservation->Venue_Reservation_Check_In_Time  = $details['check_in'];
                         $reservation->Venue_Reservation_Check_Out_Time = $details['check_out'];
+
+                        // Recalculate accommodation total for the new date range
+                        $newDays     = $newCheckIn->diffInDays($newCheckOut) + 1;
+                        $reservation->load('venue', 'user');
+                        $clientType  = $reservation->user?->Account_Type ?? 'External';
+                        $baseRate    = ($clientType === 'Internal')
+                            ? ($reservation->venue?->Venue_Internal_Price ?? 0)
+                            : ($reservation->venue?->Venue_External_Price ?? 0);
+                        $reservation->Venue_Reservation_Total_Price = $baseRate * $newDays;
+                    }
+                }
+                // Apply updated notes if the client changed them
+                if (isset($details['notes'])) {
+                    if ($type === 'room') {
+                        $reservation->Room_Reservation_Notes = $details['notes'];
+                    } else {
+                        $reservation->Venue_Reservation_Notes = $details['notes'];
                     }
                 }
                 // Food modifications are shown in the details for manual admin action

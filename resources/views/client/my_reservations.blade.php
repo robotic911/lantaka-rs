@@ -94,7 +94,7 @@
                     // Compute checkout amount consistently (rate × nights/days + food + fees − discount)
                     $colCheckIn    = \Carbon\Carbon::parse($res->Room_Reservation_Check_In_Time  ?? $res->Venue_Reservation_Check_In_Time);
                     $colCheckOut   = \Carbon\Carbon::parse($res->Room_Reservation_Check_Out_Time ?? $res->Venue_Reservation_Check_Out_Time);
-                    $colClientType = auth()->user()->Account_Type ?? 'External';
+                    $colClientType = auth()->user()?->Account_Type ?? 'External';
 
                     if ($res->type === 'room' && $res->room) {
                         // Room Total_Price already includes extras and discount from all code paths
@@ -239,7 +239,7 @@
                     $resNights     = ($res->type === 'venue')
                         ? max(1, $resCheckIn->diffInDays($resCheckOut) + 1)
                         : max(1, $resCheckIn->diffInDays($resCheckOut));
-                    $resClientType = auth()->user()->Account_Type ?? 'External';
+                    $resClientType = auth()->user()?->Account_Type ?? 'External';
                     if ($res->type === 'room' && $res->room) {
                         $resRate = ($resClientType === 'Internal')
                             ? ($res->room->Room_Internal_Price ?? 0)
@@ -279,7 +279,7 @@
                         'foods'                => $res->type === 'venue' ? ($res->foods ?? []) : [],
                         'food_set_rows'        => $foodSetRows ?? [],
                         'purpose'              => $resPurpose,
-                        'status'               => $res->status,
+                        'status'               => $res->Room_Reservation_Status ?? $res->Venue_Reservation_Status ?? 'unknown',
                         'cancellation_status'  => $res->cancellation_status,
                         'change_request_status'=> $res->change_request_status,
                         'change_request_type'  => $res->change_request_type,

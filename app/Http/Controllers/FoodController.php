@@ -63,7 +63,7 @@ class FoodController extends Controller
 
     public function storeFoodSet(Request $request)
     {
-        $validPurposes  = 'all,retreat,recollection,meeting,seminar,birthday,lecture,wedding,orientation';
+        $validPurposes  = 'all,retreat,recollection,meeting,seminar,birthday,lecture,wedding,orientation,others';
         $validMealTimes = 'any,breakfast,am_snack,lunch,pm_snack,dinner';
 
         $request->validate([
@@ -92,7 +92,7 @@ class FoodController extends Controller
 
     public function updateFoodSet(Request $request, $id)
     {
-        $validPurposes  = 'all,retreat,recollection,meeting,seminar,birthday,lecture,wedding,orientation';
+        $validPurposes  = 'all,retreat,recollection,meeting,seminar,birthday,lecture,wedding,orientation,others';
         $validMealTimes = 'any,breakfast,am_snack,lunch,pm_snack,dinner';
 
         $request->validate([
@@ -190,12 +190,34 @@ class FoodController extends Controller
             ->orderBy('Food_Set_Name')
             ->get();
 
+    
         // Optional purpose filter
         if ($purpose !== '') {
             $sets = $sets->filter(function ($s) use ($purpose) {
-                $purposes = $s->Food_Set_Purpose ?? [];
-                return in_array('all', $purposes, true)
-                    || in_array($purpose, $purposes, true);
+                $purposes = array_map(
+                    fn($item) => strtolower(trim($item)),
+                    (array) ($s->Food_Set_Purpose ?? [])
+                );
+
+                $clientPurpose = strtolower(trim($purpose));
+
+                if ($clientPurpose === 'retreat' || $clientPurpose === 'recollection') {
+                    return in_array('all', $purposes, true)
+                        || in_array($clientPurpose, $purposes, true);
+                }
+
+                $normalizedPurpose = match ($clientPurpose) {
+                    'meeting' => 'meeting',
+                    'seminar' => 'seminar',
+                    'birthday' => 'birthday',
+                    'lecture' => 'lecture',
+                    'wedding' => 'wedding',
+                    'orientation' => 'orientation',
+                    default => 'others', // custom purposes like "Team Building"
+                };
+
+                return in_array($normalizedPurpose, $purposes, true)
+                    || in_array('others', $purposes, true);
             });
         }
 

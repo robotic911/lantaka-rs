@@ -43,6 +43,17 @@
             <input type="text" id="affiliation" name="affiliation" hidden>
 
 
+            <div style="display:flex; flex-direction:column; gap:4px; margin-top:12px;" id="notesSection">
+              <label style="font-size:12px; font-weight:600; color:#374151;">Additional Notes</label>
+              <textarea
+                id="notesInput"
+                name="notes"
+                rows="3"
+                placeholder="No notes."
+                readonly
+                style="width:100%; padding:8px 10px; border:1px solid #d1d5db; border-radius:8px; font-size:12px; resize:vertical; font-family:inherit; color:#374151; box-sizing:border-box; background:#f9fafb;"></textarea>
+            </div>
+
             <div id="editSection">
                 <button type="button" id="editLink" class="check-out-btn" style="margin-top:20px; width: fit-content; align-self: flex-end; font-size: 12px; appearance: none; justify-content: center;">
                   Edit
@@ -152,6 +163,7 @@
                     <span id="purpose_r" style="font-size:10px; color:#4a4a4a; "></span>
                   </div>
                 </div>
+
               </div>
 
               <div class="detail-section-right">
@@ -440,24 +452,23 @@
           }
         }
 
-        // Details box — only relevant for reschedule types, not food-only changes
+        // Details box — show new dates (reschedule) and/or new notes
         const detailsBox = document.getElementById('empChangeDetailsBox');
         if (detailsBox) {
           const isReschedule = req.request_type === 'reschedule' || req.request_type === 'reschedule_and_food';
-          if (isReschedule && req.details) {
-            let html = '';
-            if (req.details.check_in)  html += `<div><strong>New Check-in:</strong> ${req.details.check_in}</div>`;
-            if (req.details.check_out) html += `<div><strong>New Check-out:</strong> ${req.details.check_out}</div>`;
-            if (Array.isArray(req.details.foods) && req.details.foods.length) {
-              const desc = (req.details.foods[0] && req.details.foods[0].description) ? req.details.foods[0].description : JSON.stringify(req.details.foods);
-              html += `<div style="margin-top:4px;"><strong>Food changes:</strong> ${desc}</div>`;
+          let html = '';
+          if (req.details) {
+            if (isReschedule) {
+              if (req.details.check_in)  html += `<div><strong>New Check-in:</strong> ${req.details.check_in}</div>`;
+              if (req.details.check_out) html += `<div><strong>New Check-out:</strong> ${req.details.check_out}</div>`;
             }
-            if (html) {
-              detailsBox.innerHTML     = html;
-              detailsBox.style.display = '';
-            } else {
-              detailsBox.style.display = 'none';
+            if (req.details.notes !== undefined && req.details.notes !== null && String(req.details.notes).trim() !== '') {
+              html += `<div style="margin-top:4px;"><strong>Updated Notes:</strong><br><span style="white-space:pre-wrap;">${String(req.details.notes).replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span></div>`;
             }
+          }
+          if (html) {
+            detailsBox.innerHTML     = html;
+            detailsBox.style.display = '';
           } else {
             detailsBox.style.display = 'none';
           }

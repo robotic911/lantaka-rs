@@ -43,7 +43,10 @@ class RoomReservation extends Model
     ];
 
     protected $casts = [
-        'change_request_details' => 'array',
+        'change_request_details'         => 'array',
+        'Room_Reservation_Total_Price'    => 'decimal:2',
+        'Room_Reservation_Discount'       => 'decimal:2',
+        'Room_Reservation_Additional_Fees'=> 'decimal:2',
     ];
 
     public function room() {

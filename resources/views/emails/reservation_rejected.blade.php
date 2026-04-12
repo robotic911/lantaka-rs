@@ -32,11 +32,11 @@ body{margin:0;padding:0;background:#f4f6f9;font-family:'Segoe UI',Arial,sans-ser
     <p>We regret to inform you that your reservation request was <strong>not approved</strong>. Please see the details below.</p>
     @php
       if ($type === 'room') {
-        $accLabel = $reservation->room->Room_Number ?? 'N/A';
+        $accLabel = $reservation->room?->Room_Number ?? 'N/A';
         $checkIn  = $reservation->Room_Reservation_Check_In_Time;
         $checkOut = $reservation->Room_Reservation_Check_Out_Time;
       } else {
-        $accLabel = $reservation->venue->Venue_Name ?? 'Venue';
+        $accLabel = $reservation->venue?->Venue_Name ?? 'Venue';
         $checkIn  = $reservation->Venue_Reservation_Check_In_Time;
         $checkOut = $reservation->Venue_Reservation_Check_Out_Time;
       }

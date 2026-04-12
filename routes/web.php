@@ -53,7 +53,6 @@ Route::prefix('employee')
     ->group(function () {
      
         Route::post('/reservations/{id}/status', [ReservationController::class, 'updateStatus'])->name('reservations.updateStatus');
-        Route::post('/reservations/{id}/mark-paid', [ReservationController::class, 'markAsPaid'])->name('reservations.markPaid');
         Route::get('/dashboard', [ReservationController::class, 'showReservationsCalendar'])->name('dashboard');
         Route::get('/reservations', [ReservationController::class, 'adminIndex'])->name('reservations');
         
@@ -75,7 +74,8 @@ Route::prefix('employee')
         Route::get('/accounts/{id}/update-status', fn($id) => redirect()->route('employee.accounts'));
         Route::put('/accounts/{id}/update', [AccountController::class, 'update'])->name('employee.accounts.update');
         Route::post('/accounts/create', [AccountController::class, 'adminCreateAccount'])->name('accounts.create');
-        // Revert a paid reservation back to unpaid — admin only
+        // Payment marking — admin only (mark-paid and mark-unpaid both require admin)
+        Route::post('/reservations/{id}/mark-paid',   [ReservationController::class, 'markAsPaid'])->name('reservations.markPaid');
         Route::post('/reservations/{id}/mark-unpaid', [ReservationController::class, 'markAsUnpaid'])->name('reservations.markUnpaid');
         });
     });

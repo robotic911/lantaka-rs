@@ -32,6 +32,7 @@
         <input type="hidden" name="check_out"         value="{{ $bookingData['check_out'] }}">
         <input type="hidden" name="pax"   id="paxValue" value="{{ $bookingData['pax'] }}">
         <input type="hidden" name="purpose"           value="{{ $bookingData['purpose'] ?? '' }}">
+        <input type="hidden" name="notes"             value="{{ $bookingData['notes'] ?? '' }}">
         @if(!empty($bookingData['venue_reservation_id']))
             <input type="hidden" name="venue_reservation_id" value="{{ $bookingData['venue_reservation_id'] }}">
         @endif

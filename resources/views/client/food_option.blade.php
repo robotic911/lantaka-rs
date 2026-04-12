@@ -57,6 +57,7 @@
         <input type="hidden" name="check_out"        value="{{ $bookingData['check_out'] }}">
         <input type="hidden" name="pax"   id="paxValue" value="{{ $bookingData['pax'] ?? 1 }}">
         <input type="hidden" name="purpose"          value="{{ $bookingData['purpose'] ?? '' }}">
+        <input type="hidden" name="notes"            value="{{ $bookingData['notes'] ?? '' }}">
 
         {{-- Back button --}}
         <div class="back-section">

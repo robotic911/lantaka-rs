@@ -8,6 +8,7 @@
     $checkOut = \Carbon\Carbon::parse($bookingData['check_out'] ?? now())->format('F d, Y');
     $pax      = $bookingData['pax']     ?? '—';
     $purpose  = ucfirst($bookingData['purpose'] ?? '—');
+    $notes    = $bookingData['notes']   ?? '';
     $resName  = $bookingData['res_name'] ?? ucfirst($bookingData['type'] ?? '') . ' ' . ($bookingData['accommodation_id'] ?? '');
 @endphp
 
@@ -139,6 +140,12 @@
             <span class="crc-label">Purpose</span>
             <span class="crc-value">{{ $purpose }}</span>
         </div>
+        @if($notes)
+        <div class="crc-row">
+            <span class="crc-label">Notes</span>
+            <span class="crc-value" style="white-space:pre-wrap; text-align:left;">{{ $notes }}</span>
+        </div>
+        @endif
 
         <div class="crc-note">
             ⚠️ This is a <strong>request</strong> — your reservation will not change until an admin or staff member approves it.
@@ -156,6 +163,7 @@
                 <input type="hidden" name="check_out"        value="{{ $bookingData['check_out']        ?? '' }}">
                 <input type="hidden" name="pax"              value="{{ $bookingData['pax']              ?? '' }}">
                 <input type="hidden" name="purpose"          value="{{ $bookingData['purpose']          ?? '' }}">
+                <input type="hidden" name="notes"            value="{{ $bookingData['notes']            ?? '' }}">
                 <input type="hidden" name="change_request"   value="1">
 
                 <button type="submit" class="crc-btn-confirm">Submit Change Request</button>

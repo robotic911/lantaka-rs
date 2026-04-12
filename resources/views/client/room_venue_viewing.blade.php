@@ -140,7 +140,7 @@
                   id="notesInput"
                   rows="3"
                   placeholder="E.g. dietary restrictions, room preferences, accessibility needs…"
-                  style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; resize:vertical; font-family:inherit; color:#374151;"></textarea>
+                  style="width:100%; padding:10px 12px; border:1px solid #d1d5db; border-radius:8px; font-size:13px; resize:vertical; font-family:inherit; color:#374151;">{{ request('notes', '') }}</textarea>
               </div>
 
               {{-- Advance booking notice --}}

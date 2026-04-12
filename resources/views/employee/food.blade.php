@@ -46,7 +46,8 @@
         'lecture'     => 'Lecture',
         'wedding'     => 'Wedding',
         'orientation' => 'Orientation',
-      ],
+        'others'      => 'Others'
+      ],  
     ],
   ];
 
@@ -461,7 +462,7 @@
       <button class="fm-modal-close" onclick="closeEditFoodModal()">✕</button>
     </div>
     <div class="fm-modal-body">
-      <form method="POST" id="editFoodForm" class="fm-form">
+      <form method="POST" id= "editFoodForm" class="fm-form">
         @csrf @method('PUT')
         <div class="fm-form-grid">
           <div class="fm-form-group fm-form-group--full">

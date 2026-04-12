@@ -1,4 +1,18 @@
 /**
+ * Escape a string for safe use as HTML text content inside innerHTML.
+ * Prevents XSS when interpolating DB-sourced data into template literals.
+ */
+function escHtml(str) {
+  if (str == null) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
  * client_food_option.js
  *
  * BOTH spiritual (retreat/recollection) and general events support:
@@ -1266,7 +1280,7 @@ document.addEventListener('DOMContentLoaded', function () {
     // Header (always visible)
     const header = el('div', 'fo-general-set-header');
     header.innerHTML =
-      `<span class="fo-gen-set-name">${set.Food_Set_Name}</span>` +
+      `<span class="fo-gen-set-name">${escHtml(set.Food_Set_Name)}</span>` +
       `<span class="fo-gen-set-price">₱${parseFloat(set.Food_Set_Price).toFixed(2)}/pax</span>`;
     card.appendChild(header);
 
@@ -1358,8 +1372,8 @@ document.addEventListener('DOMContentLoaded', function () {
       matches.forEach(food => {
         const row = el('div', 'fo-search-option');
         row.innerHTML =
-          `<span class="fo-sopt-name">${food.Food_Name}</span>` +
-          `<span class="fo-sopt-cat">${food.Food_Category}</span>` +
+          `<span class="fo-sopt-name">${escHtml(food.Food_Name)}</span>` +
+          `<span class="fo-sopt-cat">${escHtml(food.Food_Category)}</span>` +
           `<span class="fo-sopt-price">₱${parseFloat(food.Food_Price).toFixed(2)}</span>`;
         row.addEventListener('mousedown', e => {
           e.preventDefault();
@@ -1398,8 +1412,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const chipsWrap = section.querySelector('.fo-additional-chips');
     const chip = el('div', 'fo-additional-chip');
     chip.innerHTML =
-      `<span class="fo-chip-name">${food.Food_Name}</span>` +
-      `<span class="fo-chip-cat">${food.Food_Category}</span>` +
+      `<span class="fo-chip-name">${escHtml(food.Food_Name)}</span>` +
+      `<span class="fo-chip-cat">${escHtml(food.Food_Category)}</span>` +
       `<span class="fo-chip-price">₱${parseFloat(food.Food_Price).toFixed(2)}</span>` +
       `<button type="button" class="fo-chip-remove" title="Remove">×</button>`;
     chip.querySelector('.fo-chip-remove').addEventListener('click', () => {
@@ -1523,8 +1537,8 @@ document.addEventListener('DOMContentLoaded', function () {
       li.dataset.originalName = food.Food_Name;
       li.dataset.originalCat  = cat;
       li.innerHTML =
-        `<span class="fo-list-name">${food.Food_Name}</span>` +
-        `<span class="fo-list-cat">${CAT_LABELS[cat] || cat}</span>`;
+        `<span class="fo-list-name">${escHtml(food.Food_Name)}</span>` +
+        `<span class="fo-list-cat">${escHtml(CAT_LABELS[cat] || cat)}</span>`;
       ol.appendChild(li);
     });
 
@@ -1976,7 +1990,7 @@ document.addEventListener('DOMContentLoaded', function () {
     (state.extraViands || []).forEach(v => {
       const li = el('li', 'fo-food-list-item fo-cust-added-item');
       li.innerHTML =
-        `<span class="fo-list-name">${v.label}</span>` +
+        `<span class="fo-list-name">${escHtml(v.label)}</span>` +
         `<span class="fo-list-cat fo-list-cat--added">+₱40</span>`;
       ol.appendChild(li);
     });
@@ -1985,7 +1999,7 @@ document.addEventListener('DOMContentLoaded', function () {
     (state.desserts || []).forEach(d => {
       const li = el('li', 'fo-food-list-item fo-cust-added-item');
       li.innerHTML =
-        `<span class="fo-list-name">${d.label}</span>` +
+        `<span class="fo-list-name">${escHtml(d.label)}</span>` +
         `<span class="fo-list-cat fo-list-cat--added">+₱20</span>`;
       ol.appendChild(li);
     });

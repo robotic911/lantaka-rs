@@ -643,12 +643,30 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   if (checkoutForm) {
-    checkoutForm.addEventListener('submit', function (e) {
-      updateHiddenSelectedItemsInput();
+    let submitting = false;
 
+    checkoutForm.addEventListener('submit', function (e) {
+      // Empty cart guard
       if (Object.keys(cart).length === 0) {
         e.preventDefault();
         window.showToast('Please select at least one item to confirm.');
+        return;
+      }
+
+      // Double-submit guard
+      if (submitting) {
+        e.preventDefault();
+        return;
+      }
+
+      submitting = true;
+      updateHiddenSelectedItemsInput();
+
+      // Disable the submit button to give visual feedback
+      const submitBtn = checkoutForm.querySelector('[type="submit"]');
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing…';
       }
     });
   }

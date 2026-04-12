@@ -147,8 +147,8 @@
 
                       // 3. Setup Accommodation Name & Type
                       $accName = $isRoom
-                          ? 'Room: ' . ($reservation->room->Room_Number ?? 'N/A')
-                          : 'Venue: ' . ($reservation->venue->Venue_Name ?? 'N/A');
+                          ? 'Room: ' . ($reservation->room?->Room_Number ?? 'N/A')
+                          : 'Venue: ' . ($reservation->venue?->Venue_Name ?? 'N/A');
                       $reservationType = $isRoom ? 'Room' : 'Venue';
 
                       // 4. Setup Pricing Variables for the JavaScript
@@ -171,15 +171,15 @@
 
                       if($isRoom) {
                           $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
-                              ? ($reservation->room->Room_Internal_Price ?? 0)
-                              : ($reservation->room->Room_External_Price ?? 0);
+                              ? ($reservation->room?->Room_Internal_Price ?? 0)
+                              : ($reservation->room?->Room_External_Price ?? 0);
                           $discount = $reservation->Room_Reservation_Discount ?? 0;
                           $extraFees = $reservation->Room_Reservation_Additional_Fees ?? 0;
                           $extraFeesDesc = $reservation->Room_Reservation_Additional_Fees_Desc ?? '';
                       } else {
                           $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
-                              ? ($reservation->venue->Venue_Internal_Price ?? 0)
-                              : ($reservation->venue->Venue_External_Price ?? 0);
+                              ? ($reservation->venue?->Venue_Internal_Price ?? 0)
+                              : ($reservation->venue?->Venue_External_Price ?? 0);
                           $discount = $reservation->Venue_Reservation_Discount ?? 0;
                           $extraFees = $reservation->Venue_Reservation_Additional_Fees ?? 0;
                           $extraFeesDesc = $reservation->Venue_Reservation_Additional_Fees_Desc ?? '';
@@ -265,7 +265,9 @@
                               $crSetSel       = $crDetails['food_set_selection'] ?? [];
                               $crFoodEnabled  = $crDetails['food_enabled']       ?? [];
                               $crMealMode     = $crDetails['meal_mode']          ?? [];
-                              $crPax          = $reservation->Venue_Reservation_Pax ?? 1;
+                              $crPax          = $isRoom
+                                                  ? ($reservation->Room_Reservation_Pax  ?? 1)
+                                                  : ($reservation->Venue_Reservation_Pax ?? 1);
 
                               if (!empty($crFoodSel) || !empty($crSetSel)) {
 
@@ -502,6 +504,8 @@
                               'userId'               => $reservation->Client_ID,
                               'purpose'              => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
                                                                 : ($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
+                              'notes'                => $isRoom ? ($reservation->Room_Reservation_Notes ?? '')
+                                                                : ($reservation->Venue_Reservation_Notes ?? ''),
                               'foods'                => $overrideFoods    ?? ($reservation->foods ?? []),
                               'food_sets'            => $overrideFoodSets ?? ($foodSets ?? []),
                               'payment_status'       => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),

@@ -73,7 +73,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const addChargesBtn = document.getElementById('addAdditsionalCharges');
   const discInput = document.getElementById('discount');
 
-  console.log("employee_reservations.js connection working - FULL VERSION");
 
   // --- 1. GLOBAL CALCULATION LOGIC ---
   window.calculateLiveTotal = () => {
@@ -105,7 +104,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const grandTotal = totalPriceWithCurrentNights + food + extra - disc;
 
-    console.log(`Calc: Base(${base}) × ${multiplier} + Food(${food}) + Extra(${extra}) - Disc(${disc}) = ${grandTotal}`);
 
     const summaryExtra    = document.getElementById('summaryExtra');
     const summaryDiscount = document.getElementById('summaryDiscount');
@@ -169,9 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
   if (editLinkBtn) {
     editLinkBtn.addEventListener('click', function () {
       const d = window.currentModalData;
-      console.log("hereserser");
-
-      console.log(d);
       if (!d) return;
 
       const category    = d.accommodationType || 'Room';  // "Room" or "Venue"
@@ -182,15 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const checkOut    = d.check_out_raw || d.check_out;
       const pax         = d.pax || 1;
       const purpose     = d.purpose || '';
-
-      // Guard required fields: if idx or userId is missing the URL would
-      // contain the literal string "undefined", causing a server 404 or
-      // Postgres bigint cast error on the edit page.
-      if (idx == null || idx === '' || userId == null || userId === '') {
-        console.error('Edit link: missing idx or userId in modal data', d);
-        alert('Unable to open edit page — reservation data is incomplete. Please refresh and try again.');
-        return;
-      }
 
       // Only append reservation_id when it is a real value — null/undefined
       // would be encoded as the string "null" which breaks Postgres bigint casting.
@@ -269,32 +255,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (resIdField) resIdField.value = data.id;
       if (resTypeField) resTypeField.value = data.res_type;
 
-      console.log('modalResId =', resIdField?.value);
-      console.log('modalResType =', resTypeField?.value);
-      console.log('full data =', data);
 
-      const checkIn = new Date(data.check_in);
-      const checkOut = new Date(data.check_out);
-
-      // milliseconds → days
-      const diffDays = Math.ceil((checkOut - checkIn) / (1000 * 60 * 60 * 24));
-
-      console.log(diffDays);
-
-      console.log(checkIn + "check in");
-
-      console.log(checkOut + "check Out");
+      // Use the server-computed nights/days value (pre-calculated in PHP $expandInfo)
+      // rather than re-deriving from human-readable date strings which are locale-dependent.
       const modalNightsEl = document.getElementById('modalNights');
       mode = resTypeField.value;
       if (resTypeField?.value === "room") {
-          currentNights = diffDays || 1;
+          currentNights = data.nights || 1;
           currentDays = 1;
-          console.log('nights =', data.nights);
           if (modalNightsEl) modalNightsEl.textContent = currentNights;
       } else if (resTypeField?.value === "venue") {
-          currentDays = (diffDays + 1) || 1;
+          currentDays = data.nights || 1;
           currentNights = 1;
-          console.log("Current Days:" + currentDays);
           if (modalNightsEl) modalNightsEl.textContent = currentDays;
       }
 
@@ -425,8 +397,6 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       // ─────────────────────────────────────────────────────────────────────
 
-      console.log(data);
-
       let fullName = data.name || 'Unknown';
       let nameParts = fullName.trim().split(' ');
 
@@ -458,6 +428,17 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('affiliation_r').textContent = data.type || '';
       const purposeEl = document.getElementById('purpose_r');
       if (purposeEl) purposeEl.textContent = data.purpose || '';
+
+      const notesTextarea = document.getElementById('notesInput');
+      const notesText = data.notes || '';
+      if (notesTextarea) {
+        notesTextarea.value = notesText;
+        // Only editable when employee is in modification mode (checked-in reservations)
+        const isModifiable = (data.status === 'checked-in');
+        notesTextarea.readOnly = !isModifiable;
+        notesTextarea.style.background = isModifiable ? '#fff' : '#f9fafb';
+        notesTextarea.placeholder = isModifiable ? 'Special requests, requirements, or reminders…' : 'No notes.';
+      }
 
 
       const basePrice = data.price || data.total_amount || 0;
@@ -544,7 +525,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // This builds: /employee/reservations/5/status?type=Room
       form.action = `/employee/reservations/${resId}/status?type=${resType}`;
 
-      console.log("Submitting to:", form.action); // Debugging line
       window.showEmailToast && window.showEmailToast('sending');
       form.submit();
     } else {
@@ -704,9 +684,9 @@ function renderFoodCards(foods, foodSets, pax) {
   container.innerHTML = '';
   pax = Number(pax) || 1;
 
-  const MEAL_ORDER  = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'snacks'];
-  const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', snacks: 'Snack' };
-  const MEAL_ICONS  = { breakfast: '🌅', am_snack: '🍪', lunch: '☀️', pm_snack: '🍃', dinner: '🌙', snacks: '🍪' };
+  const MEAL_ORDER  = ['breakfast', 'am_snack', 'lunch', 'pm_snack', 'dinner', 'snacks', 'any'];
+  const MEAL_LABELS = { breakfast: 'Breakfast', am_snack: 'AM Snack', lunch: 'Lunch', pm_snack: 'PM Snack', dinner: 'Dinner', snacks: 'Snack', any: 'Packed Meals' };
+  const MEAL_ICONS  = { breakfast: '🌅', am_snack: '🍪', lunch: '☀️', pm_snack: '🍃', dinner: '🌙', snacks: '🍪', any: '🍱' };
 
   function peso(amount) {
     return '₱' + Number(amount).toLocaleString('en-PH', { minimumFractionDigits: 2 });
@@ -747,8 +727,10 @@ function renderFoodCards(foods, foodSets, pax) {
     });
 
     const allMeals   = new Set([...Object.keys(indivByMeal), ...Object.keys(setsByMeal)]);
+    // gen_* keys are rice/drink customisations already embedded inside each
+    // set's custom_items — rendering them as separate sections duplicates that data.
     const sortedMeals = MEAL_ORDER.filter(m => allMeals.has(m))
-                                  .concat([...allMeals].filter(m => !MEAL_ORDER.includes(m)));
+                                  .concat([...allMeals].filter(m => !MEAL_ORDER.includes(m) && !m.startsWith('gen_')));
 
     let dateSubtotal = 0;
     let html = `<div class="em-food-date-group">`;
@@ -817,13 +799,12 @@ function renderFoodCards(foods, foodSets, pax) {
         });
 
       } else {
-        // BUFFET DISPLAY!!!!
         indivItems.forEach(food => {
           const price   = Number(food.Food_Price || 0);
           const catKey  = (food.Food_Category || '').toLowerCase().trim();
           mealSubtotal += price * pax;
           html += `
-            <div class="em-food-item" style="display:flex justify-content:space-between;">
+            <div class="em-food-item" style="display:flex; justify-content:space-between;">
               <span class="em-food-cat" data-cat="${escAttr(catKey)}">${escHtml(capLabel(food.Food_Category || ''))}</span>
               <span class="em-food-name" style="display:flex; justify-content:end;">${escHtml(food.Food_Name)}</span>
             </div>`;
@@ -834,7 +815,6 @@ function renderFoodCards(foods, foodSets, pax) {
           const baseP = Number(s.set_price || 0);
           mealSubtotal += Number(s.total_price || 0);
 
-          // Set header row
           html += `
             <div class="em-food-item em-food-item--set-header">
               <span class="em-food-cat" data-cat="set">Set</span>
@@ -842,8 +822,6 @@ function renderFoodCards(foods, foodSets, pax) {
               <span class="em-food-price"><span class="em-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${pax}pax</span></span>
             </div>`;
 
-
-          // PACKED MEALS!!
           // Base foods included in the set definition (viands, sides, etc.)
           (s.set_foods || []).forEach(sf => {
             const sfCat = (sf.category || '').toLowerCase().trim();
@@ -854,7 +832,7 @@ function renderFoodCards(foods, foodSets, pax) {
                 <span class="em-food-price"></span>
               </div>`;
           });
-          // Customised items (Rice, Drink, Dessert, Fruit) chosen by the client
+          // Customised items chosen by the client
           (s.custom_items || []).forEach(ci => {
             const ciCat = (ci.category || '').toLowerCase().trim();
             html += `
@@ -1055,21 +1033,6 @@ window.saveModificationsAndSubmit = function (e) {
   // Ensure the #discount hidden input holds the latest computed value before submit
   computeDiscount();
 
-  console.log(
-    'Descriptions:',
-    [...document.querySelectorAll('input[name="additional_fees_desc[]"]')].map(i => i.value)
-  );
-  console.log(
-    'Amounts:',
-    [...document.querySelectorAll('input[name="additional_fees[]"]')].map(i => i.value)
-  );
-  console.log(
-    'Qtys:',
-    [...document.querySelectorAll('input[name="additional_fees_qty[]"]')].map(i => i.value)
-  );
-  console.log('reservation_id:', document.getElementById('modalResId')?.value);
-  console.log('res_type:', document.getElementById('modalResType')?.value);
-  console.log('discount:', document.getElementById('discount')?.value);
 
   const modificationForm = document.getElementById('modificationForm');
   if (modificationForm) {

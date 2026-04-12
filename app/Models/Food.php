@@ -19,4 +19,8 @@ class Food extends Model
         'Food_Price',
         'Food_Status',
     ];
+
+    protected $casts = [
+        'Food_Price' => 'decimal:2',
+    ];
 }

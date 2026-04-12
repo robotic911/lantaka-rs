@@ -127,7 +127,6 @@ body {
     border-right: 1px solid #f3f4f6;
     border-bottom: 1px solid #f3f4f6;
     background: #ffffff;
-    height: 14mm;
 }
 
 .date-cell.wknd { background: #f9fafb; }
@@ -163,8 +162,8 @@ body {
 .lane-empty {
     height: 6mm !important;
     vertical-align: middle;
-    border-right: 1px solid #f3f4f6;
-    border-bottom: 1px solid #f3f4f6;
+    /* border-right: 1px solid #f3f4f6;
+    border-bottom: 1px solid #f3f4f6; */
     background: transparent;
 }
 
@@ -177,9 +176,12 @@ body {
 
 /* ── Reservation bar — mirrors the live calendar chip style ─ */
 .bar-div {
+    margin: 1px;
     text-transform: uppercase;
     font-family: 'Inter', 'Segoe UI', sans-serif;
-    display: block;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     height: 5.5mm;
     line-height: 5.5mm;
     padding: 0 4pt;
@@ -410,8 +412,9 @@ body {
                             $bar  = $cell['bar'];
                             $sc   = $month['statusColors'][$bar['status']]
                                     ?? $month['statusColors']['confirmed'];
+
                             /* ~24 chars per column span — more generous for longer labels */
-                            $maxC = max(16, $bar['col_span'] * 24);
+                            $maxC = max(40, $bar['col_span'] * 24);
                             $lbl  = mb_strlen($bar['label']) > $maxC
                                     ? mb_strimwidth($bar['label'], 0, $maxC, '...')
                                     : $bar['label'];
@@ -421,6 +424,9 @@ body {
                         <td colspan="{{ $cell['span'] }}" class="lane-bar-td">
                             <div class="bar-div {{ $cls }}"
                                  style="background: {{ $sc['bg'] }};
+                                        display:flex;
+                                        align-items: center;
+                                        font-size: 6px;
                                         border-color: {{ $sc['border'] }};
                                         border-left-color: {{ $sc['solid'] }};
                                         color: {{ $sc['fg'] }};">

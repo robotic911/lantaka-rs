@@ -780,7 +780,7 @@ tr.row-change-requested:hover {
   height: 100%;
   padding: 5px;
   margin-right: 5px;
-  background-color: rgb(231, 231, 231);
+  background-color: rgb(244, 244, 244);
 }
 
 #discountSection {
@@ -834,12 +834,18 @@ tr.row-change-requested:hover {
   background: #f3f4f6;
 }
 .form-group-mini{
- width: 100%;
- height: 100%;
- justify-content: start;
- display: flex;
- flex-direction: column;
+  width: 100%;
+  height: 100%;
+  justify-content: start;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 5px;
+  margin-right: 5px;
+  border-radius: 5px;
+  background-color: rgb(244, 244, 244);
 }
+
 
 .form-group-mini.none{
   display:none;

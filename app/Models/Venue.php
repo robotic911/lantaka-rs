@@ -15,13 +15,18 @@ class Venue extends Model
 
     protected $fillable = [
         'user_id',
-        'Venue_ID',
-        'Venue_Name',           // from 'name', // Remember: Venues have 'name', Rooms have 'room_number/type'
-        'Venue_Capacity',       // from 'capacity',
-        'Venue_Internal_Price', // from 'price',
-        'Venue_External_Price', // from 'external_price',
-        'Venue_Status',         // from 'status',
-        'Venue_Description',    // from'description',
-        'Venue_Image',          // from'image'
+        // Venue_ID intentionally excluded — primary key must not be mass-assignable
+        'Venue_Name',           // from 'name'
+        'Venue_Capacity',       // from 'capacity'
+        'Venue_Internal_Price', // from 'price'
+        'Venue_External_Price', // from 'external_price'
+        'Venue_Status',         // from 'status'
+        'Venue_Description',    // from 'description'
+        'Venue_Image',          // from 'image'
+    ];
+
+    protected $casts = [
+        'Venue_Internal_Price' => 'decimal:2',
+        'Venue_External_Price' => 'decimal:2',
     ];
 }

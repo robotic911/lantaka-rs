@@ -38,7 +38,7 @@
 
       <p class="profile-name">{{ $user->Account_Name }}</p>
       <span class="profile-username">{{ "@". $user->Account_Username }}</span>
-      <span class="profile-status-badge {{ $statusClass }}">{{ ucfirst($statusClass) }}</span>
+      <span class="profile-status-badge {{ $statusClass }}">{{ $statusClass === 'deactivated' ? 'Deactivated' : ucfirst($statusClass) }}</span>
 
       <hr class="profile-divider">
 

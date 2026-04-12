@@ -116,7 +116,9 @@
                     @php $c = $changes['activeGuests'] ?? 0; @endphp
                     @if($c > 0)<span class="chg-positive">↑ {{ $c }}%</span>
                     @elseif($c < 0)<span class="chg-negative">↓ {{ abs($c) }}%</span>
-                    @else<span class="chg-neutral">—</span>@endif
+                    @else 
+                    <span class="chg-neutral">—</span>
+                    @endif
                     <span class="chg-label">vs {{ $changes['lastMonthLabel'] ?? 'last month' }}</span>
                 </div>
             </div>

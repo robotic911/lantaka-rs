@@ -46,7 +46,10 @@ class VenueReservation extends Model
     ];
 
     protected $casts = [
-        'change_request_details' => 'array',
+        'change_request_details'          => 'array',
+        'Venue_Reservation_Total_Price'    => 'decimal:2',
+        'Venue_Reservation_Discount'       => 'decimal:2',
+        'Venue_Reservation_Additional_Fees'=> 'decimal:2',
     ];
 
     public function venue() {

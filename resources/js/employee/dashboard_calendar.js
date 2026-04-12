@@ -699,6 +699,7 @@ async function fetchReservations() {
     });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
+    console.log(data);
     reservationData = data.reservations || [];
     updateStats(data.stats    || {});
     updateChanges(data.changes || window.statChanges || {});

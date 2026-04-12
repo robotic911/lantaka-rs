@@ -19,7 +19,6 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   addFoodBtn?.addEventListener('click', () => {
-    console.log('Worked')
     window.closeFoodModal();
     showAddFoodModal()
 

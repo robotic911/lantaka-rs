@@ -314,7 +314,7 @@
                                                             <div class="food-meal-row food-meal-row--snack">
                                                                     <span class="food-meal-label">{{ $snackLabel }}</span>
                                                                     <span class="food-set-name">{{ $sf->Food_Name }}</span>
-                                                                <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}
+                                                                <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}</span>
                                                             </div>
                                                         @endif
                                                     @endforeach
@@ -364,7 +364,7 @@
                                                                         <span class="food-set-extras">({{ implode(', ', $spirDetailParts) }})</span>
                                                                     @endif
                                                                 </span>
-                                                                <span class="food-set-price">₱{{ number_format($set->Food_Set_Price, 2) }}</span>
+                                                                <span class="food-set-price">₱{{ number_format($set->Food_Set_Price, 2) }}/pax</span>
                                                             </div>
                                                         @endif
                                                     @endif
@@ -384,7 +384,7 @@
                                                                     <div class="food-meal-row food-meal-row--snack">
                                                                         <span class="food-meal-label">{{ $snackLabel }}</span>
                                                                         <span class="food-set-name" style="flex:1;">{{ $sf->Food_Name }}</span>
-                                                                        <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}</span>
+                                                                        <span class="food-set-price">₱{{ number_format($sf->Food_Price, 2) }}/pax</span>
                                                                     </div>
                                                                 @endif
                                                             @endforeach
