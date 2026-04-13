@@ -105,7 +105,7 @@
                             ? (float) ($res->venue->Venue_Internal_Price ?? 0)
                             : (float) ($res->venue->Venue_External_Price ?? 0);
                         $colFoodTotal = ($res->foods ?? collect())->sum('pivot.Food_Reservation_Total_Price')
-                                      + ($res->foodSetReservations ?? collect())->sum('Food_Reservation_Total_Price');
+                                      + ($res->foodSetReservations ?? collect())->sum(fn($row) => $row->normalizedTotalPrice());
                         $colFees      = (float) ($res->Venue_Reservation_Additional_Fees ?? 0);
                         $colDisc      = (float) ($res->Venue_Reservation_Discount ?? 0);
                         $colAmount    = $colRate * $colDays + $colFoodTotal + $colFees - $colDisc;
@@ -157,23 +157,33 @@
                         $res->pax = $res->Venue_Reservation_Pax;
                     }
 
-                    // Individual food items (Food_ID-based rows via BelongsToMany)
-                    $indivFoodTotal = ($res->type === 'venue' && isset($res->foods) && $res->foods)
-                        ? $res->foods->sum('pivot.Food_Reservation_Total_Price')
-                        : 0;
-
                     // Set reservation rows (Food_Set_ID-based, one row per set selection)
                     $setRows      = ($res->type === 'venue') ? ($res->foodSetReservations ?? collect()) : collect();
-                    $setFoodTotal = $setRows->sum('Food_Reservation_Total_Price');
-                    $resFoodTotal = $indivFoodTotal + $setFoodTotal;
+                    $resPaxForFood = (int) ($res->pax ?? 1);
+                    $buffetSlots = $setRows->filter(function ($r) {
+                        return preg_match('/^buffet:(\d+)$/i', (string) ($r->Food_Set_ID ?? ''));
+                    })->mapWithKeys(function ($r) {
+                        $slotKey = ($r->Food_Reservation_Serving_Date ?? '') . '|' . strtolower((string) ($r->Food_Reservation_Meal_time ?? ''));
+                        return [$slotKey => true];
+                    })->all();
+
+                    // Individual food items (Food_ID-based rows via BelongsToMany)
+                    // Ignore rows that belong to buffet slots; buffet pricing must come
+                    // only from the buffet tier row, never from item-by-item prices.
+                    $indivFoodTotal = ($res->type === 'venue' && isset($res->foods) && $res->foods)
+                        ? $res->foods->filter(function ($food) use ($buffetSlots) {
+                            $slotKey = ($food->pivot->Food_Reservation_Serving_Date ?? '') . '|' . strtolower((string) ($food->pivot->Food_Reservation_Meal_time ?? ''));
+                            return empty($buffetSlots[$slotKey]);
+                        })->sum('pivot.Food_Reservation_Total_Price')
+                        : 0;
 
                     // Build food_set_rows for JS display.
                     // Food_Set_ID is now a TEXT field:  "setId",["riceId","drinksId","dessertId","fruitId"]
                     // We parse it here and look up all food names (set definition + customisations).
-                    $foodSetRows = $setRows->map(function ($r) {
+                    $foodSetRows = $setRows->map(function ($r) use ($resPaxForFood) {
                         $rawText   = $r->Food_Set_ID ?? '';
                         $setId     = null;
-                        $customIds = ['', '', '', ''];
+                        $customIds = ['', '', '', '', [], []];
 
                         // Buffet format: "buffet:350" or "buffet:380"
                         if (preg_match('/^buffet:(\d+)$/i', $rawText, $bm)) {
@@ -210,7 +220,7 @@
 
                         // Customisation food names: [rice, drinks, dessert, fruit]
                         $customFoodNames = [];
-                        foreach ($customIds as $fid) {
+                        foreach (array_slice($customIds, 0, 4) as $fid) {
                             if (!empty($fid) && is_numeric($fid)) {
                                 $food = \App\Models\Food::find((int) $fid);
                                 if ($food) {
@@ -219,16 +229,45 @@
                             }
                         }
 
+                        // Extra viands (index 4) and extra desserts (index 5) from Customize modal
+                        $extraViandNames = [];
+                        foreach ((array) ($customIds[4] ?? []) as $fid) {
+                            if (!empty($fid) && is_numeric($fid)) {
+                                $food = \App\Models\Food::find((int) $fid);
+                                if ($food) $extraViandNames[] = $food->Food_Name;
+                            }
+                        }
+                        $extraDessertNames = [];
+                        foreach ((array) ($customIds[5] ?? []) as $fid) {
+                            if (!empty($fid) && is_numeric($fid)) {
+                                $food = \App\Models\Food::find((int) $fid);
+                                if ($food) $extraDessertNames[] = $food->Food_Name;
+                            }
+                        }
+
+                        $storedTotal = (float) ($r->Food_Reservation_Total_Price ?? 0);
+                        $baseSetPrice = (float) ($set?->Food_Set_Price ?? 0);
+                        $normalizedPerPax = $baseSetPrice
+                            + (count($extraViandNames) * 40)
+                            + (count($extraDessertNames) * 20);
+                        $normalizedTotal = max($storedTotal, $normalizedPerPax * max(1, $resPaxForFood));
+
                         return [
-                            'serving_date' => $r->Food_Reservation_Serving_Date,
-                            'meal_time'    => $r->Food_Reservation_Meal_time,
-                            'total_price'  => (float) $r->Food_Reservation_Total_Price,
-                            'set_id'       => $setId,
-                            'set_name'     => $set ? $set->Food_Set_Name : 'Unknown Set',
-                            // food_names = set definition foods + user's rice/drinks/dessert/fruit choices
-                            'food_names'   => array_merge($setFoodNames, $customFoodNames),
+                            'serving_date'        => $r->Food_Reservation_Serving_Date,
+                            'meal_time'           => $r->Food_Reservation_Meal_time,
+                            'total_price'         => $normalizedTotal,
+                            'set_id'              => $setId,
+                            'set_name'            => $set ? $set->Food_Set_Name : 'Unknown Set',
+                            // food_names = set definition foods + user's rice/drinks/fruit choices
+                            'food_names'          => array_merge($setFoodNames, $customFoodNames),
+                            // Upgrade items shown as separate labelled lines in the modal
+                            'extra_viand_names'   => $extraViandNames,
+                            'extra_dessert_names' => $extraDessertNames,
                         ];
-                    })->toArray();
+                    });
+                    $setFoodTotal = $foodSetRows->sum('total_price');
+                    $resFoodTotal = $indivFoodTotal + $setFoodTotal;
+                    $foodSetRows = $foodSetRows->toArray();
 
                     $resTotalRaw   = $res->Room_Reservation_Total_Price ?? $res->Venue_Reservation_Total_Price ?? 0;
 

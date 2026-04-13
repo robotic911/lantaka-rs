@@ -42,7 +42,7 @@ class FoodReservation extends Model
      * Parse the Food_Set_ID text field and return an associative array:
      *   [
      *     'set_id'     => int|null,
-     *     'custom_ids' => [riceId, drinksId, dessertId, fruitId],  // strings, '' = none
+     *     'custom_ids' => [riceId, drinksId, dessertId, fruitId, [extraViandIds], [extraDessertIds]],
      *   ]
      */
     public function parseFoodSetId(): array
@@ -69,9 +69,43 @@ class FoodReservation extends Model
         return ['set_id' => null, 'custom_ids' => ['', '', '', '']];
     }
 
+    /**
+     * Normalise old set-row totals that were stored without extra viand/dessert surcharges.
+     */
+    public function normalizedTotalPrice(): float
+    {
+        $storedTotal = (float) ($this->Food_Reservation_Total_Price ?? 0);
+        $raw = (string) ($this->Food_Set_ID ?? '');
+
+        if ($raw === '' || str_starts_with($raw, 'buffet:')) {
+            return $storedTotal;
+        }
+
+        $parsed = $this->parseFoodSetId();
+        $setId = $parsed['set_id'] ?? null;
+        if (!$setId) {
+            return $storedTotal;
+        }
+
+        $pax = max(1, (int) ($this->venueReservation?->Venue_Reservation_Pax ?? 1));
+        $baseSetPrice = (float) (FoodSet::find($setId)?->Food_Set_Price ?? 0);
+        $customIds = $parsed['custom_ids'] ?? [];
+        $extraViandCount = count((array) ($customIds[4] ?? []));
+        $extraDessertCount = count((array) ($customIds[5] ?? []));
+        $computedTotal = ($baseSetPrice + ($extraViandCount * 40) + ($extraDessertCount * 20)) * $pax;
+
+        return max($storedTotal, $computedTotal);
+    }
+
     /** The individual food item (null for set rows). */
     public function food()
     {
         return $this->belongsTo(Food::class, 'Food_ID', 'Food_ID');
     }
+
+    public function venueReservation()
+    {
+        return $this->belongsTo(VenueReservation::class, 'Venue_Reservation_ID', 'Venue_Reservation_ID');
+    }
+
 }

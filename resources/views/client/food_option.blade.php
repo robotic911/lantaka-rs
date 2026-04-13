@@ -19,6 +19,7 @@
     $editMealEnabled    = session()->pull('edit_meal_enabled', []);
     $editMealMode       = session()->pull('edit_meal_mode', []);
     $editSetSelections  = session()->pull('edit_set_selections', []);
+    $editFoodUpgrades   = session()->pull('edit_food_upgrades', []);
 @endphp
 
 <script>
@@ -29,6 +30,7 @@
     window.previousMealEnabled    = @json($editMealEnabled);
     window.previousMealMode       = @json($editMealMode);
     window.previousSetSelections  = @json($editSetSelections);
+    window.previousFoodUpgrades   = @json($editFoodUpgrades);
     window.foodAjaxUrl     = "{{ route('foods.ajax.list') }}";
     window.foodSetsAjaxUrl = "{{ route('foods.ajax.sets') }}?purpose={{ urlencode($bookingData['purpose'] ?? '') }}";
     window.BOOKING_PAX         = {{ (int)($bookingData['pax'] ?? 1) }};
@@ -306,6 +308,10 @@
             // No-food selected check
             if (isAnyDateEnabled() && !hasFoodSelected()) {
                 modal.style.display = 'flex';
+                return;
+            }
+
+            if (typeof window.validateFoodReservationForm === 'function' && !window.validateFoodReservationForm()) {
                 return;
             }
 

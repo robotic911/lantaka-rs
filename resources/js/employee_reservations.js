@@ -255,7 +255,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (resIdField) resIdField.value = data.id;
       if (resTypeField) resTypeField.value = data.res_type;
 
-
+// TODO: FIXXXXX FOR VENUE IS USING NIGHTS NOT DAYS
       // Use the server-computed nights/days value (pre-calculated in PHP $expandInfo)
       // rather than re-deriving from human-readable date strings which are locale-dependent.
       const modalNightsEl = document.getElementById('modalNights');
@@ -265,7 +265,18 @@ document.addEventListener('DOMContentLoaded', () => {
           currentDays = 1;
           if (modalNightsEl) modalNightsEl.textContent = currentNights;
       } else if (resTypeField?.value === "venue") {
-          currentDays = data.nights || 1;
+
+        const checkIn = new Date(data.check_in_raw);
+        const checkOut = new Date(data.check_out_raw);
+
+        const diffTime = checkOut - checkIn; // milliseconds
+        const days = (diffTime / (1000 * 60 * 60 * 24)) + 1;
+
+        console.log("Days:", days);
+
+        console.log("DATA:", JSON.stringify(data, null, 2));
+        console.log("nights:", data.nights);
+          currentDays = days || 1;
           currentNights = 1;
           if (modalNightsEl) modalNightsEl.textContent = currentDays;
       }

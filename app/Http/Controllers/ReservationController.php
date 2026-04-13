@@ -105,7 +105,7 @@ class ReservationController extends Controller
             $foodSetSelection = $item['food_set_selection'] ?? [];
             $mealMode         = $item['meal_mode']          ?? [];
 
-            if ($item['type'] === 'venue' && !empty($foodSelections)) {
+            if ($item['type'] === 'venue' && (!empty($foodSelections) || !empty($item['food_upgrades']))) {
                 $allFoodIds = [];
 
                 // Recursively collect all numeric food IDs (handles scalar fields like
@@ -148,6 +148,17 @@ class ReservationController extends Controller
                     }
                 }
 
+                // Also collect food IDs from food_upgrades (extra viands, desserts, switches)
+                // so they appear in $selectedFoods for display in the checkout view.
+                $foodUpgradesForFetch = $item['food_upgrades'] ?? [];
+                foreach ($foodUpgradesForFetch as $upgDate => $setUpgrades) {
+                    if (!is_array($setUpgrades)) continue;
+                    foreach ($setUpgrades as $setId => $upgrades) {
+                        if (!is_array($upgrades)) continue;
+                        $allFoodIds = array_merge($allFoodIds, $collectFoodIds($upgrades));
+                    }
+                }
+
                 $allFoodIds = array_values(array_unique($allFoodIds));
 
                 if (!empty($allFoodIds)) {
@@ -172,8 +183,14 @@ class ReservationController extends Controller
                             }
 
                             // Buffet meal: flat-rate per pax (350 or 380), not individual food prices
+                            // Tier is derived from how many meatviandN keys are filled:
+                            //   4 filled meat viands → ₱380/pax, otherwise → ₱350/pax
                             if (($mealMode[$date][$mealType] ?? '') === 'buffet') {
-                                $tier = (int)($categories['_tier'] ?? 350);
+                                $meatViandCount = 0;
+                                for ($mv = 1; $mv <= 4; $mv++) {
+                                    if (!empty($categories["meatviand{$mv}"])) $meatViandCount++;
+                                }
+                                $tier = ($meatViandCount >= 4) ? 380 : 350;
                                 $foodTotal += $tier * ($item['pax'] ?? 1);
                                 continue;
                             }
@@ -225,6 +242,32 @@ class ReservationController extends Controller
                 }
             }
 
+            // Add surcharges from food_upgrades (extra viands +₱40 each, desserts +₱20 each,
+            // switched viands +₱20 each) for general packed-meal set mode.
+            $foodUpgrades = $item['food_upgrades'] ?? [];
+            if ($item['type'] === 'venue' && !empty($foodUpgrades)) {
+                foreach ($foodUpgrades as $upgDate => $setUpgrades) {
+                    if (($foodEnabled[$upgDate] ?? '1') != '1') continue;
+                    if (!is_array($setUpgrades)) continue;
+                    foreach ($setUpgrades as $setId => $upgrades) {
+                        if (!is_array($upgrades)) continue;
+                        $upgPax = (int)($item['pax'] ?? 1);
+                        // Extra viands: +₱40 each × pax
+                        $extraViands = array_filter((array)($upgrades['extra_viands'] ?? []));
+                        $foodTotal += count($extraViands) * 40 * $upgPax;
+                        // Desserts: +₱20 each × pax
+                        $desserts = array_filter((array)($upgrades['desserts'] ?? []));
+                        $foodTotal += count($desserts) * 20 * $upgPax;
+                        // Switched viands: +₱20 each (only when truly changed)
+                        foreach ((array)($upgrades['switch'] ?? []) as $origId => $newId) {
+                            if (!empty($newId) && (string)$newId !== (string)$origId) {
+                                $foodTotal += 20 * $upgPax;
+                            }
+                        }
+                    }
+                }
+            }
+
             $itemTotal = $accommodationTotal + $foodTotal;
             $grandTotal += $itemTotal;
 
@@ -250,6 +293,7 @@ class ReservationController extends Controller
                 'meal_enabled'       => $mealEnabled,
                 'food_selections'    => $foodSelections,
                 'food_set_selection' => $foodSetSelection,
+                'food_upgrades'      => $foodUpgrades,
                 'meal_mode'          => $mealMode,
 
                 // selected food/set models
@@ -303,6 +347,7 @@ class ReservationController extends Controller
                 'edit_meal_enabled'       => $item['meal_enabled']       ?? [],
                 'edit_set_selections'     => $item['food_set_selection'] ?? [],
                 'edit_meal_mode'          => $item['meal_mode']          ?? [],
+                'edit_food_upgrades'      => $item['food_upgrades']      ?? [],
             ]);
 
             // Redirect back to the venue detail page with dates pre-filled so the user
@@ -455,6 +500,7 @@ class ReservationController extends Controller
                             foreach ($foodSelections as $date => $meals) {
                                 foreach ($meals as $mealType => $mealData) {
                                     if (empty($mealData)) continue;
+                                    if (($mealEnabled[$date][$mealType] ?? '1') != '1') continue;
 
                                     // Skip set-meal customisation slots
                                     if (!empty($skipMealKeys[$date][$mealType])) continue;
@@ -462,8 +508,16 @@ class ReservationController extends Controller
                                     $foodIds = $extractFoodIds($mealData);
 
                                     // ── Buffet meal: flat-rate pricing ────────────────────────
+                                    // Tier determined by counting filled meatviandN slots:
+                                    //   4 meat viands → ₱380/pax, 3 → ₱350/pax
                                     if (($mealModeMap[$date][$mealType] ?? '') === 'buffet') {
-                                        $tier = (int)(is_array($mealData) ? ($mealData['_tier'] ?? 350) : 350);
+                                        $meatViandCount = 0;
+                                        if (is_array($mealData)) {
+                                            for ($mv = 1; $mv <= 4; $mv++) {
+                                                if (!empty($mealData["meatviand{$mv}"])) $meatViandCount++;
+                                            }
+                                        }
+                                        $tier = ($meatViandCount >= 4) ? 380 : 350;
                                         $pax  = (int)($item['pax'] ?? 1);
 
                                         // Individual food items stored at ₱0 (display only)
@@ -574,9 +628,23 @@ class ReservationController extends Controller
                                             $fruitId   = (string) ($mealSel['fruits']     ?? '');
                                         }
 
+                                        // ── Surcharge from food_upgrades (extra viands +₱40, desserts +₱20, switched viands +₱20) ──
+                                        $setUpgradesStore = ($item['food_upgrades'][$date][$setId] ?? []);
+                                        $extraViandsStore = array_values(array_filter((array)($setUpgradesStore['extra_viands'] ?? [])));
+                                        $dessertsStore    = array_values(array_filter((array)($setUpgradesStore['desserts']     ?? [])));
+                                        $surchargeStore   = count($extraViandsStore) * 40 + count($dessertsStore) * 20;
+
                                         // ── Build text format ──────────────────────────────
-                                        $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                                        // Format: "setId",["riceId","drinkId","dessertId","fruitId",[extraViandIds...],[dessertIds...]]
+                                        // Indices 4 and 5 carry the upgrade arrays so the My-Reservations modal can display them.
+                                        // If Customize-modal desserts are stored in index 5, clear index 2 to avoid a duplicate.
+                                        $dessertIdStored = !empty($dessertsStore) ? '' : $dessertId;
+                                        $customIds     = [$riceId, $drinksId, $dessertIdStored, $fruitId, $extraViandsStore, $dessertsStore];
                                         $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
+                                        foreach ((array)($setUpgradesStore['switch'] ?? []) as $origId => $newId) {
+                                            if (!empty($newId) && (string)$newId !== (string)$origId) $surchargeStore += 20;
+                                        }
+                                        $setPax = (int)($item['pax'] ?? 1);
 
                                         // ── Persist ───────────────────────────────────────
                                         FoodReservation::create([
@@ -586,7 +654,7 @@ class ReservationController extends Controller
                                             'Client_ID'                     => Auth::id(),
                                             'Food_Reservation_Serving_Date' => $date,
                                             'Food_Reservation_Meal_time'    => $mealKey,
-                                            'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * (int) ($item['pax'] ?? 1),
+                                            'Food_Reservation_Total_Price'  => ((float) ($set->Food_Set_Price ?? 0) + $surchargeStore) * $setPax,
                                         ]);
                                     }
                                 }
@@ -2184,7 +2252,17 @@ class ReservationController extends Controller
             $foodSelections   = $request->input('food_selections',    []);
             $foodSetSelection = $request->input('food_set_selection', []);
             $foodEnabledMap   = $request->input('food_enabled',       []);
+            $mealEnabledMap   = $request->input('meal_enabled',       []);
+            $mealModeMap      = $request->input('meal_mode',          []);
+            $foodUpgrades     = $request->input('food_upgrades',      []);
             $pax              = (int) $request->pax;
+
+            if ($request->filled('venue_reservation_id')) {
+                FoodReservation::where(
+                    'Venue_Reservation_ID',
+                    $reservation->Venue_Reservation_ID
+                )->delete();
+            }
 
             // ── STEP A: build skip-list of meal keys that belong to set selections ──
             // Set customisations are embedded directly in Food_Set_ID text, so we
@@ -2217,6 +2295,7 @@ class ReservationController extends Controller
                     if (is_array($data)) {
                         foreach ($data as $k => $v) {
                             if ($k === 'drink_choice') continue;
+                            if ($k === '_tier') continue;
                             $ids = array_merge($ids, $extractFoodIds($v));
                         }
                     } elseif (is_numeric($data) && !empty($data)) {
@@ -2228,7 +2307,45 @@ class ReservationController extends Controller
                 foreach ($foodSelections as $date => $meals) {
                     foreach ($meals as $mealType => $mealData) {
                         if (empty($mealData)) continue;
+                        if (($mealEnabledMap[$date][$mealType] ?? '1') != '1') continue;
                         if (!empty($skipMealKeys[$date][$mealType])) continue;
+
+                        if (($mealModeMap[$date][$mealType] ?? '') === 'buffet') {
+                            // Count filled meat viand slots to determine tier (not _tier hidden input)
+                            $meatViandCount = 0;
+                            if (is_array($mealData)) {
+                                for ($mv = 1; $mv <= 4; $mv++) {
+                                    if (!empty($mealData["meatviand{$mv}"])) $meatViandCount++;
+                                }
+                            }
+                            $tier    = ($meatViandCount >= 4) ? 380 : 350;
+                            $foodIds = $extractFoodIds($mealData);
+
+                            foreach ($foodIds as $foodId) {
+                                $food = Food::find($foodId);
+                                if ($food) {
+                                    FoodReservation::create([
+                                        'Food_ID'                       => $foodId,
+                                        'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                        'Client_ID'                     => $reservation->Client_ID,
+                                        'Food_Reservation_Serving_Date' => $date,
+                                        'Food_Reservation_Meal_time'    => $mealType,
+                                        'Food_Reservation_Total_Price'  => 0,
+                                    ]);
+                                }
+                            }
+
+                            FoodReservation::create([
+                                'Food_ID'                       => null,
+                                'Food_Set_ID'                   => "buffet:{$tier}",
+                                'Venue_Reservation_ID'          => $reservation->Venue_Reservation_ID,
+                                'Client_ID'                     => $reservation->Client_ID,
+                                'Food_Reservation_Serving_Date' => $date,
+                                'Food_Reservation_Meal_time'    => $mealType,
+                                'Food_Reservation_Total_Price'  => $tier * $pax,
+                            ]);
+                            continue;
+                        }
 
                         $foodIds = $extractFoodIds($mealData);
                         foreach ($foodIds as $foodId) {
@@ -2298,7 +2415,20 @@ class ReservationController extends Controller
                                 $fruitId   = (string) ($mealSel['fruits']  ?? '');
                             }
 
-                            $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                            // ── Upgrades (extra viands / extra desserts) ────────────────
+                            $setUpgradesStore  = ($foodUpgrades[$date][$setId] ?? []);
+                            $extraViandsStore  = array_values(array_filter((array)($setUpgradesStore['extra_viands'] ?? [])));
+                            $dessertsStore     = array_values(array_filter((array)($setUpgradesStore['desserts']     ?? [])));
+                            $surchargeStore    = count($extraViandsStore) * 40 + count($dessertsStore) * 20;
+                            foreach ((array)($setUpgradesStore['switch'] ?? []) as $origId => $newId) {
+                                if (!empty($newId) && (string)$newId !== (string)$origId) {
+                                    $surchargeStore += 20;
+                                }
+                            }
+                            // If desserts are listed in upgrades, clear the base dessert slot
+                            $dessertIdStored = !empty($dessertsStore) ? '' : $dessertId;
+
+                            $customIds     = [$riceId, $drinksId, $dessertIdStored, $fruitId, $extraViandsStore, $dessertsStore];
                             $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
 
                             FoodReservation::create([
@@ -2308,7 +2438,7 @@ class ReservationController extends Controller
                                 'Client_ID'                     => $reservation->Client_ID,
                                 'Food_Reservation_Serving_Date' => $date,
                                 'Food_Reservation_Meal_time'    => $mealKey,
-                                'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * $pax,
+                                'Food_Reservation_Total_Price'  => ((float)($set->Food_Set_Price ?? 0) + $surchargeStore) * $pax,
                             ]);
                         }
                     }
@@ -2444,6 +2574,7 @@ class ReservationController extends Controller
             $previousMealEnabled    = [];
             $previousMealMode       = [];
             $previousSetSelections  = [];
+            $previousFoodUpgrades   = [];
 
             $isSpiritual = in_array(
                 strtolower($request->purpose ?? ''),
@@ -2540,14 +2671,18 @@ class ReservationController extends Controller
                     $previousFoodSelections[$date][$genKey]['rice']    = (string) ($customIds[0] ?? '');
                     $previousFoodSelections[$date][$genKey]['drink']   = (string) ($customIds[1] ?? '');
                     $previousFoodSelections[$date][$genKey]['dessert'] = (string) ($customIds[2] ?? '');
+
+                    $extraViands = array_values(array_filter((array) ($customIds[4] ?? [])));
+                    $extraDesserts = array_values(array_filter((array) ($customIds[5] ?? [])));
+
+                    if (!empty($extraViands)) {
+                        $previousFoodUpgrades[$date][$setId]['extra_viands'] = array_map('strval', $extraViands);
+                    }
+                    if (!empty($extraDesserts)) {
+                        $previousFoodUpgrades[$date][$setId]['desserts'] = array_map('strval', $extraDesserts);
+                    }
                 }
             }
-
-            // Clear old food records so the employee can re-select on the food page
-            \App\Models\FoodReservation::where(
-                'Venue_Reservation_ID',
-                $reservation->Venue_Reservation_ID
-            )->delete();
 
             // Store booking in session (with venue_reservation_id + prefill data)
             $allBookings  = session('employee_pending_bookings', []);
@@ -2560,6 +2695,7 @@ class ReservationController extends Controller
                 'prefill_meal_enabled'    => $previousMealEnabled,
                 'prefill_meal_mode'       => $previousMealMode,
                 'prefill_set_selections'  => $previousSetSelections,
+                'prefill_food_upgrades'   => $previousFoodUpgrades,
             ]);
             session(['employee_pending_bookings' => $allBookings]);
 
@@ -3523,7 +3659,7 @@ class ReservationController extends Controller
 
         // ── Server-side time cutoff: reject if current time is 4:00 PM or later ──
         $now = Carbon::now();
-        if ($now->hour >= 16) {
+        if ($now->hour >= 20) {
             return response()->json([
                 'success' => false,
                 'message' => 'Cancellation requests can no longer be submitted for today. Our cut-off time is 4:00 PM. Please try again tomorrow.',
@@ -3796,7 +3932,8 @@ class ReservationController extends Controller
 
         $hasFood = $type === 'venue' && (
             !empty($request->input('food_selections',    []))  ||
-            !empty($request->input('food_set_selection', []))
+            !empty($request->input('food_set_selection', [])) ||
+            !empty($request->input('food_upgrades',      []))
         );
 
         if ($type === 'room') {
@@ -3828,18 +3965,21 @@ class ReservationController extends Controller
             $details['food_enabled']       = $request->input('food_enabled',       []);
             $details['meal_enabled']       = $request->input('meal_enabled',       []);
             $details['meal_mode']          = $request->input('meal_mode',          []);
+            $details['food_upgrades']      = $request->input('food_upgrades',      []);
         }
 
         // Capture food inputs for use inside the closure
         $foodSelections   = $request->input('food_selections',    []);
         $foodSetSelection = $request->input('food_set_selection', []);
         $foodEnabledMap   = $request->input('food_enabled',       []);
+        $mealEnabledMap   = $request->input('meal_enabled',       []);
         $mealModeMap      = $request->input('meal_mode',          []);
+        $foodUpgrades     = $request->input('food_upgrades',      []);
 
         return DB::transaction(function () use (
             $reservation, $type, $reqType, $details,
             $newCheckIn, $newCheckOut,
-            $foodSelections, $foodSetSelection, $foodEnabledMap, $mealModeMap
+            $foodSelections, $foodSetSelection, $foodEnabledMap, $mealEnabledMap, $mealModeMap, $foodUpgrades
         ) {
             // Re-check inside transaction to prevent races
             $reservation->refresh();
@@ -3906,11 +4046,19 @@ class ReservationController extends Controller
                     foreach ($foodSelections as $date => $meals) {
                         foreach ($meals as $mealType => $mealData) {
                             if (empty($mealData)) continue;
+                            if (($mealEnabledMap[$date][$mealType] ?? '1') != '1') continue;
                             if (!empty($skipMealKeys[$date][$mealType])) continue;
 
                             // ── Buffet branch ──────────────────────────────────
+                            // Tier derived from filled meatviandN count, not _tier input
                             if (($mealModeMap[$date][$mealType] ?? '') === 'buffet') {
-                                $tier    = (int)(is_array($mealData) ? ($mealData['_tier'] ?? 350) : 350);
+                                $meatViandCount = 0;
+                                if (is_array($mealData)) {
+                                    for ($mv = 1; $mv <= 4; $mv++) {
+                                        if (!empty($mealData["meatviand{$mv}"])) $meatViandCount++;
+                                    }
+                                }
+                                $tier    = ($meatViandCount >= 4) ? 380 : 350;
                                 $foodIds = $extractFoodIds($mealData);
                                 foreach ($foodIds as $foodId) {
                                     $food = Food::find($foodId);
@@ -4001,7 +4149,18 @@ class ReservationController extends Controller
                                     $fruitId   = (string) ($mealSel['fruits']  ?? '');
                                 }
 
-                                $customIds     = [$riceId, $drinksId, $dessertId, $fruitId];
+                                $setUpgradesStore  = ($foodUpgrades[$date][$setId] ?? []);
+                                $extraViandsStore  = array_values(array_filter((array)($setUpgradesStore['extra_viands'] ?? [])));
+                                $dessertsStore     = array_values(array_filter((array)($setUpgradesStore['desserts']     ?? [])));
+                                $surchargeStore    = count($extraViandsStore) * 40 + count($dessertsStore) * 20;
+                                foreach ((array)($setUpgradesStore['switch'] ?? []) as $origId => $newId) {
+                                    if (!empty($newId) && (string)$newId !== (string)$origId) {
+                                        $surchargeStore += 20;
+                                    }
+                                }
+                                $dessertIdStored = !empty($dessertsStore) ? '' : $dessertId;
+
+                                $customIds     = [$riceId, $drinksId, $dessertIdStored, $fruitId, $extraViandsStore, $dessertsStore];
                                 $foodSetIdText = '"' . $setId . '",' . json_encode($customIds);
 
                                 FoodReservation::create([
@@ -4011,7 +4170,7 @@ class ReservationController extends Controller
                                     'Client_ID'                     => $reservation->Client_ID,
                                     'Food_Reservation_Serving_Date' => $date,
                                     'Food_Reservation_Meal_time'    => $mealKey,
-                                    'Food_Reservation_Total_Price'  => (float) ($set->Food_Set_Price ?? 0) * $pax,
+                                    'Food_Reservation_Total_Price'  => ((float) ($set->Food_Set_Price ?? 0) + $surchargeStore) * $pax,
                                 ]);
                             }
                         }
@@ -4097,6 +4256,7 @@ class ReservationController extends Controller
         $mealEnabled      = [];
         $foodSetSelection = [];
         $mealMode         = [];
+        $foodUpgrades     = [];
 
         // ── SET-based food reservations ─────────────────────────────────────────
         foreach ($reservation->foodSetReservations()->get() as $row) {
@@ -4105,7 +4265,7 @@ class ReservationController extends Controller
 
             // ── Buffet flat-rate record ──────────────────────────────────────────
             if (preg_match('/^buffet:(\d+)$/', $row->Food_Set_ID ?? '', $bm)) {
-                $tier = (int) $bm[1];
+                $tier = ((int) $bm[1] === 380) ? 380 : 350;
                 $foodEnabled[$date]           = '1';
                 $mealEnabled[$date][$mealKey] = '1';
                 $mealMode[$date][$mealKey]    = 'buffet';
@@ -4157,6 +4317,16 @@ class ReservationController extends Controller
                 $foodSelections[$date][$genKey]['rice']    = $riceId;
                 $foodSelections[$date][$genKey]['dessert'] = $dessertId;
                 $foodSelections[$date][$genKey]['drink']   = $drinksId;
+
+                $extraViands = array_values(array_filter((array) ($customIds[4] ?? [])));
+                $extraDesserts = array_values(array_filter((array) ($customIds[5] ?? [])));
+
+                if (!empty($extraViands)) {
+                    $foodUpgrades[$date][$setId]['extra_viands'] = array_map('strval', $extraViands);
+                }
+                if (!empty($extraDesserts)) {
+                    $foodUpgrades[$date][$setId]['desserts'] = array_map('strval', $extraDesserts);
+                }
             }
         }
 
@@ -4228,6 +4398,7 @@ class ReservationController extends Controller
             'edit_meal_enabled'    => $mealEnabled,
             'edit_set_selections'  => $foodSetSelection,
             'edit_meal_mode'       => $mealMode,
+            'edit_food_upgrades'   => $foodUpgrades,
         ]);
     }
 

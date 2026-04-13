@@ -15,6 +15,7 @@
     window.previousMealEnabled    = @json($bookingData['prefill_meal_enabled']    ?? []);
     window.previousMealMode       = @json($bookingData['prefill_meal_mode']       ?? []);
     window.previousSetSelections  = @json($bookingData['prefill_set_selections']  ?? []);
+    window.previousFoodUpgrades   = @json($bookingData['prefill_food_upgrades']   ?? []);
     window.foodAjaxUrl     = "{{ route('foods.ajax.list') }}";
     window.foodSetsAjaxUrl = "{{ route('foods.ajax.sets') }}?purpose={{ urlencode($bookingData['purpose'] ?? '') }}";
 </script>

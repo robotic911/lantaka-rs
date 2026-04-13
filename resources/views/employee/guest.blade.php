@@ -180,13 +180,13 @@
                             }
                             $extraFees = $res->Venue_Reservation_Additional_Fees ?? 0;
                             $discount = $res->Venue_Reservation_Discount ?? 0;
-                            $foodTotal = ($res->foods ? $res->foods->sum('pivot.Food_Reservation_Total_Price') : 0)
-                                       + ($res->foodSetReservations ? $res->foodSetReservations->sum('Food_Reservation_Total_Price') : 0);
+                            $foodTotal = $res->foods ? $res->foods->sum('pivot.Food_Reservation_Total_Price') : 0;
 
                             // Pre-process set reservations into card-display data (mirrors reservations.blade.php)
                             $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
-                            $foodSets = $res->foodSetReservations ? $res->foodSetReservations->map(function($r) use ($_customPosLabels) {
+                            $foodSets = $res->foodSetReservations ? $res->foodSetReservations->map(function($r) use ($_customPosLabels, $res) {
                                 $raw = $r->Food_Set_ID ?? '';
+                                $pax = max(1, (int) ($res->pax ?? $res->Venue_Reservation_Pax ?? 1));
 
                                 // ── Buffet flat-rate record ──────────────────────
                                 if (preg_match('/^buffet:(\d+)$/', $raw, $bm)) {
@@ -224,7 +224,7 @@
 
                                 $customItems = [];
                                 foreach ($customIds as $i => $cid) {
-                                    if (!empty($cid) && is_numeric($cid)) {
+                                    if ($i <= 3 && !empty($cid) && is_numeric($cid)) {
                                         $food = \App\Models\Food::find((int)$cid);
                                         if ($food) {
                                             $customItems[] = [
@@ -236,17 +236,50 @@
                                     }
                                 }
 
+                                foreach ((array) ($customIds[4] ?? []) as $extraViandId) {
+                                    if (!empty($extraViandId) && is_numeric($extraViandId)) {
+                                        $food = \App\Models\Food::find((int) $extraViandId);
+                                        if ($food) {
+                                            $customItems[] = [
+                                                'name'     => $food->Food_Name,
+                                                'category' => 'Extra Viand',
+                                            ];
+                                        }
+                                    }
+                                }
+
+                                foreach ((array) ($customIds[5] ?? []) as $extraDessertId) {
+                                    if (!empty($extraDessertId) && is_numeric($extraDessertId)) {
+                                        $food = \App\Models\Food::find((int) $extraDessertId);
+                                        if ($food) {
+                                            $customItems[] = [
+                                                'name'     => $food->Food_Name,
+                                                'category' => 'Extra Dessert',
+                                            ];
+                                        }
+                                    }
+                                }
+
+                                $baseSetPrice = (float) ($set?->Food_Set_Price ?? 0);
+                                $storedTotal = (float) ($r->Food_Reservation_Total_Price ?? 0);
+                                $extraViandCount = count((array) ($customIds[4] ?? []));
+                                $extraDessertCount = count((array) ($customIds[5] ?? []));
+                                $computedSetPrice = $baseSetPrice + ($extraViandCount * 40) + ($extraDessertCount * 20);
+                                $effectiveSetPrice = max($computedSetPrice, $pax > 0 ? ($storedTotal / $pax) : 0);
+                                $effectiveTotal = max($storedTotal, $effectiveSetPrice * $pax);
+
                                 return [
                                     'date'         => $r->Food_Reservation_Serving_Date,
                                     'meal_time'    => $r->Food_Reservation_Meal_time,
-                                    'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                    'total_price'  => $effectiveTotal,
                                     'set_name'     => $set?->Food_Set_Name ?? 'Unknown Set',
-                                    'set_price'    => (float)($set?->Food_Set_Price ?? 0),
+                                    'set_price'    => $effectiveSetPrice,
                                     'set_foods'    => $setFoods,
                                     'custom_items' => $customItems,
                                     'is_buffet'    => false,
                                 ];
                             })->toArray() : [];
+                            $foodTotal += collect($foodSets)->sum('total_price');
                         }
 
                         $userId = $res->Client_ID;

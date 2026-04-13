@@ -841,7 +841,30 @@
   margin-right: auto;
   letter-spacing: 0.2px;
 }
+.fo-date-subtotal {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 10px 28px;
+  background: var(--dark-blue);
+  color: rgba(255,255,255,0.75);
+  border-radius: 40px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  align-self: center;
+  width: fit-content;
+  margin-left: auto;
+  margin-right: auto;
+  letter-spacing: 0.2px;
+}
 .fo-spir-subtotal-amount {
+  color: var(--yellow);
+  font-size: 1rem;
+  font-weight: 800;
+}
+.fo-date-subtotal-amount {
   color: var(--yellow);
   font-size: 1rem;
   font-weight: 800;
@@ -1335,7 +1358,6 @@
 }
 .fo-indiv-meal-card--disabled {
   opacity: 0.5;
-  pointer-events: none;
 }
 .fo-indiv-meal-card--disabled .fo-indiv-card-body { pointer-events: none; }
 

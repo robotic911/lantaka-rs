@@ -527,6 +527,7 @@ class RoomVenueController extends Controller
             $data->display_name = "Room " . $data->Room_Number . " (" . $data->Room_Type . ")";
             $data->capacity     = $data->Room_Capacity;
             $data->status       = $data->Room_Status;
+            $data->internal_price = $data->Room_Internal_Price;
             $data->external_price = $data->Room_External_Price;
             $data->description  = $data->Room_Description;
             $data->image        = $data->Room_Image;
@@ -540,6 +541,7 @@ class RoomVenueController extends Controller
             $data->display_name = $data->Venue_Name;
             $data->capacity     = $data->Venue_Capacity;
             $data->status       = $data->Venue_Status;
+            $data->internal_price = $data->Venue_Internal_Price;
             $data->external_price = $data->Venue_External_Price;
             $data->description  = $data->Venue_Description;
             $data->image        = $data->Venue_Image;

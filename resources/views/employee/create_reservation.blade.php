@@ -53,7 +53,13 @@
           </div>
         </div>
 
-        <p class="price">₱ {{ number_format($data->external_price, 2) }}<span>/use</span></p>
+        <p class="price">₱ 
+        {{ $client->Account_Type === "Internal" ?
+            number_format($data->internal_price, 2):
+            number_format($data->external_price, 2)
+          }}
+        <span>/use</span></p>
+        
 
         <p class="venue-description">
           {{ $data->description ?? 'No description provided for this accommodation.' }}

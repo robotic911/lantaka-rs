@@ -434,6 +434,40 @@
   margin-top: 2px;
 }
 
+/* Upgrade line — extra viand / dessert from Customize modal */
+.crm-food-line--upgrade {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: #1d4ed8;
+  margin: 2px 0;
+  padding: 3px 8px;
+  background: #eff6ff;
+  border-left: 2px solid #3b82f6;
+  border-radius: 0 4px 4px 0;
+  line-height: 1.4;
+}
+.crm-upgrade-tag {
+  font-size: 9px;
+  font-weight: 700;
+  background: #dbeafe;
+  color: #1d4ed8;
+  padding: 1px 5px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: .4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.crm-upgrade-price {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  color: #2563eb;
+  white-space: nowrap;
+}
+
 /* ── Legacy individual food row (kept for backward compat) ── */
 .crm-food-item {
   display: flex;

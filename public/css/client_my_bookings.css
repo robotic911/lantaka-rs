@@ -1023,3 +1023,46 @@ body {
   --text-light: #6b7280;
   --border-color: #e5e7eb;
 }
+
+/* Upgrade rows (extra viands / desserts from Customize) */
+.food-meal-row--upgrade {
+  background: #f0f7ff;
+  border-left: 2px solid #3b82f6;
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: 2px 0;
+  color: #2563eb;
+}
+.food-meal-row--upgrade .food-meal-label {
+  color: #3b82f6;
+}
+.food-meal-row--upgrade .food-set-price {
+  color: #2563eb;
+}
+
+/* Summary panel: upgrade rows (extra viands / desserts) */
+.sf-meal-row--upgrade {
+  background: #eff6ff;
+  border-left: 2px solid #3b82f6;
+  border-radius: 3px;
+  padding: 2px 6px;
+  margin: 2px 0;
+}
+.sf-meal-row--upgrade .sf-meal-name {
+  color: #1d4ed8;
+}
+.sf-meal-row--upgrade .sf-meal-price {
+  color: #2563eb;
+  font-size: 10px;
+}
+.sf-upgrade-tag {
+  font-size: 9px;
+  background: #dbeafe;
+  color: #1d4ed8;
+  border-radius: 3px;
+  padding: 1px 4px;
+  margin-left: 4px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}

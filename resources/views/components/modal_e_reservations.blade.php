@@ -175,7 +175,7 @@
 
                 <div class="summary-item">
                   <p class="summary-label">Number of Pax:</p>
-                  <p class="summary-value" id="modalLastName">1</p>
+                  <p class="summary-value" id="modalPax">1</p>
                 </div>
 
                 <div class="summary-item">

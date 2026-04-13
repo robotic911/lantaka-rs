@@ -150,6 +150,21 @@ document.addEventListener('DOMContentLoaded', () => {
             ...extras,                        // attach rice/drink to every set
           ].filter(Boolean).map(escHtml).join(', ');
           inner += `<p class="crm-food-line crm-food-line--set">${escHtml(set.set_name)}${foodList ? ` (${foodList})` : ''}</p>`;
+
+          // Extra viands from Customize (+₱40 each)
+          (set.extra_viand_names || []).forEach(name => {
+            inner += `<p class="crm-food-line crm-food-line--upgrade">
+              <span class="crm-upgrade-tag">+Extra Viand</span> ${escHtml(name)}
+              <span class="crm-upgrade-price">+₱40/pax</span>
+            </p>`;
+          });
+          // Extra desserts from Customize (+₱20 each)
+          (set.extra_dessert_names || []).forEach(name => {
+            inner += `<p class="crm-food-line crm-food-line--upgrade">
+              <span class="crm-upgrade-tag">+Dessert</span> ${escHtml(name)}
+              <span class="crm-upgrade-price">+₱20/pax</span>
+            </p>`;
+          });
         });
       });
 

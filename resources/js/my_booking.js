@@ -92,6 +92,8 @@ function parseCartItem(element) {
   let mealEnabled    = {};
   let mealMode       = {};
 
+  let foodUpgrades   = {};
+
   try { foods          = JSON.parse(element.dataset.food          || '[]'); } catch {}
   try { foodSets       = JSON.parse(element.dataset.foodSets      || '[]'); } catch {}
   try { foodSelections = JSON.parse(element.dataset.foodSelections || '{}'); } catch {}
@@ -99,6 +101,7 @@ function parseCartItem(element) {
   try { foodEnabled    = JSON.parse(element.dataset.foodEnabled   || '{}'); } catch {}
   try { mealEnabled    = JSON.parse(element.dataset.mealEnabled   || '{}'); } catch {}
   try { mealMode       = JSON.parse(element.dataset.mealMode      || '{}'); } catch {}
+  try { foodUpgrades   = JSON.parse(element.dataset.foodUpgrades  || '{}'); } catch {}
 
   // Build lookup maps
   const foodMap = {};
@@ -287,7 +290,12 @@ function parseCartItem(element) {
         if (dateModeMap[mealKey] !== 'buffet') return;
         if ((mealEnabled[date]?.[mealKey] ?? '1') !== '1') return;
         const mc   = dateFoodSel[mealKey] || {};
-        const tier = Number(mc._tier || 350);
+        // Derive tier from how many meatviandN slots are filled (mirrors server logic)
+        let meatViandCount = 0;
+        for (let mv = 1; mv <= 4; mv++) {
+          if (mc[`meatviand${mv}`]) meatViandCount++;
+        }
+        const tier = meatViandCount >= 4 ? 380 : 350;
 
         // Collect the individual food items selected for this buffet meal
         const mealFoods = [];
@@ -314,6 +322,8 @@ function parseCartItem(element) {
       /* ── General set mode ── */
       group.type = 'general';
 
+      const dateUpgrades = foodUpgrades[date] || {};
+
       const shownSetIds = new Set();
       Object.values(dateSets).forEach(setIdOrIds => {
         const ids = Array.isArray(setIdOrIds) ? setIdOrIds : [setIdOrIds];
@@ -322,11 +332,32 @@ function parseCartItem(element) {
           shownSetIds.add(String(id));
           const set = setMap[String(id)];
           if (set) {
-            group.sets.push({
-              setName:  set.Food_Set_Name,
-              setPrice: set.Food_Set_Price,
+            // Calculate surcharge from food_upgrades for this set
+            const setUpg       = dateUpgrades[String(id)] || {};
+            const extraViands  = (Array.isArray(setUpg.extra_viands) ? setUpg.extra_viands : []).filter(Boolean);
+            const desserts     = (Array.isArray(setUpg.desserts)     ? setUpg.desserts     : []).filter(Boolean);
+            const switches     = setUpg.switch || {};
+            let surcharge = extraViands.length * 40 + desserts.length * 20;
+            Object.entries(switches).forEach(([origId, newId]) => {
+              if (newId && String(newId) !== String(origId)) surcharge += 20;
             });
-            dateSubtotal += Number(set.Food_Set_Price || 0) * pax;
+
+            const baseSetPrice = Number(set.Food_Set_Price || 0);
+            group.sets.push({
+              setName:     set.Food_Set_Name,
+              setPrice:    baseSetPrice + surcharge,
+              basePrice:   baseSetPrice,
+              surcharge,
+              extraViands: extraViands.map(vid => {
+                const f = foodMap[String(vid)];
+                return f ? f.Food_Name : null;
+              }).filter(Boolean),
+              desserts: desserts.map(did => {
+                const f = foodMap[String(did)];
+                return f ? f.Food_Name : null;
+              }).filter(Boolean),
+            });
+            dateSubtotal += (baseSetPrice + surcharge) * pax;
           }
         });
       });
@@ -392,8 +423,10 @@ function parseCartItem(element) {
     foodGroups,
     foodEnabled,
     mealEnabled,
+    mealMode,
     foodSelections,
     foodSetSel,
+    foodUpgrades,
   };
 }
 
@@ -472,14 +505,34 @@ function renderSummaryFoods() {
         } else {
           html += `<div class="sf-section-label">Sets</div>`;
           group.sets.forEach(s => {
-            const baseP = Number(s.setPrice || 0);
-            const total = baseP * item.pax;
+            const displayP = Number(s.setPrice || 0);   // already includes surcharge
+            const total    = displayP * item.pax;
             html += `
               <div class="sf-meal-row">
                 <span class="sf-meal-icon">🍱</span>
                 <span class="sf-meal-name sf-meal-name--full">${escHtml(s.setName)}</span>
-                <span class="sf-meal-price"><span class="sf-price-formula">₱${baseP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
+                <span class="sf-meal-price"><span class="sf-price-formula">₱${displayP.toLocaleString('en-PH',{minimumFractionDigits:2})} × ${item.pax} pax</span> = ${formatPeso(total)}</span>
               </div>`;
+            // Extra viands from Customize
+            (s.extraViands || []).forEach(name => {
+              const evTotal = 40 * item.pax;
+              html += `
+              <div class="sf-meal-row sf-meal-row--upgrade">
+                <span class="sf-meal-icon">➕</span>
+                <span class="sf-meal-name sf-meal-name--full">${escHtml(name)} <span class="sf-upgrade-tag">Extra Viand</span></span>
+                <span class="sf-meal-price"><span class="sf-price-formula">₱40.00 × ${item.pax} pax</span> = ${formatPeso(evTotal)}</span>
+              </div>`;
+            });
+            // Desserts from Customize
+            (s.desserts || []).forEach(name => {
+              const dTotal = 20 * item.pax;
+              html += `
+              <div class="sf-meal-row sf-meal-row--upgrade">
+                <span class="sf-meal-icon">🍮</span>
+                <span class="sf-meal-name sf-meal-name--full">${escHtml(name)} <span class="sf-upgrade-tag">Dessert</span></span>
+                <span class="sf-meal-price"><span class="sf-price-formula">₱20.00 × ${item.pax} pax</span> = ${formatPeso(dTotal)}</span>
+              </div>`;
+            });
           });
         }
       }
@@ -584,8 +637,10 @@ function updateHiddenSelectedItemsInput() {
     food:             item.food || [],
     food_enabled:     item.foodEnabled     || {},
     meal_enabled:     item.mealEnabled     || {},
+    meal_mode:        item.mealMode        || {},
     food_selections:  item.foodSelections  || {},
     food_set_selection: item.foodSetSel    || {},
+    food_upgrades:    item.foodUpgrades    || {},
   }));
 
   input.value = JSON.stringify(selectedItems);

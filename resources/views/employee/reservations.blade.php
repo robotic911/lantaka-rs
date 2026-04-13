@@ -128,225 +128,300 @@
               </tr>
             </thead>
             <tbody>
-              {{-- DYNAMIC LOOP STARTS HERE --}}
-              @forelse($reservations as $reservation)
-                  @if(in_array($reservation->status, ['pending','confirmed','checked-in','rejected']))
-                  @php
-                      // Reset per-row overrides (prevent bleed-over between loop iterations)
-                      $overrideFoods    = null;
-                      $overrideFoodSets = null;
+                {{-- DYNAMIC LOOP STARTS HERE --}}
+                @forelse($reservations as $reservation)
+                    @if(in_array($reservation->status, ['pending','confirmed','checked-in','rejected']))
+                    @php
+                        // Reset per-row overrides (prevent bleed-over between loop iterations)
+                        $overrideFoods    = null;
+                        $overrideFoodSets = null;
 
-                      // 1. IDENTIFY TYPE FIRST! (This fixes the undefined variable error)
-                      $isRoom = ($reservation->display_type === 'room');
+                        // 1. IDENTIFY TYPE FIRST! (This fixes the undefined variable error)
+                        $isRoom = ($reservation->display_type === 'room');
 
-                      // 2. Map Database Columns
-                      $dbId = $isRoom ? $reservation->Room_Reservation_ID : $reservation->Venue_Reservation_ID;
-                      $dbCheckIn = $isRoom ? $reservation->Room_Reservation_Check_In_Time : $reservation->Venue_Reservation_Check_In_Time;
-                      $dbCheckOut = $isRoom ? $reservation->Room_Reservation_Check_Out_Time : $reservation->Venue_Reservation_Check_Out_Time;
-                      $dbTotal = $isRoom ? $reservation->Room_Reservation_Total_Price : $reservation->Venue_Reservation_Total_Price;
+                        // 2. Map Database Columns
+                        $dbId = $isRoom ? $reservation->Room_Reservation_ID : $reservation->Venue_Reservation_ID;
+                        $dbCheckIn = $isRoom ? $reservation->Room_Reservation_Check_In_Time : $reservation->Venue_Reservation_Check_In_Time;
+                        $dbCheckOut = $isRoom ? $reservation->Room_Reservation_Check_Out_Time : $reservation->Venue_Reservation_Check_Out_Time;
+                        $dbTotal = $isRoom ? $reservation->Room_Reservation_Total_Price : $reservation->Venue_Reservation_Total_Price;
 
-                      // 3. Setup Accommodation Name & Type
-                      $accName = $isRoom
-                          ? 'Room: ' . ($reservation->room?->Room_Number ?? 'N/A')
-                          : 'Venue: ' . ($reservation->venue?->Venue_Name ?? 'N/A');
-                      $reservationType = $isRoom ? 'Room' : 'Venue';
+                        // 3. Setup Accommodation Name & Type
+                        $accName = $isRoom
+                            ? 'Room: ' . ($reservation->room?->Room_Number ?? 'N/A')
+                            : 'Venue: ' . ($reservation->venue?->Venue_Name ?? 'N/A');
+                        $reservationType = $isRoom ? 'Room' : 'Venue';
 
-                      // 4. Setup Pricing Variables for the JavaScript
-                      $basePrice = 0;
-                      $discount = 0;
-                      $extraFees = 0;
-                      $extraFeesDesc = '';
-                      $foodTotal = 0;
-
-
-                      $checkIn = \Carbon\Carbon::parse($dbCheckIn);
-                      $checkOut = \Carbon\Carbon::parse($dbCheckOut);
-
-                      // Rooms bill per night (Mar 25–26 = 1 night)
-                      // Venues bill per day inclusive (Mar 25–26 = 2 days)
-                      $nights = $isRoom
-                          ? ($checkIn->diffInDays($checkOut) ?: 1)
-                          : ($checkIn->diffInDays($checkOut) + 1);
+                        // 4. Setup Pricing Variables for the JavaScript
+                        $basePrice = 0;
+                        $discount = 0;
+                        $extraFees = 0;
+                        $extraFeesDesc = '';
+                        $foodTotal = 0;
 
 
-                      if($isRoom) {
-                          $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
-                              ? ($reservation->room?->Room_Internal_Price ?? 0)
-                              : ($reservation->room?->Room_External_Price ?? 0);
-                          $discount = $reservation->Room_Reservation_Discount ?? 0;
-                          $extraFees = $reservation->Room_Reservation_Additional_Fees ?? 0;
-                          $extraFeesDesc = $reservation->Room_Reservation_Additional_Fees_Desc ?? '';
-                      } else {
-                          $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
-                              ? ($reservation->venue?->Venue_Internal_Price ?? 0)
-                              : ($reservation->venue?->Venue_External_Price ?? 0);
-                          $discount = $reservation->Venue_Reservation_Discount ?? 0;
-                          $extraFees = $reservation->Venue_Reservation_Additional_Fees ?? 0;
-                          $extraFeesDesc = $reservation->Venue_Reservation_Additional_Fees_Desc ?? '';
-                          $foodTotal = $reservation->foods ? $reservation->foods->sum('pivot.Food_Reservation_Total_Price') : 0;
-                          $foodTotal += $reservation->foodSetReservations ? $reservation->foodSetReservations->sum('Food_Reservation_Total_Price') : 0;
+                        $checkIn = \Carbon\Carbon::parse($dbCheckIn);
+                        $checkOut = \Carbon\Carbon::parse($dbCheckOut);
 
-                          // Pre-process set reservations into ready-to-render data for the modal
-                          // custom_ids positions: 0=Rice, 1=Drink, 2=Dessert, 3=Fruit
-                          $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
-                          $foodSets = $reservation->foodSetReservations ? $reservation->foodSetReservations->map(function($r) use ($_customPosLabels) {
-                              $raw = $r->Food_Set_ID ?? '';
+                        // Rooms bill per night (Mar 25–26 = 1 night)
+                        // Venues bill per day inclusive (Mar 25–26 = 2 days)
+                        $nights = $isRoom
+                            ? ($checkIn->diffInDays($checkOut) ?: 1)
+                            : ($checkIn->diffInDays($checkOut) + 1);
 
-                              // ── Buffet flat-rate record ──────────────────────
-                              if (preg_match('/^buffet:(\d+)$/', $raw, $bm)) {
-                                  return [
-                                      'date'         => $r->Food_Reservation_Serving_Date,
-                                      'meal_time'    => $r->Food_Reservation_Meal_time,
-                                      'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
-                                      'set_name'     => 'Buffet',
-                                      'set_price'    => (float)$bm[1],
-                                      'set_foods'    => [],
-                                      'custom_items' => [],
-                                      'is_buffet'    => true,
-                                      'buffet_tier'  => (int)$bm[1],
-                                  ];
-                              }
 
-                              $setId = null; $customIds = [];
-                              if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
-                                  $setId = (int)$m[1];
-                                  $customIds = json_decode($m[2], true) ?: [];
-                              } elseif (is_numeric($raw) && $raw !== '') {
-                                  $setId = (int)$raw;
-                              }
-                              $set = $setId ? \App\Models\FoodSet::find($setId) : null;
+                        if($isRoom) {
+                            $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
+                                ? ($reservation->room?->Room_Internal_Price ?? 0)
+                                : ($reservation->room?->Room_External_Price ?? 0);
+                            $discount = $reservation->Room_Reservation_Discount ?? 0;
+                            $extraFees = $reservation->Room_Reservation_Additional_Fees ?? 0;
+                            $extraFeesDesc = $reservation->Room_Reservation_Additional_Fees_Desc ?? '';
+                        } else {
+                            $basePrice = ($reservation->user && $reservation->user->Account_Type === 'Internal')
+                                ? ($reservation->venue?->Venue_Internal_Price ?? 0)
+                                : ($reservation->venue?->Venue_External_Price ?? 0);
+                            $discount = $reservation->Venue_Reservation_Discount ?? 0;
+                            $extraFees = $reservation->Venue_Reservation_Additional_Fees ?? 0;
+                            $extraFeesDesc = $reservation->Venue_Reservation_Additional_Fees_Desc ?? '';
+                            $buffetSlots = ($reservation->foodSetReservations ?? collect())
+                                ->filter(fn($r) => preg_match('/^buffet:(\d+)$/', (string) ($r->Food_Set_ID ?? '')))
+                                ->mapWithKeys(function ($r) {
+                                    $slotKey = ($r->Food_Reservation_Serving_Date ?? '') . '|' . strtolower((string) ($r->Food_Reservation_Meal_time ?? ''));
+                                    return [$slotKey => true];
+                                })->all();
+                            $foodTotal = $reservation->foods
+                                ? $reservation->foods->filter(function ($food) use ($buffetSlots) {
+                                    $slotKey = ($food->pivot->Food_Reservation_Serving_Date ?? '') . '|' . strtolower((string) ($food->pivot->Food_Reservation_Meal_time ?? ''));
+                                    return empty($buffetSlots[$slotKey]);
+                                })->sum('pivot.Food_Reservation_Total_Price')
+                                : 0;
 
-                              // All base foods in the set definition, each with their category
-                              $setFoods = [];
-                              if ($set && !empty($set->Food_Set_Food_IDs)) {
-                                  $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
-                                      ->get()
-                                      ->map(fn($f) => [
-                                          'name'     => $f->Food_Name,
-                                          'category' => ucfirst(strtolower($f->Food_Category ?? 'Food')),
-                                      ])->toArray();
-                              }
+                            // Pre-process set reservations into ready-to-render data for the modal
+                            // custom_ids positions: 0=Rice, 1=Drink, 2=Dessert, 3=Fruit
+                            $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
+                            $foodSets = $reservation->foodSetReservations ? $reservation->foodSetReservations->map(function($r) use ($_customPosLabels, $reservation) {
+                                $raw = $r->Food_Set_ID ?? '';
+                                $pax = max(1, (int) ($reservation->Venue_Reservation_Pax ?? 1));
 
-                              // Customized items (rice, drink, dessert, fruit) with real category labels
-                              $customItems = [];
-                              foreach ($customIds as $i => $cid) {
-                                  if (!empty($cid) && is_numeric($cid)) {
-                                      $food = \App\Models\Food::find((int)$cid);
-                                      if ($food) {
-                                          $customItems[] = [
-                                              'name'     => $food->Food_Name,
-                                              'category' => $_customPosLabels[$i]
-                                                  ?? ucfirst(strtolower($food->Food_Category ?? 'Custom')),
-                                          ];
-                                      }
-                                  }
-                              }
+                                // ── Buffet flat-rate record ──────────────────────
+                                if (preg_match('/^buffet:(\d+)$/', $raw, $bm)) {
+                                    return [
+                                        'date'         => $r->Food_Reservation_Serving_Date,
+                                        'meal_time'    => $r->Food_Reservation_Meal_time,
+                                        'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
+                                        'set_name'     => 'Buffet',
+                                        'set_price'    => (float)$bm[1],
+                                        'set_foods'    => [],
+                                        'custom_items' => [],
+                                        'is_buffet'    => true,
+                                        'buffet_tier'  => (int)$bm[1],
+                                    ];
+                                }
 
-                              return [
-                                  'date'         => $r->Food_Reservation_Serving_Date,
-                                  'meal_time'    => $r->Food_Reservation_Meal_time,
-                                  'total_price'  => (float)($r->Food_Reservation_Total_Price ?? 0),
-                                  'set_name'     => $set?->Food_Set_Name ?? 'Unknown Set',
-                                  'set_price'    => (float)($set?->Food_Set_Price ?? 0),
-                                  'set_foods'    => $setFoods,
-                                  'custom_items' => $customItems,
-                              ];
-                          })->toArray() : [];
+                                $setId = null; $customIds = [];
+                                if (preg_match('/^"(\d+)",(\[.*\])$/', $raw, $m)) {
+                                    $setId = (int)$m[1];
+                                    $customIds = json_decode($m[2], true) ?: [];
+                                } elseif (is_numeric($raw) && $raw !== '') {
+                                    $setId = (int)$raw;
+                                }
+                                $set = $setId ? \App\Models\FoodSet::find($setId) : null;
 
-                          // ── Override foods/food_sets with change_request_details ──────────────
-                          // When the client has a pending food (or reschedule+food) change request,
-                          // display what they actually want instead of whatever is in FoodReservation.
-                          if (
-                              $reservation->change_request_status === 'pending' &&
-                              in_array($reservation->change_request_type ?? '', ['food_modification', 'reschedule_and_food'])
-                          ) {
-                              $crDetails      = $reservation->change_request_details ?? [];
-                              $crFoodSel      = $crDetails['food_selections']    ?? [];
-                              $crSetSel       = $crDetails['food_set_selection'] ?? [];
-                              $crFoodEnabled  = $crDetails['food_enabled']       ?? [];
-                              $crMealMode     = $crDetails['meal_mode']          ?? [];
-                              $crPax          = $isRoom
-                                                  ? ($reservation->Room_Reservation_Pax  ?? 1)
-                                                  : ($reservation->Venue_Reservation_Pax ?? 1);
+                                // All base foods in the set definition, each with their category
+                                $setFoods = [];
+                                if ($set && !empty($set->Food_Set_Food_IDs)) {
+                                    $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
+                                        ->get()
+                                        ->map(fn($f) => [
+                                            'name'     => $f->Food_Name,
+                                            'category' => ucfirst(strtolower($f->Food_Category ?? 'Food')),
+                                        ])->toArray();
+                                }
 
-                              if (!empty($crFoodSel) || !empty($crSetSel)) {
+                                // Customized items (rice, drink, dessert, fruit) with real category labels
+                                $customItems = [];
 
-                                  // ── Build individual foods array ──────────────────────────────
-                                  // Skip _tier (buffet price tier) and drink_choice keys when extracting IDs
-                                  $crFoodIds = [];
-                                  $crCollect = function($data) use (&$crCollect, &$crFoodIds) {
-                                      if (is_array($data)) {
-                                          foreach ($data as $k => $v) {
-                                              if ($k === 'drink_choice' || $k === '_tier') continue;
-                                              $crCollect($v);
-                                          }
-                                      } elseif (is_numeric($data) && !empty($data)) {
-                                          $crFoodIds[] = (int) $data;
-                                      }
-                                  };
-                                  foreach ($crFoodSel as $_d => $_meals) {
-                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
-                                      $crCollect($_meals);
-                                  }
-                                  $crFoodIds    = array_values(array_unique($crFoodIds));
-                                  $crFoodModels = !empty($crFoodIds)
-                                      ? \App\Models\Food::whereIn('Food_ID', $crFoodIds)->get()->keyBy('Food_ID')
-                                      : collect();
+  // Base custom items: 0=Rice, 1=Drink, 2=Dessert, 3=Fruit
+  foreach ($customIds as $i => $cid) {
+      if ($i <= 3 && !empty($cid) && is_numeric($cid)) {
+          $food = \App\Models\Food::find((int) $cid);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => $_customPosLabels[$i]
+                      ?? ucfirst(strtolower($food->Food_Category ?? 'Custom')),
+              ];
+          }
+      }
+  }
 
-                                  $crFoodsArr = [];
-                                  foreach ($crFoodSel as $_d => $_meals) {
-                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
-                                      foreach ($_meals as $_mealKey => $_mealData) {
-                                          if (empty($_mealData)) continue;
-                                          $_isBuffet = ($crMealMode[$_d][$_mealKey] ?? '') === 'buffet';
-                                          $mealIds = [];
-                                          $crExtract = function($data) use (&$crExtract, &$mealIds) {
-                                              if (is_array($data)) {
-                                                  foreach ($data as $k => $v) {
-                                                      if ($k === 'drink_choice' || $k === '_tier') continue;
-                                                      $crExtract($v);
-                                                  }
-                                              } elseif (is_numeric($data) && !empty($data)) {
-                                                  $mealIds[] = (int) $data;
-                                              }
-                                          };
-                                          $crExtract($_mealData);
-                                          foreach (array_unique($mealIds) as $_fid) {
-                                              $f = $crFoodModels->get($_fid);
-                                              if (!$f) continue;
-                                              // Build plain array matching the shape renderFoodCards expects:
-                                              // top-level Food fields + nested 'pivot' key
-                                              // For buffet meals, pivot price = 0 (flat rate is in crFoodSetsArr)
-                                              $crFoodsArr[] = [
-                                                  'Food_ID'       => $f->Food_ID,
-                                                  'Food_Name'     => $f->Food_Name,
-                                                  'Food_Price'    => $_isBuffet ? 0 : $f->Food_Price,
-                                                  'Food_Category' => $f->Food_Category,
-                                                  'pivot'         => [
-                                                      'Food_Reservation_Serving_Date' => $_d,
-                                                      'Food_Reservation_Meal_time'    => $_mealKey,
-                                                      'Food_Reservation_Total_Price'  => $_isBuffet ? 0 : (($f->Food_Price ?? 0) * $crPax),
-                                                      'Food_Reservation_ID'           => null,
-                                                      'Food_Reservation_Status'       => null,
-                                                      'Food_Set_ID'                   => null,
-                                                  ],
-                                              ];
-                                          }
-                                      }
-                                  }
+  // Extra viands at index 4
+  foreach ((array) ($customIds[4] ?? []) as $extraViandId) {
+      if (!empty($extraViandId) && is_numeric($extraViandId)) {
+          $food = \App\Models\Food::find((int) $extraViandId);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => 'Extra Viand',
+              ];
+          }
+      }
+  }
 
+  // Extra desserts at index 5
+  foreach ((array) ($customIds[5] ?? []) as $extraDessertId) {
+      if (!empty($extraDessertId) && is_numeric($extraDessertId)) {
+          $food = \App\Models\Food::find((int) $extraDessertId);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => 'Extra Dessert',
+              ];
+          }
+      }
+  }
+
+                                $baseSetPrice = (float) ($set?->Food_Set_Price ?? 0);
+                                $storedTotal = (float) ($r->Food_Reservation_Total_Price ?? 0);
+                                $extraViandCount = count((array) ($customIds[4] ?? []));
+                                $extraDessertCount = count((array) ($customIds[5] ?? []));
+                                $computedSetPrice = $baseSetPrice + ($extraViandCount * 40) + ($extraDessertCount * 20);
+                                $effectiveSetPrice = max($computedSetPrice, $pax > 0 ? ($storedTotal / $pax) : 0);
+                                $effectiveTotal = max($storedTotal, $effectiveSetPrice * $pax);
+
+                                return [
+                                    'date'         => $r->Food_Reservation_Serving_Date,
+                                    'meal_time'    => $r->Food_Reservation_Meal_time,
+                                    'total_price'  => $effectiveTotal,
+                                    'set_name'     => $set?->Food_Set_Name ?? 'Unknown Set',
+                                    'set_price'    => $effectiveSetPrice,
+                                    'set_foods'    => $setFoods,
+                                    'custom_items' => $customItems,
+                                ];
+                            })->toArray() : [];
+                            $foodTotal += collect($foodSets)->sum('total_price');
+
+                            // ── Override foods/food_sets with change_request_details ──────────────
+                            // When the client has a pending food (or reschedule+food) change request,
+                            // display what they actually want instead of whatever is in FoodReservation.
+                            if (
+                                $reservation->change_request_status === 'pending' &&
+                                in_array($reservation->change_request_type ?? '', ['food_modification', 'reschedule_and_food'])
+                            ) {
+                                $crDetails      = $reservation->change_request_details ?? [];
+                                $crFoodSel      = $crDetails['food_selections']    ?? [];
+                                $crSetSel       = $crDetails['food_set_selection'] ?? [];
+                                $crFoodEnabled  = $crDetails['food_enabled']       ?? [];
+                                $crMealMode     = $crDetails['meal_mode']          ?? [];
+                                $crFoodUpgrades = $crDetails['food_upgrades']      ?? [];
+                                $crPax          = $isRoom
+                                                    ? ($reservation->Room_Reservation_Pax  ?? 1)
+                                                    : ($reservation->Venue_Reservation_Pax ?? 1);
+
+                                if (!empty($crFoodSel) || !empty($crSetSel)) {
+                                    // Set customisations are already priced inside each set row.
+                                    // Skip those meal keys when building standalone food rows to
+                                    // avoid double-counting rice/drink/dessert choices.
+                                    $crSkipMealKeys = [];
+                                    foreach ($crSetSel as $_d => $_meals) {
+                                        foreach ((array) $_meals as $_mk => $_ids) {
+                                            $_isArr = is_array($_ids);
+                                            $_rawIds = $_isArr ? $_ids : [$_ids];
+                                            foreach ($_rawIds as $_id) {
+                                                if (!empty($_id)) {
+                                                    $crSkipMealKeys[$_d]["gen_{$_id}"] = true;
+                                                }
+                                            }
+                                            if (!$_isArr && !empty($_ids)) {
+                                                $crSkipMealKeys[$_d][$_mk] = true;
+                                            }
+                                        }
+                                    }
+
+                                    // ── Build individual foods array ──────────────────────────────
+                                    // Skip _tier (buffet price tier) and drink_choice keys when extracting IDs
+                                    $crFoodIds = [];
+                                    $crCollect = function($data) use (&$crCollect, &$crFoodIds) {
+                                        if (is_array($data)) {
+                                            foreach ($data as $k => $v) {
+                                                if ($k === 'drink_choice' || $k === '_tier') continue;
+                                                $crCollect($v);
+                                            }
+                                        } elseif (is_numeric($data) && !empty($data)) {
+                                            $crFoodIds[] = (int) $data;
+                                        }
+                                    };
+                                    foreach ($crFoodSel as $_d => $_meals) {
+                                        if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                        $_mealsForScan = array_diff_key((array) $_meals, $crSkipMealKeys[$_d] ?? []);
+                                        $crCollect($_mealsForScan);
+                                    }
+                                    $crFoodIds    = array_values(array_unique($crFoodIds));
+                                    $crFoodModels = !empty($crFoodIds)
+                                        ? \App\Models\Food::whereIn('Food_ID', $crFoodIds)->get()->keyBy('Food_ID')
+                                        : collect();
+
+                                    $crFoodsArr = [];
+                                    foreach ($crFoodSel as $_d => $_meals) {
+                                        if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                        foreach ($_meals as $_mealKey => $_mealData) {
+                                            if (empty($_mealData)) continue;
+                                            if (!empty($crSkipMealKeys[$_d][$_mealKey])) continue;
+                                            $_isBuffet = ($crMealMode[$_d][$_mealKey] ?? '') === 'buffet';
+                                            $mealIds = [];
+                                            $crExtract = function($data) use (&$crExtract, &$mealIds) {
+                                                if (is_array($data)) {
+                                                    foreach ($data as $k => $v) {
+                                                        if ($k === 'drink_choice' || $k === '_tier') continue;
+                                                        $crExtract($v);
+                                                    }
+                                                } elseif (is_numeric($data) && !empty($data)) {
+                                                    $mealIds[] = (int) $data;
+                                                }
+                                            };
+                                            $crExtract($_mealData);
+                                            foreach (array_unique($mealIds) as $_fid) {
+                                                $f = $crFoodModels->get($_fid);
+                                                if (!$f) continue;
+                                                // Build plain array matching the shape renderFoodCards expects:
+                                                // top-level Food fields + nested 'pivot' key
+                                                // For buffet meals, pivot price = 0 (flat rate is in crFoodSetsArr)
+                                                $crFoodsArr[] = [
+                                                    'Food_ID'       => $f->Food_ID,
+                                                    'Food_Name'     => $f->Food_Name,
+                                                    'Food_Price'    => $_isBuffet ? 0 : $f->Food_Price,
+                                                    'Food_Category' => $f->Food_Category,
+                                                    'pivot'         => [
+                                                        'Food_Reservation_Serving_Date' => $_d,
+                                                        'Food_Reservation_Meal_time'    => $_mealKey,
+                                                        'Food_Reservation_Total_Price'  => $_isBuffet ? 0 : (($f->Food_Price ?? 0) * $crPax),
+                                                        'Food_Reservation_ID'           => null,
+                                                        'Food_Reservation_Status'       => null,
+                                                        'Food_Set_ID'                   => null,
+                                                    ],
+                                                ];
+                                            }
+                                        }
+                                    }
+                                    // TODO: EXTRA VIANDS , EXTRA DESSERTS
+                                    // ── Build food_sets array ─────────────────────────────────────
                                   // ── Build food_sets array ─────────────────────────────────────
                                   $_customPosLabels = ['Rice', 'Drink', 'Dessert', 'Fruit'];
                                   $crFoodSetsArr = [];
+
                                   foreach ($crSetSel as $_d => $_meals) {
                                       if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+
                                       foreach ((array) $_meals as $_mealKey => $_setIdOrIds) {
                                           $isArr  = is_array($_setIdOrIds);
                                           $setIds = $isArr ? $_setIdOrIds : [$_setIdOrIds];
+
                                           foreach ($setIds as $_setId) {
                                               if (empty($_setId)) continue;
+
                                               $set = \App\Models\FoodSet::find((int) $_setId);
                                               if (!$set) continue;
+
                                               $setFoods = [];
                                               if (!empty($set->Food_Set_Food_IDs)) {
                                                   $setFoods = \App\Models\Food::whereIn('Food_ID', $set->Food_Set_Food_IDs)
@@ -356,46 +431,115 @@
                                                           'category' => ucfirst(strtolower($sf->Food_Category ?? 'Food')),
                                                       ])->toArray();
                                               }
-                                              // Customisation IDs
+
                                               if (!$isArr) {
                                                   // Spiritual set — customisations live under the mealKey in food_selections
-                                                  $mSel  = $crFoodSel[$_d][$_mealKey] ?? [];
-                                                  $cids  = [
-                                                      $mSel['rice_type']  ?? '',
-                                                      ($_mealKey === 'breakfast' ? ($mSel['hot_drink'] ?? '') : ($mSel['softdrinks'] ?? '')),
+                                                  $mSel = $crFoodSel[$_d][$_mealKey] ?? [];
+                                                  $cids = [
+                                                      $mSel['rice_type'] ?? '',
+                                                      ($_mealKey === 'breakfast'
+                                                          ? ($mSel['hot_drink'] ?? '')
+                                                          : ($mSel['softdrinks'] ?? '')),
                                                       $mSel['dessert'] ?? '',
-                                                      $mSel['fruits']  ?? '',
+                                                      $mSel['fruits'] ?? '',
                                                   ];
                                               } else {
                                                   // General set — customisations live under gen_{setId} in food_selections
                                                   $gSel = $crFoodSel[$_d]["gen_{$_setId}"] ?? [];
                                                   $drinkVal = $gSel['drink'] ?? ($gSel['drink_choice'] ?? '');
-                                                  $cids  = [
-                                                      $gSel['rice']    ?? '',
+
+                                                  $cids = [
+                                                      $gSel['rice'] ?? '',
                                                       is_numeric($drinkVal) ? $drinkVal : '',
                                                       $gSel['dessert'] ?? '',
                                                       '',
                                                   ];
                                               }
+
                                               $customItems = [];
-                                              foreach ($cids as $_i => $_cid) {
-                                                  if (!empty($_cid) && is_numeric($_cid)) {
-                                                      $cf = \App\Models\Food::find((int) $_cid);
-                                                      if ($cf) {
+
+  // Base custom items: 0=Rice, 1=Drink, 2=Dessert, 3=Fruit
+  foreach ($cids as $i => $cid) {
+      if ($i <= 3 && !empty($cid) && is_numeric($cid)) {
+          $food = \App\Models\Food::find((int) $cid);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => $_customPosLabels[$i]
+                      ?? ucfirst(strtolower($food->Food_Category ?? 'Custom')),
+              ];
+          }
+      }
+  }
+
+  // Extra viands at index 4
+  foreach ((array) ($cids[4] ?? []) as $extraViandId) {
+      if (!empty($extraViandId) && is_numeric($extraViandId)) {
+          $food = \App\Models\Food::find((int) $extraViandId);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => 'Extra Viand',
+              ];
+          }
+      }
+  }
+
+  // Extra desserts at index 5
+  foreach ((array) ($cids[5] ?? []) as $extraDessertId) {
+      if (!empty($extraDessertId) && is_numeric($extraDessertId)) {
+          $food = \App\Models\Food::find((int) $extraDessertId);
+          if ($food) {
+              $customItems[] = [
+                  'name'     => $food->Food_Name,
+                  'category' => 'Extra Dessert',
+              ];
+          }
+      }
+  }
+
+                                              // Extra upgrades for this set
+                                              $_upg = $crFoodUpgrades[$_d][$_setId] ?? [];
+                                              $setSurchargePerPax = 0;
+
+                                              foreach ((array) ($_upg['switch'] ?? []) as $_originalFoodId => $_switchedFoodId) {
+                                                  if (!empty($_switchedFoodId) && (string) $_switchedFoodId !== (string) $_originalFoodId) {
+                                                      $setSurchargePerPax += 20;
+                                                  }
+                                              }
+
+                                              foreach ((array) ($_upg['extra_viands'] ?? []) as $_extraViandId) {
+                                                  if (!empty($_extraViandId) && is_numeric($_extraViandId)) {
+                                                      $setSurchargePerPax += 40;
+                                                      $vf = \App\Models\Food::find((int) $_extraViandId);
+                                                      if ($vf) {
                                                           $customItems[] = [
-                                                              'name'     => $cf->Food_Name,
-                                                              'category' => $_customPosLabels[$_i]
-                                                                  ?? ucfirst(strtolower($cf->Food_Category ?? 'Custom')),
+                                                              'name'     => $vf->Food_Name,
+                                                              'category' => 'Extra Viand',
                                                           ];
                                                       }
                                                   }
                                               }
+
+                                              foreach ((array) ($_upg['desserts'] ?? []) as $_extraDessertId) {
+                                                  if (!empty($_extraDessertId) && is_numeric($_extraDessertId)) {
+                                                      $setSurchargePerPax += 20;
+                                                      $df = \App\Models\Food::find((int) $_extraDessertId);
+                                                      if ($df) {
+                                                          $customItems[] = [
+                                                              'name'     => $df->Food_Name,
+                                                              'category' => 'Extra Dessert',
+                                                          ];
+                                                      }
+                                                  }
+                                              }
+
                                               $crFoodSetsArr[] = [
                                                   'date'         => $_d,
                                                   'meal_time'    => $_mealKey,
-                                                  'total_price'  => (float)(($set->Food_Set_Price ?? 0) * $crPax),
+                                                  'total_price'  => (float) ((($set->Food_Set_Price ?? 0) + $setSurchargePerPax) * $crPax),
                                                   'set_name'     => $set->Food_Set_Name ?? 'Unknown Set',
-                                                  'set_price'    => (float)($set->Food_Set_Price ?? 0),
+                                                  'set_price'    => (float) (($set->Food_Set_Price ?? 0) + $setSurchargePerPax),
                                                   'set_foods'    => $setFoods,
                                                   'custom_items' => $customItems,
                                               ];
@@ -403,132 +547,131 @@
                                       }
                                   }
 
-                                  // ── Add buffet flat-rate entries to food_sets ─────────────────
-                                  foreach ($crFoodSel as $_d => $_meals) {
-                                      if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
-                                      foreach ($_meals as $_mealKey => $_mealData) {
-                                          if (($crMealMode[$_d][$_mealKey] ?? '') !== 'buffet') continue;
-                                          $_tier = (int)(is_array($_mealData) ? ($_mealData['_tier'] ?? 350) : 350);
-                                          $crFoodSetsArr[] = [
-                                              'date'        => $_d,
-                                              'meal_time'   => $_mealKey,
-                                              'total_price' => (float)($_tier * $crPax),
-                                              'set_name'    => 'Buffet',
-                                              'set_price'   => (float)$_tier,
-                                              'set_foods'   => [],
-                                              'custom_items'=> [],
-                                              'is_buffet'   => true,
-                                              'buffet_tier' => $_tier,
-                                          ];
-                                      }
-                                  }
+                                    // ── Add buffet flat-rate entries to food_sets ─────────────────
+                                    foreach ($crFoodSel as $_d => $_meals) {
+                                        if (($crFoodEnabled[$_d] ?? '1') != '1') continue;
+                                        foreach ($_meals as $_mealKey => $_mealData) {
+                                            if (($crMealMode[$_d][$_mealKey] ?? '') !== 'buffet') continue;
+                                            $_tier = ((int)(is_array($_mealData) ? ($_mealData['_tier'] ?? 350) : 350) === 380) ? 380 : 350;
+                                            $crFoodSetsArr[] = [
+                                                'date'        => $_d,
+                                                'meal_time'   => $_mealKey,
+                                                'total_price' => (float)($_tier * $crPax),
+                                                'set_name'    => 'Buffet',
+                                                'set_price'   => (float)$_tier,
+                                                'set_foods'   => [],
+                                                'custom_items'=> [],
+                                                'is_buffet'   => true,
+                                                'buffet_tier' => $_tier,
+                                            ];
+                                        }
+                                    }
 
-                                  // Override the variables used for data-info
-                                  $overrideFoods    = $crFoodsArr;
-                                  $overrideFoodSets = $crFoodSetsArr;
-                                  $foodTotal = collect($crFoodsArr)->sum(fn($f) => ($f['Food_Price'] ?? 0) * $crPax)
-                                             + collect($crFoodSetsArr)->sum(fn($s) => $s['total_price']);
-                              }
-                          }
-                          $overrideFoods    ??= null;
-                          $overrideFoodSets ??= null;
-                      }
-                  @endphp
+                                    // Override the variables used for data-info
+                                    $overrideFoods    = $crFoodsArr;
+                                    $overrideFoodSets = $crFoodSetsArr;
+                                    $foodTotal = collect($crFoodsArr)->sum(fn($f) => $f['pivot']['Food_Reservation_Total_Price'] ?? 0)
+                                        + collect($crFoodSetsArr)->sum(fn($s) => $s['total_price']);
+                                }
+                            }
+                            $overrideFoods    ??= null;
+                            $overrideFoodSets ??= null;
+                        }
+                    @endphp
 
-                  <tr class="{{ $reservation->cancellation_status === 'pending' ? 'row-cancel-requested' : ($reservation->change_request_status === 'pending' ? 'row-change-requested' : '') }}">
-                      <td class="name-cell">
-                          <span class="user-icon">
-                            <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+                    <tr class="{{ $reservation->cancellation_status === 'pending' ? 'row-cancel-requested' : ($reservation->change_request_status === 'pending' ? 'row-change-requested' : '') }}">
+                        <td class="name-cell">
+                            <span class="user-icon">
+                              <img src="{{ asset('images/logo/topnav/user-avatar.svg') }}" alt="reservations">
+                            </span>
+                            <span>{{ $reservation->user?->Account_Name ?? 'Unknown Account' }}</span>
+                        </td>
+
+                        <td>{{ $reservation->user?->Account_Type ?? 'External' }}</td>
+
+                        <td>
+                            <strong>{{ $accName }}</strong>
+                        </td>
+
+                        <td>{{ \Carbon\Carbon::parse($dbCheckIn)->format('m/d/Y') }}</td>
+                        <td>{{ \Carbon\Carbon::parse($dbCheckOut)->format('m/d/Y') }}</td>
+                        <td>{{ $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax }}</td>
+
+                        <td>
+                        @php
+                          $status = $reservation->status;
+                          $isCheckedIn = $status === 'checked-in';
+                        @endphp
+
+                      
+
+                        {{-- Priority: cancellation request badge > change request badge > regular status --}}
+                        @if($reservation->cancellation_status === 'pending')
+                          <span class="badge cancel-req-badge">⚠ Cancel Request</span>
+                        @elseif($reservation->change_request_status === 'pending')
+                          <span class="badge change-req-badge">Request for Changes</span>
+                        @else
+                          {{-- Main status badge --}}
+                          <span class="badge {{ $isCheckedIn ? 'completed-badge' : strtolower($status) . '-badge' }}">
+                            {{ $isCheckedIn ? 'Completed' : ucfirst($status) }}
                           </span>
-                          <span>{{ $reservation->user?->Account_Name ?? 'Unknown Account' }}</span>
-                      </td>
+                        @endif
+                        </td>
 
-                      <td>{{ $reservation->user?->Account_Type ?? 'External' }}</td>
-
-                      <td>
-                          <strong>{{ $accName }}</strong>
-                      </td>
-
-                      <td>{{ \Carbon\Carbon::parse($dbCheckIn)->format('m/d/Y') }}</td>
-                      <td>{{ \Carbon\Carbon::parse($dbCheckOut)->format('m/d/Y') }}</td>
-                      <td>{{ $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax }}</td>
-
-                      <td>
-                      @php
-                        $status = $reservation->status;
-                        $isCheckedIn = $status === 'checked-in';
-                      @endphp
-
-                     
-
-                      {{-- Priority: cancellation request badge > change request badge > regular status --}}
-                      @if($reservation->cancellation_status === 'pending')
-                        <span class="badge cancel-req-badge">⚠ Cancel Request</span>
-                      @elseif($reservation->change_request_status === 'pending')
-                        <span class="badge change-req-badge">Request for Changes</span>
-                      @else
-                        {{-- Main status badge --}}
-                        <span class="badge
-                          {{ $isCheckedIn ? 'checked-in-badge' : strtolower($status) . '-badge' }}">
-                          {{ $isCheckedIn ? 'Checked-in' : ucfirst($status) }}
-                        </span>
-                      @endif
-                      </td>
-
-                      @php
-                          $expandInfo = [
-                              'nights'               => $nights,
-                              'id'                   => $dbId,
-                              'idx'                  => $reservation->display_type == 'venue' ? $reservation->Venue_ID : $reservation->Room_ID,
-                              'db_id_display'        => str_pad($dbId, 5, '0', STR_PAD_LEFT),
-                              'status'               => strtolower($reservation->status),
-                              'res_type'             => $reservation->display_type,
-                              'client_type'          => $reservation->user?->Account_Type ?? 'External',
-                              'type'                 => $reservation->user?->Account_Type ?? 'External',
-                              'phone'                => $reservation->user?->Account_Phone ?? 'Error phone',
-                              'email'                => $reservation->user?->Account_Email ?? 'Error email',
-                              'name'                 => $reservation->user?->Account_Name ?? 'Unknown Account',
-                              'accommodation'        => $accName,
-                              'accommodationType'    => $reservationType,
-                              'price'                => $basePrice,
-                              'food_total'           => $foodTotal,
-                              'discount'             => $discount,
-                              'additional_fees'      => $extraFees,
-                              'additional_fees_desc' => $extraFeesDesc,
-                              'pax'                  => $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax,
-                              'check_in'             => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
-                              'check_out'            => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
-                              'check_in_raw'         => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
-                              'check_out_raw'        => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
-                              'accommodation_id'     => $isRoom ? $reservation->Room_ID : $reservation->Venue_ID,
-                              'userId'               => $reservation->Client_ID,
-                              'purpose'              => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
-                                                                : ($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
-                              'notes'                => $isRoom ? ($reservation->Room_Reservation_Notes ?? '')
-                                                                : ($reservation->Venue_Reservation_Notes ?? ''),
-                              'foods'                => $overrideFoods    ?? ($reservation->foods ?? []),
-                              'food_sets'            => $overrideFoodSets ?? ($foodSets ?? []),
-                              'payment_status'       => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
-                              'cancellation_status'  => $reservation->cancellation_status,
-                              'change_request_status'=> $reservation->change_request_status,
-                              'change_request_type'  => $reservation->change_request_type,
-                          ];
-                      @endphp
-                      <td class="action-cell">
-                          <button class="expand-btn"
-                                  data-info='@json($expandInfo)'>
-                              ⤢
-                          </button>
-                      </td>
-                  </tr>
-                  @endif
-              @empty
-                  <tr>
-                      <td colspan="8" style="text-align: center; padding: 20px;">
-                          No reservations found matching your filters.
-                      </td>
-                  </tr>
-            @endforelse
+                        @php
+                            $expandInfo = [
+                                'nights'               => $nights,
+                                'id'                   => $dbId,
+                                'idx'                  => $reservation->display_type == 'venue' ? $reservation->Venue_ID : $reservation->Room_ID,
+                                'db_id_display'        => str_pad($dbId, 5, '0', STR_PAD_LEFT),
+                                'status'               => strtolower($reservation->status),
+                                'res_type'             => $reservation->display_type,
+                                'client_type'          => $reservation->user?->Account_Type ?? 'External',
+                                'type'                 => $reservation->user?->Account_Type ?? 'External',
+                                'phone'                => $reservation->user?->Account_Phone ?? 'Error phone',
+                                'email'                => $reservation->user?->Account_Email ?? 'Error email',
+                                'name'                 => $reservation->user?->Account_Name ?? 'Unknown Account',
+                                'accommodation'        => $accName,
+                                'accommodationType'    => $reservationType,
+                                'price'                => $basePrice,
+                                'food_total'           => $foodTotal,
+                                'discount'             => $discount,
+                                'additional_fees'      => $extraFees,
+                                'additional_fees_desc' => $extraFeesDesc,
+                                'pax'                  => $isRoom ? $reservation->Room_Reservation_Pax : $reservation->Venue_Reservation_Pax,
+                                'check_in'             => \Carbon\Carbon::parse($dbCheckIn)->format('F d, Y'),
+                                'check_out'            => \Carbon\Carbon::parse($dbCheckOut)->format('F d, Y'),
+                                'check_in_raw'         => \Carbon\Carbon::parse($dbCheckIn)->format('Y-m-d'),
+                                'check_out_raw'        => \Carbon\Carbon::parse($dbCheckOut)->format('Y-m-d'),
+                                'accommodation_id'     => $isRoom ? $reservation->Room_ID : $reservation->Venue_ID,
+                                'userId'               => $reservation->Client_ID,
+                                'purpose'              => $isRoom ? ($reservation->Room_Reservation_Purpose ?? 'Error: Purpose Missing')
+                                                                  : ($reservation->Venue_Reservation_Purpose ?? 'Error: Purpose Missing'),
+                                'notes'                => $isRoom ? ($reservation->Room_Reservation_Notes ?? '')
+                                                                  : ($reservation->Venue_Reservation_Notes ?? ''),
+                                'foods'                => $overrideFoods    ?? ($reservation->foods ?? []),
+                                'food_sets'            => $overrideFoodSets ?? ($foodSets ?? []),
+                                'payment_status'       => $isRoom ? ($reservation->Room_Reservation_Payment_Status ?? null) : ($reservation->Venue_Reservation_Payment_Status ?? null),
+                                'cancellation_status'  => $reservation->cancellation_status,
+                                'change_request_status'=> $reservation->change_request_status,
+                                'change_request_type'  => $reservation->change_request_type,
+                            ];
+                        @endphp
+                        <td class="action-cell">
+                            <button class="expand-btn"
+                                    data-info='@json($expandInfo)'>
+                                ⤢
+                            </button>
+                        </td>
+                    </tr>
+                    @endif
+                @empty
+                    <tr>
+                        <td colspan="8" style="text-align: center; padding: 20px;">
+                            No reservations found matching your filters.
+                        </td>
+                    </tr>
+              @endforelse
               {{-- DYNAMIC LOOP ENDS HERE --}}
 
             </tbody>

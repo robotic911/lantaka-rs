@@ -158,6 +158,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const prevFoodEn   = window.previousFoodEnabled    || {};
     const prevMealEn   = window.previousMealEnabled    || {};
     const prevSetSel   = window.previousSetSelections  || {};
+    const prevFoodUpg  = window.previousFoodUpgrades   || {};
 
     const hasAny = Object.keys(prevFoodSel).length > 0 ||
                    Object.keys(prevSetSel).length  > 0 ||
@@ -187,13 +188,14 @@ document.addEventListener('DOMContentLoaded', function () {
       const dateFoodSel = prevFoodSel[oldDate] || {};
       const dateSetSel  = prevSetSel[oldDate]  || {};
       const dateMealEn  = prevMealEn[oldDate]  || {};
+      const dateFoodUpg = prevFoodUpg[oldDate] || {};
 
       if (mode === 'buffet') {
-        restoreBuffetMode(date, card, dateFoodSel);
+        restoreBuffetMode(date, card, dateFoodSel, dateMealEn);
       } else if (IS_SPIRITUAL) {
         restoreSpiritualSets(date, card, dateSetSel, dateFoodSel);
       } else {
-        restoreGeneralSets(date, card, dateSetSel, dateFoodSel);
+        restoreGeneralSets(date, card, dateSetSel, dateFoodSel, dateFoodUpg);
       }
     });
 
@@ -268,7 +270,7 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   /** Restore general event set-mode selections for one date. */
-  function restoreGeneralSets(date, card, dateSetSel, dateFoodSel) {
+  function restoreGeneralSets(date, card, dateSetSel, dateFoodSel, dateFoodUpg) {
     // dateSetSel = { mealKey: [setId, ...] }  (arrays because of [] in input names)
     card.querySelectorAll('.fo-general-set-card').forEach(setCard => {
       const setId   = setCard.dataset.setId;
@@ -308,6 +310,15 @@ document.addEventListener('DOMContentLoaded', function () {
       if (dessertHidden && genFoodSel.dessert) {
         dessertHidden.value = String(genFoodSel.dessert);
       }
+
+      const stateKey = `${date}_${setId}`;
+      if (!customizationState[stateKey]) {
+        customizationState[stateKey] = buildCustomizationStateFromPrefill(date, setId, genFoodSel, dateFoodUpg || {});
+      }
+      persistCustomizationState(date, setData, setCard, customizationState[stateKey]);
+      applyCustomizationToCard(date, setData, setCard, customizationState[stateKey]);
+      const entry = selections[date]?.sets?.find(s => String(s.setId) === String(setId));
+      if (entry) entry.surcharge = customizationState[stateKey]?.surcharge || 0;
     });
 
     // Restore multi-select snacks (food_selections[date][snacks][])
@@ -327,8 +338,78 @@ document.addEventListener('DOMContentLoaded', function () {
     }
   }
 
+  function allFoodsFlat() {
+    return Object.values(foodsData).flat();
+  }
+
+  function foodLabelById(id) {
+    if (!id) return '';
+    const food = allFoodsFlat().find(f => String(f.Food_ID) === String(id));
+    return food ? food.Food_Name : String(id);
+  }
+
+  function normalizeDrinkValue(value) {
+    if (!value) return '';
+    if (/^\d+$/.test(String(value))) return String(value);
+
+    const raw = String(value).trim().toLowerCase();
+    const drink = (foodsData['drinks'] || []).find(f => {
+      const name = String(f.Food_Name || '').trim().toLowerCase();
+      return name === raw || name.startsWith(raw) || name.includes(raw);
+    });
+
+    return drink ? String(drink.Food_ID) : String(value);
+  }
+
+  function persistCustomizationState(date, set, card, state) {
+    card.querySelectorAll('.fo-cust-persisted').forEach(i => i.remove());
+
+    const pushHidden = (name, value) => {
+      if (value == null || value === '') return;
+      const h = makeHidden(name, value);
+      h.classList.add('fo-cust-persisted');
+      card.appendChild(h);
+    };
+
+    pushHidden(`food_upgrades[${date}][${set.Food_Set_ID}][rice]`, state.rice || '');
+    pushHidden(`food_upgrades[${date}][${set.Food_Set_ID}][drinks]`, state.drinks || '');
+
+    Object.entries(state.switches || {}).forEach(([originalId, switchedId]) => {
+      pushHidden(`food_upgrades[${date}][${set.Food_Set_ID}][switch][${originalId}]`, switchedId);
+    });
+
+    (state.extraViands || []).forEach(v => {
+      pushHidden(`food_upgrades[${date}][${set.Food_Set_ID}][extra_viands][]`, v.id);
+    });
+
+    (state.desserts || []).forEach(d => {
+      pushHidden(`food_upgrades[${date}][${set.Food_Set_ID}][desserts][]`, d.id);
+    });
+  }
+
+  function buildCustomizationStateFromPrefill(date, setId, genFoodSel, dateFoodUpg) {
+    const upgrades = dateFoodUpg[String(setId)] || dateFoodUpg[setId] || {};
+    const extraViands = (upgrades.extra_viands || []).map(id => ({
+      id: String(id),
+      label: foodLabelById(id),
+    })).filter(v => v.label);
+    const desserts = (upgrades.desserts || []).map(id => ({
+      id: String(id),
+      label: foodLabelById(id),
+    })).filter(v => v.label);
+
+    return {
+      surcharge: (extraViands.length * 40) + (desserts.length * 20),
+      rice: upgrades.rice || genFoodSel.rice || '',
+      switches: upgrades.switch || {},
+      drinks: upgrades.drinks || genFoodSel.drink || 'softdrinks',
+      extraViands,
+      desserts,
+    };
+  }
+
   /** Restore buffet mode selections for one date. */
-  function restoreBuffetMode(date, card, dateFoodSel) {
+  function restoreBuffetMode(date, card, dateFoodSel, dateMealEn) {
     // Iterate each per-meal section (breakfast / lunch / dinner)
     card.querySelectorAll('.fo-buffet-sel-section').forEach(selSection => {
       const mealKey = selSection.dataset.meal;
@@ -342,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const tierHidden = selSection.closest('.fo-indiv-meal-card')
                            ?.querySelector('.fo-buffet-meal-tier-hidden');
       if (tierHidden && mealSel._tier) {
-        const tier = parseInt(mealSel._tier);
+        const tier = normalizeBuffetTier(mealSel._tier);
         tierHidden.value = String(tier);
         if (!selections[date]) selections[date] = {};
         if (!selections[date][mealKey]) selections[date][mealKey] = {};
@@ -352,6 +433,21 @@ document.addEventListener('DOMContentLoaded', function () {
                           ?.querySelector(`.fo-buffet-tier-btn[data-tier="${tier}"]`);
         if (tierBtn && !tierBtn.classList.contains('fo-buffet-tier-btn--active')) {
           tierBtn.click();
+        }
+      }
+
+      const mealEnabledVal = dateMealEn[mealKey];
+      if (mealEnabledVal !== undefined && String(mealEnabledVal) === '0') {
+        const checkbox = selSection.closest('.fo-indiv-meal-card')?.querySelector('.fo-indiv-toggle-cb');
+        if (checkbox && checkbox.checked) {
+          checkbox.checked = false;
+          checkbox.dispatchEvent(new Event('change'));
+        }
+      } else {
+        const checkbox = selSection.closest('.fo-indiv-meal-card')?.querySelector('.fo-indiv-toggle-cb');
+        if (checkbox && !checkbox.checked) {
+          checkbox.checked = true;
+          checkbox.dispatchEvent(new Event('change'));
         }
       }
 
@@ -428,17 +524,25 @@ document.addEventListener('DOMContentLoaded', function () {
     columnsDiv.innerHTML = '';
 
     // Remove any stale Sub Total bar (lives outside columnsDiv as a sibling)
-    document.querySelectorAll(`.fo-spiritual-subtotal[data-subtotal-for="${date}"]`)
+    document.querySelectorAll(`.fo-spiritual-subtotal[data-subtotal-for="${date}"], .fo-date-subtotal[data-subtotal-for="${date}"]`)
       .forEach(el => el.remove());
 
     const mode = cardModes[date] || 'set';
 
     if (mode === 'buffet') {
       renderBuffetMode(date, columnsDiv);
+      const subtotalBar = el('div', 'fo-date-subtotal');
+      subtotalBar.dataset.subtotalFor = date;
+      subtotalBar.innerHTML = 'Subtotal &nbsp;<span class="fo-date-subtotal-amount">₱ 0.00</span>';
+      columnsDiv.after(subtotalBar);
     } else if (IS_SPIRITUAL) {
       renderSpiritualSet(date, columnsDiv);
     } else {
       renderGeneralSet(date, columnsDiv);
+      const subtotalBar = el('div', 'fo-date-subtotal');
+      subtotalBar.dataset.subtotalFor = date;
+      subtotalBar.innerHTML = 'Subtotal &nbsp;<span class="fo-date-subtotal-amount">₱ 0.00</span>';
+      columnsDiv.after(subtotalBar);
     }
   }
 
@@ -456,6 +560,41 @@ document.addEventListener('DOMContentLoaded', function () {
     { key: 'dinner',    label: 'Dinner' },
   ];
 
+  function normalizeBuffetTier(value) {
+    return parseInt(value, 10) === 380 ? 380 : 350;
+  }
+
+  function isBuffetMealComplete(card, date, mealKey) {
+    if (!card) return false;
+
+    const mealCard = card.querySelector(`.fo-indiv-meal-card .fo-indiv-enabled[name="meal_enabled[${date}][${mealKey}]"]`);
+    if (mealCard && mealCard.value !== '1') return false;
+
+    const tierHidden = card.querySelector(`.fo-indiv-meal-card .fo-indiv-enabled[name="meal_enabled[${date}][${mealKey}]"]`)
+      ?.closest('.fo-indiv-meal-card')
+      ?.querySelector('.fo-buffet-meal-tier-hidden');
+    const tierVal = normalizeBuffetTier(tierHidden?.value || '350');
+    const meatCount = tierVal === 380 ? 4 : 3;
+
+    for (let i = 1; i <= meatCount; i++) {
+      const sel = card.querySelector(`select[name="food_selections[${date}][${mealKey}][meatviand${i}]"]`);
+      if (!sel || !sel.value) return false;
+    }
+
+    const requiredNames = [
+      `food_selections[${date}][${mealKey}][noodleviand]`,
+      `food_selections[${date}][${mealKey}][veggieviand]`,
+      `food_selections[${date}][${mealKey}][dessert]`,
+    ];
+
+    for (const name of requiredNames) {
+      const sel = card.querySelector(`select[name="${name}"]`);
+      if (!sel || !sel.value) return false;
+    }
+
+    return true;
+  }
+
   function renderBuffetMode(date, container) {
     container.classList.add('fo-buffet-mode');
 
@@ -468,7 +607,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const card = el('div', 'fo-indiv-meal-card');
 
       // ── Hidden base inputs ──────────────────────────────────
-      const enabledHidden = makeHidden(`meal_enabled[${date}][${mealKey}]`, '1');
+      const enabledHidden = makeHidden(`meal_enabled[${date}][${mealKey}]`, '0');
       enabledHidden.classList.add('fo-indiv-enabled');
       card.appendChild(enabledHidden);
       card.appendChild(makeHidden(`meal_mode[${date}][${mealKey}]`, 'buffet'));
@@ -481,7 +620,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const toggleLabel = el('label', 'fo-indiv-toggle');
       const checkbox    = el('input');
       checkbox.type    = 'checkbox';
-      checkbox.checked = true;
+      checkbox.checked = false;
       checkbox.classList.add('fo-indiv-toggle-cb');
       const toggleSpan  = el('span', 'fo-indiv-toggle-text');
       toggleSpan.textContent = 'Include';
@@ -515,14 +654,17 @@ document.addEventListener('DOMContentLoaded', function () {
       tierWrap.appendChild(tier350);
       tierWrap.appendChild(tier380);
       card.appendChild(tierWrap);
+      tierWrap.style.opacity = '0.35';
+      tierWrap.style.pointerEvents = 'none';
 
       // ── Card body (viand + dessert dropdowns) ─────────────────
-      const body       = el('div', 'fo-indiv-card-body');
+      const body       = el('div', 'fo-indiv-card-body fo-indiv-card-body--disabled');
       const selSection = el('div', 'fo-buffet-sel-section');
       selSection.dataset.date = date;
       selSection.dataset.meal = mealKey;
       body.appendChild(selSection);
       card.appendChild(body);
+      card.classList.add('fo-indiv-meal-card--disabled');
 
       // Initialise selections for this meal
       selections[date][mealKey] = { buffetTier: 350 };
@@ -535,7 +677,7 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', () => {
           [tier350, tier380].forEach(b => b.classList.remove('fo-buffet-tier-btn--active'));
           btn.classList.add('fo-buffet-tier-btn--active');
-          const tier  = parseInt(btn.dataset.tier);
+          const tier  = normalizeBuffetTier(btn.dataset.tier);
           const count = parseInt(btn.dataset.count);
           tierHidden.value = String(tier);
           if (!selections[date][mealKey]) selections[date][mealKey] = {};
@@ -552,12 +694,8 @@ document.addEventListener('DOMContentLoaded', function () {
         card.classList.toggle('fo-indiv-meal-card--disabled', !this.checked);
         tierWrap.style.opacity       = this.checked ? '' : '0.35';
         tierWrap.style.pointerEvents = this.checked ? '' : 'none';
-        if (this.checked) {
-          if (!selections[date][mealKey]) selections[date][mealKey] = {};
-          selections[date][mealKey].buffetTier = parseInt(tierHidden.value) || 350;
-        } else {
-          delete selections[date][mealKey];
-        }
+        if (!selections[date][mealKey]) selections[date][mealKey] = {};
+        selections[date][mealKey].buffetTier = normalizeBuffetTier(tierHidden.value);
         updateTotal();
       });
 
@@ -641,6 +779,11 @@ document.addEventListener('DOMContentLoaded', function () {
     ));
 
     section.appendChild(grid);
+
+    // Recompute subtotal as soon as any buffet choice changes.
+    section.querySelectorAll('.ss-wrap').forEach(wrap => {
+      wrap.ssSelect?.addEventListener('change', updateTotal);
+    });
   }
 
   /** @deprecated Use buildBuffetMealSelections — kept so any stale references don't crash. */
@@ -1690,7 +1833,22 @@ document.addEventListener('DOMContentLoaded', function () {
 
   function openCustomizeModal(date, set, card) {
     const stateKey  = `${date}_${set.Food_Set_ID}`;
-    const saved     = customizationState[stateKey] || {};
+    const saved     = customizationState[stateKey] || buildCustomizationStateFromPrefill(
+      date,
+      set.Food_Set_ID,
+      {
+        rice: card.querySelector(`.fo-rice-inline-ss`)?.ssSelect?.value || '',
+        drink: card.querySelector('.fo-drink-ss')?.ssSelect?.value || '',
+      },
+      {
+        [set.Food_Set_ID]: {
+          rice: card.querySelector(`.fo-rice-inline-ss`)?.ssSelect?.value || '',
+          drinks: card.querySelector('.fo-drink-ss')?.ssSelect?.value || '',
+          extra_viands: [...card.querySelectorAll(`input[name="food_upgrades[${date}][${set.Food_Set_ID}][extra_viands][]"]`)].map(i => i.value),
+          desserts: [...card.querySelectorAll(`input[name="food_upgrades[${date}][${set.Food_Set_ID}][desserts][]"]`)].map(i => i.value),
+        },
+      }
+    );
     const basePrice = parseFloat(set.Food_Set_Price);
 
     // ── Build overlay ──────────────────────────────────────
@@ -1765,9 +1923,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Drinks
     leftCol.appendChild(buildCustSelectRow('Drinks', null,
-      makeSelectEl(`food_upgrades[${date}][${set.Food_Set_ID}][drinks]`,
-        [{ value: 'softdrinks', label: 'Softdrinks' }, { value: 'juice', label: 'Juice' }],
-        null, saved.drinks || 'softdrinks'
+      makeSelectEl(
+        `food_upgrades[${date}][${set.Food_Set_ID}][drinks]`,
+        (foodsData['drinks'] || []).map(d => ({ value: d.Food_ID, label: d.Food_Name })),
+        'Choose drink…',
+        normalizeDrinkValue(saved.drinks || card.querySelector('.fo-drink-ss')?.ssSelect?.value || '')
       )
     ));
 
@@ -1888,25 +2048,7 @@ document.addEventListener('DOMContentLoaded', function () {
         desserts:    [...dessertChips.querySelectorAll('.fo-cust-chip')].map(c => ({ id: c.dataset.cid, label: c.dataset.clabel })),
       };
 
-      // Copy all modal selects to hidden inputs on the card (for form submission)
-      card.querySelectorAll('.fo-cust-persisted').forEach(i => i.remove());
-      modal.querySelectorAll('select[name]').forEach(sel => {
-        if (!sel.value) return;
-        const h = makeHidden(sel.name, sel.value);
-        h.classList.add('fo-cust-persisted');
-        card.appendChild(h);
-      });
-      // Extra viands and desserts as hidden arrays
-      customizationState[stateKey].extraViands.forEach(v => {
-        const h = makeHidden(`food_upgrades[${date}][${set.Food_Set_ID}][extra_viands][]`, v.id);
-        h.classList.add('fo-cust-persisted');
-        card.appendChild(h);
-      });
-      customizationState[stateKey].desserts.forEach(d => {
-        const h = makeHidden(`food_upgrades[${date}][${set.Food_Set_ID}][desserts][]`, d.id);
-        h.classList.add('fo-cust-persisted');
-        card.appendChild(h);
-      });
+      persistCustomizationState(date, set, card, customizationState[stateKey]);
 
       // Update surcharge in selections
       if (selections[date]?.sets) {
@@ -1976,11 +2118,11 @@ document.addEventListener('DOMContentLoaded', function () {
       }
     });
 
-    // 3. Drink radio — check the saved choice
+    // 3. Sync drink selection
     const drinkChoice = body.querySelector('.fo-drink-choice');
     if (drinkChoice && state.drinks) {
-      const radio = drinkChoice.querySelector(`input[value="${state.drinks}"]`);
-      if (radio) radio.checked = true;
+      const drinkSsWrap = drinkChoice.querySelector('.fo-drink-ss');
+      if (drinkSsWrap) ssSetValue(drinkSsWrap, state.drinks);
     }
 
     // 4. Remove previously added extra items before re-adding
@@ -2073,16 +2215,31 @@ document.addEventListener('DOMContentLoaded', function () {
       let dateSubtotal = 0;
 
       if (mode === 'buffet') {
-        // Sum enabled meal-card tiers (each card is 350 or 380 per pax independently)
+        // Sum enabled meal-card tiers — tier derived from filled meatviandN count
+        // (mirrors server logic: 4 filled = ₱380, otherwise ₱350)
         BUFFET_MEAL_CARDS.forEach(({ key: mealKey }) => {
           // Check if this meal card's "Include" toggle is enabled
           const mealCard = card.querySelector(`.fo-indiv-meal-card .fo-indiv-enabled[name="meal_enabled[${date}][${mealKey}]"]`);
           if (mealCard && mealCard.value !== '1') return; // meal excluded
           const mealSel = sel[mealKey];
-          if (mealSel && mealSel.buffetTier) {
-            dateSubtotal += mealSel.buffetTier;
+          if (mealSel && isBuffetMealComplete(card, date, mealKey)) {
+            // Count filled meatviandN selects to determine actual tier
+            let meatCount = 0;
+            for (let mv = 1; mv <= 4; mv++) {
+              const s = card.querySelector(`select[name="food_selections[${date}][${mealKey}][meatviand${mv}]"]`);
+              if (s && s.value) meatCount++;
+            }
+            const computedTier = meatCount >= 4 ? 380 : 350;
+            dateSubtotal += computedTier;
           }
         });
+        const subtotalBar = document.querySelector(`.fo-date-subtotal[data-subtotal-for="${date}"]`);
+        if (subtotalBar) {
+          const amtEl = subtotalBar.querySelector('.fo-date-subtotal-amount');
+          if (amtEl) amtEl.textContent = '₱ ' + (dateSubtotal * pax).toLocaleString(undefined, {
+            minimumFractionDigits: 2, maximumFractionDigits: 2,
+          });
+        }
       } else if (IS_SPIRITUAL) {
         Object.values(sel).forEach(v => {
           if (v?.price) dateSubtotal += parseFloat(v.price) + parseFloat(v.surcharge || 0);
@@ -2100,6 +2257,13 @@ document.addEventListener('DOMContentLoaded', function () {
         (sel.sets || []).forEach(s => dateSubtotal += parseFloat(s.price || 0) + parseFloat(s.surcharge || 0));
         (sel.additional || []).forEach(f => dateSubtotal += parseFloat(f.price || 0));
         (sel.snacks || []).forEach(s => dateSubtotal += parseFloat(s.price || 0));
+        const subtotalBar = document.querySelector(`.fo-date-subtotal[data-subtotal-for="${date}"]`);
+        if (subtotalBar) {
+          const amtEl = subtotalBar.querySelector('.fo-date-subtotal-amount');
+          if (amtEl) amtEl.textContent = '₱ ' + (dateSubtotal * pax).toLocaleString(undefined, {
+            minimumFractionDigits: 2, maximumFractionDigits: 2,
+          });
+        }
       }
 
       subtotal += dateSubtotal;
@@ -2172,7 +2336,7 @@ document.addEventListener('DOMContentLoaded', function () {
   /* ═══════════════════════════════════════════════════════════
      9. FORM SUBMIT VALIDATION
   ═══════════════════════════════════════════════════════════ */
-  document.getElementById('foodReservationForm')?.addEventListener('submit', function (e) {
+  function validateFoodReservationForm() {
     const invalidWraps = [];
     let errorMsg       = '';
 
@@ -2196,53 +2360,62 @@ document.addEventListener('DOMContentLoaded', function () {
 
           // Determine tier for this meal card
           const tierHidden = mealCard.querySelector('.fo-buffet-meal-tier-hidden');
-          const tierVal    = parseInt(tierHidden?.value || '350');
+          const tierVal    = normalizeBuffetTier(tierHidden?.value || '350');
           const meatCount  = tierVal === 380 ? 4 : 3;
+
+          /**
+           * Mark a single buffet field as invalid.
+           * Always pushes to invalidWraps so the form is blocked even when
+           * the .ss-wrap ancestor can't be found.
+           */
+          function markBuffetFieldError(nativeSel, fallback, msg) {
+            const wrap = nativeSel?.closest('.ss-wrap');
+            if (wrap) {
+              if (!wrap.classList.contains('ss-wrap--error')) wrap.classList.add('ss-wrap--error');
+              invalidWraps.push(wrap);
+            } else {
+              // Fallback: use the selSection so the form is still blocked
+              invalidWraps.push(fallback);
+            }
+            if (!errorMsg) errorMsg = msg;
+          }
 
           // Validate N meat viand dropdowns
           for (let i = 1; i <= meatCount; i++) {
             const nativeSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][meatviand${i}]"]`);
-            if (nativeSel && !nativeSel.value) {
-              const wrap = nativeSel.closest('.ss-wrap');
-              if (wrap && !wrap.classList.contains('ss-wrap--error')) {
-                wrap.classList.add('ss-wrap--error');
-                invalidWraps.push(wrap);
-              }
-              if (!errorMsg) errorMsg = `Please select Meat Viand ${i} for ${mealKey} buffet on ${date}.`;
+            if (!nativeSel || !nativeSel.value) {
+              markBuffetFieldError(
+                nativeSel, selSection,
+                `Please select Meat Viand ${i} for ${mealKey} buffet on ${date}.`
+              );
             }
           }
 
           // Validate noodle viand
           const noodleSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][noodleviand]"]`);
-          if (noodleSel && !noodleSel.value) {
-            const wrap = noodleSel.closest('.ss-wrap');
-            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
-              wrap.classList.add('ss-wrap--error');
-              invalidWraps.push(wrap);
-            }
-            if (!errorMsg) errorMsg = `Please select a Noodle Viand for ${mealKey} buffet on ${date}.`;
+          if (!noodleSel || !noodleSel.value) {
+            markBuffetFieldError(
+              noodleSel, selSection,
+              `Please select a Noodle Viand for ${mealKey} buffet on ${date}.`
+            );
           }
 
           // Validate veggie viand
           const veggieSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][veggieviand]"]`);
-          if (veggieSel && !veggieSel.value) {
-            const wrap = veggieSel.closest('.ss-wrap');
-            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
-              wrap.classList.add('ss-wrap--error');
-              invalidWraps.push(wrap);
-            }
-            if (!errorMsg) errorMsg = `Please select a Veggie Viand for ${mealKey} buffet on ${date}.`;
+          if (!veggieSel || !veggieSel.value) {
+            markBuffetFieldError(
+              veggieSel, selSection,
+              `Please select a Veggie Viand for ${mealKey} buffet on ${date}.`
+            );
           }
 
           // Validate dessert
           const dessertSel = selSection.querySelector(`select[name="food_selections[${date}][${mealKey}][dessert]"]`);
-          if (dessertSel && !dessertSel.value) {
-            const wrap = dessertSel.closest('.ss-wrap');
-            if (wrap && !wrap.classList.contains('ss-wrap--error')) {
-              wrap.classList.add('ss-wrap--error');
-              invalidWraps.push(wrap);
-            }
-            if (!errorMsg) errorMsg = `Please select a Dessert for ${mealKey} buffet on ${date}.`;
+          if (!dessertSel || !dessertSel.value) {
+            markBuffetFieldError(
+              dessertSel, selSection,
+              `Please select a Dessert for ${mealKey} buffet on ${date}.`
+            );
           }
         });
 
@@ -2318,10 +2491,19 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (invalidWraps.length) {
-      e.preventDefault();
       window.showToast(errorMsg || 'Please complete all required food selections.');
       // Scroll first invalid element into view
       invalidWraps[0]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return false;
+    }
+    return true;
+  }
+
+  window.validateFoodReservationForm = validateFoodReservationForm;
+
+  document.getElementById('foodReservationForm')?.addEventListener('submit', function (e) {
+    if (!validateFoodReservationForm()) {
+      e.preventDefault();
     }
   });
 

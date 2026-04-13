@@ -60,6 +60,7 @@
                      data-food-set-selection='@json($foodSetSel)'
                      data-meal-mode='@json($mealMode)'
                      data-food-total="{{ $item['food_total'] }}"
+                     data-food-upgrades='@json($item['food_upgrades'] ?? [])'
                      style="cursor: pointer;">
 
                     {{-- Image --}}
@@ -138,6 +139,7 @@
                                         $dateIsBuffet  = !empty($dateMealModes) && in_array('buffet',     array_values($dateMealModes));
                                         $dateSets      = $foodSetSel[$date]    ?? [];
                                         $dateFoodSel   = $foodSel[$date]       ?? [];
+                                        $dateUpgrades  = ($item['food_upgrades'] ?? [])[$date] ?? [];
                                         $pax           = $item['pax']          ?? 1;
 
                                         // Per-date food subtotal
@@ -173,6 +175,15 @@
                                                 if (empty($sid)) continue;
                                                 $dSet = $setMap->get((int)$sid);
                                                 if ($dSet) $dateSubtotal += ($dSet->Food_Set_Price ?? 0) * $pax;
+                                                // Add surcharge from food_upgrades for this set
+                                                $setUpgrades = $dateUpgrades[(string)$sid] ?? [];
+                                                $extraViandCount = count(array_filter((array)($setUpgrades['extra_viands'] ?? [])));
+                                                $dessertCount    = count(array_filter((array)($setUpgrades['desserts'] ?? [])));
+                                                $switchCount     = 0;
+                                                foreach ((array)($setUpgrades['switch'] ?? []) as $origId => $newId) {
+                                                    if (!empty($newId) && (string)$newId !== (string)$origId) $switchCount++;
+                                                }
+                                                $dateSubtotal += ($extraViandCount * 40 + $dessertCount * 20 + $switchCount * 20) * $pax;
                                             }
                                         }
                                         // Sum snack prices (PHP mixed-key: numeric keys hold food IDs, 'snacks' key is placeholder)
@@ -465,6 +476,16 @@
                                                                     $genRiceFood    ? [$genRiceFood->Food_Name]   : [],
                                                                     $genDrinkChoice ? [ucfirst($genDrinkChoice)]  : []
                                                                 )));
+                                                                // Upgrades for this set
+                                                                $setUpg          = $dateUpgrades[(string)$setId] ?? [];
+                                                                $setExtraViands  = array_filter((array)($setUpg['extra_viands'] ?? []));
+                                                                $setDesserts     = array_filter((array)($setUpg['desserts']     ?? []));
+                                                                $setSwitches     = (array)($setUpg['switch'] ?? []);
+                                                                $setSurcharge    = count($setExtraViands) * 40 + count($setDesserts) * 20;
+                                                                foreach ($setSwitches as $origId => $newId) {
+                                                                    if (!empty($newId) && (string)$newId !== (string)$origId) $setSurcharge += 20;
+                                                                }
+                                                                $setDisplayPrice = ($set ? $set->Food_Set_Price : 0) + $setSurcharge;
                                                             @endphp
                                                             @if($set)
                                                                 <div class="food-meal-row">
@@ -474,8 +495,30 @@
                                                                             <span class="food-set-extras">({{ implode(', ', $genDetailParts) }})</span>
                                                                         @endif
                                                                     </span>
-                                                                    <span class="food-set-price">₱{{ number_format($set->Food_Set_Price, 2) }}/pax</span>
+                                                                    <span class="food-set-price">₱{{ number_format($setDisplayPrice, 2) }}/pax</span>
                                                                 </div>
+                                                                {{-- Extra viands from Customize --}}
+                                                                @foreach($setExtraViands as $evId)
+                                                                    @php $evFood = $foodMap->get((int)$evId); @endphp
+                                                                    @if($evFood)
+                                                                        <div class="food-meal-row food-meal-row--upgrade">
+                                                                            <span class="food-meal-label">+ Extra Viand</span>
+                                                                            <span class="food-set-name" style="flex:1;">{{ $evFood->Food_Name }}</span>
+                                                                            <span class="food-set-price">+₱40.00/pax</span>
+                                                                        </div>
+                                                                    @endif
+                                                                @endforeach
+                                                                {{-- Desserts from Customize --}}
+                                                                @foreach($setDesserts as $dId)
+                                                                    @php $dFood = $foodMap->get((int)$dId); @endphp
+                                                                    @if($dFood)
+                                                                        <div class="food-meal-row food-meal-row--upgrade">
+                                                                            <span class="food-meal-label">+ Dessert</span>
+                                                                            <span class="food-set-name" style="flex:1;">{{ $dFood->Food_Name }}</span>
+                                                                            <span class="food-set-price">+₱20.00/pax</span>
+                                                                        </div>
+                                                                    @endif
+                                                                @endforeach
                                                             @endif
                                                         @endif
                                                     @endforeach
