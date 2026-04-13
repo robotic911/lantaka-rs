@@ -2106,9 +2106,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (displayTotal) {
-      displayTotal.textContent = '₱ ' + (subtotal * pax).toLocaleString(undefined, {
-        minimumFractionDigits: 2, maximumFractionDigits: 2,
-      });
+      displayTotal.textContent = '₱ ' + (subtotal * pax).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     }
   }
 

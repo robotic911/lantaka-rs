@@ -121,14 +121,10 @@
                   </td>
                 </tr>
                 @empty
-
-                  <th style="display: flex; width: 150px; justify-content: center;">
-                    Status
-                  </th>
-                <tr>
-                    <td colspan="7" style="text-align: center; padding: 20px;">No accounts found.</td>
-                </tr>
-              @endforelse
+                  <tr>
+                    <td colspan="7" style="text-align:center; padding:20px;">No accounts found.</td>
+                  </tr>
+                @endforelse
             </tbody>
           </table>
           <div style="margin-top: 16px;">

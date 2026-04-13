@@ -407,7 +407,11 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('email').value = data.email || '';
       document.getElementById('affiliation').value = data.type || '';
       document.getElementById('modalName').textContent = data.accommodation || 'N/A';
-      document.getElementById('modalLastName').textContent = data.pax || '1';
+      
+      // document.getElementById('modalLastName').textContent = data.pax || '1';
+      const paxEl = document.getElementById('modalPax');
+      if (paxEl) paxEl.textContent = data.pax || '1';
+
       document.getElementById('modalCheckIn') && (document.getElementById('modalCheckIn').textContent = data.check_in || '');
       document.getElementById('modalCheckOut').textContent = data.check_out || '';
       document.getElementById('accomodation-type').textContent = data.accommodationType || '';

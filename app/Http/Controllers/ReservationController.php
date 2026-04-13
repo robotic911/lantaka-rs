@@ -640,11 +640,13 @@ class ReservationController extends Controller
         $accType = $request->input('accommodation_type');
 
         // 1. Query Room Reservations (Global for Employees)
-        $roomQuery = RoomReservation::with(['room', 'user'])
-            ->where('Client_ID', $user->Account_ID);
-        $venueQuery = VenueReservation::with(['venue', 'user', 'foods', 'foodSetReservations'])
-            ->where('Client_ID', $user->Account_ID);
-           
+        $roomQuery  = RoomReservation::with(['room', 'user']);
+        $venueQuery = VenueReservation::with(['venue', 'user', 'foods', 'foodSetReservations']);
+
+        if ($user->Account_Role === 'client') {
+            $roomQuery->where('Client_ID',  $user->Account_ID);
+            $venueQuery->where('Client_ID', $user->Account_ID);
+        }
           
         // 3. Apply Filters
         foreach ([$roomQuery, $venueQuery] as $query) {
@@ -1099,7 +1101,7 @@ class ReservationController extends Controller
                 $q->whereHas('user', fn($u) => $u->where('Account_Name', 'LIKE', "%{$search}%"))
                     ->orWhereRaw('CAST("Venue_Reservation_ID" AS TEXT) ILIKE ?', ["%{$search}%"])
                 // Using 'Venue_Name' for the Venue table search
-                    ->orWhereHas('venue', fn($v) => $v->where('Venue_Name', 'LIKE', "%{$search}%"));
+                    ->orWhereHas('venue', fn($v) => $v->where('Venue_Name', 'ILIKE', "%{$search}%"));
             });
         }
 
